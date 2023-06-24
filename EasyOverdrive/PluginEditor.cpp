@@ -65,6 +65,7 @@ Editor::Editor(Processor &processor)
   , asymDriveDecaySecond(PRM("asymDriveDecaySecond", envelopeSecond), 5)
   , asymDriveDecayBias(PRM("asymDriveDecayBias", asymDriveDecayBias), 5)
   , asymDriveQ(PRM("asymDriveQ", filterQ), 5)
+  , asymExponentRange(PRM("asymExponentRange", asymExponentRange), 5)
 
   , limiterEnabled(PRM("limiterEnabled", boolean), "Limiter")
   , limiterInputGain(PRM("limiterInputGain", gain), 5)
@@ -204,6 +205,7 @@ void Editor::resized()
   const int asymTop1 = asymTop0 + 1 * labelY;
   const int asymTop2 = asymTop0 + 2 * labelY;
   const int asymTop3 = asymTop0 + 3 * labelY;
+  const int asymTop4 = asymTop0 + 4 * labelY;
   const int asymLeft0 = left0;
   const int asymLeft1 = left1;
   asymDriveEnabled.setBounds(Rect{asymLeft0, asymTop0, sectionWidth, labelHeight});
@@ -217,7 +219,10 @@ void Editor::resized()
   labels.push_back({"Q", Rect{asymLeft0, asymTop3, labelWidth, labelHeight}});
   asymDriveQ.setBounds(Rect{asymLeft1, asymTop3, labelWidth, labelHeight});
 
-  const int limiterTop0 = asymTop3 + labelY;
+  labels.push_back({"Character", Rect{asymLeft0, asymTop4, labelWidth, labelHeight}});
+  asymExponentRange.setBounds(Rect{asymLeft1, asymTop4, labelWidth, labelHeight});
+
+  const int limiterTop0 = asymTop4 + labelY;
   const int limiterTop1 = limiterTop0 + 1 * labelY;
   const int limiterTop2 = limiterTop0 + 2 * labelY;
   const int limiterLeft0 = left0;

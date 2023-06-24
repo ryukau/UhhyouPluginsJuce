@@ -63,7 +63,7 @@ private:
   ExpSmoother<double> postDriveGain;
 
   std::array<BadLimiter<double>, 2> overDrive;
-  std::array<AsymmetryDrive<double>, 2> asymDrive;
+  std::array<AsymmetricDrive<double>, 2> asymDrive;
   std::array<BasicLimiter<double>, 2> limiter;
 
   std::array<CubicUpSampler<double, upFold>, 2> upSampler;

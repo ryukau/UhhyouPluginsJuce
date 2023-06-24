@@ -28,12 +28,13 @@ struct Scales {
 
   DecibelScale gain{float(-60), float(60), true};
   DecibelScale filterQ{float(-20), float(40), false};
+  DecibelScale envelopeSecond{float(-80), float(40), true};
 
   UIntScale overDriveType{3};
   DecibelScale overDriveHoldSecond{float(-100), float(-20), true};
 
-  DecibelScale envelopeSecond{float(-80), float(40), true};
   DecibelScale asymDriveDecayBias{float(-40), float(40), false};
+  LinearScale asymExponentRange{float(0), float(16)};
 
   UIntScale oversampling{2};
   DecibelScale parameterSmoothingSecond{float(-80), float(40), true};
@@ -52,6 +53,7 @@ struct ValueReceivers {
   std::atomic<float> *asymDriveDecaySecond{};
   std::atomic<float> *asymDriveDecayBias{};
   std::atomic<float> *asymDriveQ{};
+  std::atomic<float> *asymExponentRange{};
 
   std::atomic<float> *limiterEnabled{};
   std::atomic<float> *limiterInputGain{};
@@ -106,7 +108,7 @@ private:
     value.postDriveGain = addParameter(
       generalGroup,
       std::make_unique<ScaledParameter<Scales::DecibelScale>>(
-        scale.gain.invmapDB(0.0f), scale.gain, "postDriveGain", Cat::genericParameter,
+        scale.gain.invmapDB(-6.0f), scale.gain, "postDriveGain", Cat::genericParameter,
         version0, "dB"));
 
     value.overDriveType = addParameter(
@@ -148,6 +150,11 @@ private:
       std::make_unique<ScaledParameter<Scales::DecibelScale>>(
         scale.filterQ.invmap(std::numbers::sqrt2_v<float> / float(2)), scale.filterQ,
         "asymDriveQ", Cat::genericParameter, version0, "", Rep::raw));
+    value.asymExponentRange = addParameter(
+      generalGroup,
+      std::make_unique<ScaledParameter<Scales::LinearScale>>(
+        scale.asymExponentRange.invmap(1.0f), scale.asymExponentRange,
+        "asymExponentRange", Cat::genericParameter, version0, "", Rep::raw));
 
     value.limiterEnabled = addParameter(
       generalGroup,

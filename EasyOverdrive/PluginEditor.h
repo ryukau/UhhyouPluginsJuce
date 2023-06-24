@@ -39,6 +39,7 @@ private: // Controls tied to parameters.
   TextKnob<decltype(Scales::envelopeSecond)> asymDriveDecaySecond;
   TextKnob<decltype(Scales::asymDriveDecayBias)> asymDriveDecayBias;
   TextKnob<decltype(Scales::filterQ)> asymDriveQ;
+  TextKnob<decltype(Scales::asymExponentRange)> asymExponentRange;
 
   ToggleButton<decltype(Scales::boolean)> limiterEnabled;
   TextKnob<decltype(Scales::gain)> limiterInputGain;

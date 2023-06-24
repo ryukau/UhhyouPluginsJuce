@@ -67,7 +67,7 @@ size_t DSPCore::getLatency()
   for (auto &x : asymDrive) {                                                            \
     x.METHOD(                                                                            \
       upRate, pv.asymDriveDecaySecond->load(), pv.asymDriveDecayBias->load(),            \
-      pv.asymDriveQ->load());                                                            \
+      pv.asymDriveQ->load(), pv.asymExponentRange->load());                              \
   }                                                                                      \
                                                                                          \
   for (auto &x : limiter) {                                                              \

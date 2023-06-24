@@ -152,7 +152,7 @@ public:
       holdValue = absed - spike;
       counter = 0;
     }
-    return holdValue;
+    return counter ? holdValue : holdValue + spike;
   }
 
   inline Sample getGainSigmoid(Sample peak)
@@ -173,7 +173,8 @@ public:
     Sample peak = forwardHold(std::abs(x0), amp.process());
     Sample gain = getGainSigmoid(peak);
     Sample smoothed = std::abs(svf.process(gain));
-    return smoothed * x0;
+    Sample output = smoothed * x0;
+    return output;
   }
 
   Sample processMatched(Sample x0)
@@ -182,7 +183,8 @@ public:
     Sample gain = getGainSigmoid(peak);
     Sample smoothed = std::abs(svf.process(gain));
     Sample delayed = delay.process(x0, delayTimeSample.process());
-    return smoothed * (delayed + std::erf(x0));
+    Sample output = smoothed * (delayed - std::erf(x0));
+    return output;
   }
 
   Sample processBadLimiter(Sample x0)
@@ -191,7 +193,8 @@ public:
     Sample gain = getGainHardClip(peak);
     Sample smoothed = std::abs(svf.process(gain));
     Sample delayed = delay.process(x0, delayTimeSample.process());
-    return smoothed * (delayed + std::erf(x0));
+    Sample output = smoothed * (delayed - std::erf(x0));
+    return output;
   }
 
   Sample processPolyDrive(Sample x0)
@@ -200,11 +203,12 @@ public:
     Sample smoothed = std::abs(svf.process(peak));
     Sample delayed = delay.process(x0, delayTimeSample.process());
     Sample ratio = std::clamp(smoothed - Sample(1), Sample(0), Sample(1));
-    return poly(amp.process() * (delayed + std::erf(x0)), ratio);
+    Sample output = poly(amp.process() * (delayed - std::erf(x0)), ratio);
+    return output;
   }
 };
 
-template<typename Sample> class AsymmetryDrive {
+template<typename Sample> class AsymmetricDrive {
 private:
   static constexpr Sample eps = std::numeric_limits<Sample>::epsilon();
 
@@ -213,11 +217,13 @@ private:
   Sample accN = 0; // Negative accumulator.
   ExpSmoother<Sample> decayP;
   ExpSmoother<Sample> decayN;
+  ExpSmoother<Sample> exponentRange;
 
   SVFLP<Sample> svf;
 
 public:
-  void reset(Sample sampleRate, Sample decaySecond, Sample decayBias, Sample Q)
+  void reset(
+    Sample sampleRate, Sample decaySecond, Sample decayBias, Sample Q, Sample expRange)
   {
     x1 = 0;
     accP = 0;
@@ -227,14 +233,19 @@ public:
     decayP.reset(std::pow(eps, inv_frames));
     decayN.reset(std::pow(eps, inv_frames * decayBias));
 
+    exponentRange.reset(expRange);
+
     svf.reset(sampleRate, decaySecond, Q);
   }
 
-  void push(Sample sampleRate, Sample decaySecond, Sample decayBias, Sample Q)
+  void
+  push(Sample sampleRate, Sample decaySecond, Sample decayBias, Sample Q, Sample expRange)
   {
     Sample inv_frames = Sample(1) / std::max(sampleRate * decaySecond, Sample(2));
     decayP.push(std::pow(eps, inv_frames));
     decayN.push(std::pow(eps, inv_frames * decayBias));
+
+    exponentRange.push(expRange);
 
     svf.push(sampleRate, decaySecond, Q);
   }
@@ -255,13 +266,9 @@ public:
       accP *= decayP.v();
     }
 
-    Sample t = accP + accN;
-    t = svf.process(t);
-    t = std::clamp(t, Sample(0), Sample(1));
-
-    Sample s0 = x0 * x0;
-    Sample s1 = std::sqrt(std::abs(x0));
-    return std::copysign(s0 + t * (s1 - s0), x0);
+    Sample r = exponentRange.process();
+    Sample t = std::clamp(svf.process(accP + accN) * r, Sample(-r), Sample(r));
+    return x0 * std::exp2(t);
   }
 };
 
