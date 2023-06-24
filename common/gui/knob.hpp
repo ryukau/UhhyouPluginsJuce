@@ -34,6 +34,7 @@ protected:
 
   juce::Point<float> anchor{float(0), float(0)};
   bool isMouseEntered = false;
+  bool isMouseDragging = false;
 
   static constexpr float arcOpenPartRatio = float(1) / float(12); // In [0, 0.5].
   juce::PathStrokeType arcStrokeType;
@@ -147,13 +148,14 @@ public:
     }
 
     if (liveUpdate) attachment.beginGesture();
+    isMouseDragging = true;
     anchor = event.position;
     event.source.enableUnboundedMouseMovement(true);
   }
 
   virtual void mouseDrag(const juce::MouseEvent &event) override
   {
-    if (!event.mods.isLeftButtonDown()) return;
+    if (!event.mods.isLeftButtonDown() || !isMouseDragging) return;
 
     const auto sensi = event.mods.isShiftDown() ? lowSensitivity : sensitivity;
     value = std::clamp(value + (anchor.y - event.position.y) * sensi, 0.0f, 1.0f);
@@ -166,6 +168,7 @@ public:
 
   virtual void mouseUp(const juce::MouseEvent &event) override
   {
+    isMouseDragging = false;
     if (!event.mods.isLeftButtonDown()) return;
 
     event.source.enableUnboundedMouseMovement(false);
