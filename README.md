@@ -1,7 +1,7 @@
 # Uhhyou Plugins on JUCE
-Some audio plugins writtein on JUCE.
+Some audio plugins writtein on [JUCE](https://github.com/juce-framework/JUCE).
 
-Currently, everything on this repository is experimental. Always render the result to audio file, after using the plugins in this repository. Breaking changes might be introduced in future.
+Currently, everything on this repository is experimental. Always render the result to audio file after using the plugins in this repository. Breaking changes might be introduced in future.
 
 ## Build Instruction
 Following softwares are required.
@@ -15,7 +15,7 @@ Following softwares are required.
 
 After installation, run following commands on terminal.
 
-```ps1
+```bash
 git clone --recursive $URL_of_this_repository
 cd UhhyouPluginsJuce
 
