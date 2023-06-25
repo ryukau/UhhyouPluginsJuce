@@ -9,7 +9,7 @@ Following softwares are required.
 - C++ compiler
   - [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/) on Windows. ["Desktop development with C++"](https://learn.microsoft.com/en-us/cpp/build/vscpp-step-0-installation?view=msvc-170#step-4---choose-workloads) package is required.
   - [Xcode](https://developer.apple.com/xcode/) on macOS.
-  - `g++` on Linux.
+  - `g++` on Linux. See [JUCE documentation](https://github.com/juce-framework/JUCE/blob/master/docs/Linux%20Dependencies.md) for other dependencies.
 - [CMake](https://cmake.org/)
 - [Git](https://git-scm.com/)
 
