@@ -30,7 +30,7 @@ struct Scales {
   DecibelScale filterQ{float(-20), float(40), false};
   DecibelScale envelopeSecond{float(-80), float(40), true};
 
-  UIntScale overDriveType{3};
+  UIntScale overDriveType{6};
   DecibelScale overDriveHoldSecond{float(-100), float(-20), true};
 
   DecibelScale asymDriveDecayBias{float(-40), float(40), false};
@@ -128,8 +128,8 @@ private:
     value.overDriveCharacterAmp = addParameter(
       generalGroup,
       std::make_unique<ScaledParameter<Scales::DecibelScale>>(
-        0.0f, scale.gain, "overDriveCharacterAmp", Cat::genericParameter, version0,
-        "dB"));
+        scale.gain.invmapDB(0.0f), scale.gain, "overDriveCharacterAmp",
+        Cat::genericParameter, version0, "dB"));
 
     value.asymDriveEnabled = addParameter(
       generalGroup,

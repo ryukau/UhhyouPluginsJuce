@@ -119,22 +119,37 @@ std::array<double, 2> DSPCore::processFrame(const std::array<double, 2> &frame)
 
   switch (overDriveType) {
     default:
-    case 0: {
+    case BadLimiterType::Immediate: {
       sig0 = overDrive[0].processImmediate(sig0);
       sig1 = overDrive[1].processImmediate(sig1);
     } break;
 
-    case 1: {
+    case BadLimiterType::HardGate: {
+      sig0 = overDrive[0].processHardGate(sig0);
+      sig1 = overDrive[1].processHardGate(sig1);
+    } break;
+
+    case BadLimiterType::Spike: {
+      sig0 = overDrive[0].processSpike(sig0);
+      sig1 = overDrive[1].processSpike(sig1);
+    } break;
+
+    case BadLimiterType::CutoffMod: {
+      sig0 = overDrive[0].processCutoffMod(sig0);
+      sig1 = overDrive[1].processCutoffMod(sig1);
+    } break;
+
+    case BadLimiterType::Matched: {
       sig0 = overDrive[0].processMatched(sig0);
       sig1 = overDrive[1].processMatched(sig1);
     } break;
 
-    case 2: {
+    case BadLimiterType::BadLimiter: {
       sig0 = overDrive[0].processBadLimiter(sig0);
       sig1 = overDrive[1].processBadLimiter(sig1);
     } break;
 
-    case 3: {
+    case BadLimiterType::PolyDrive: {
       sig0 = overDrive[0].processPolyDrive(sig0);
       sig1 = overDrive[1].processPolyDrive(sig1);
     } break;

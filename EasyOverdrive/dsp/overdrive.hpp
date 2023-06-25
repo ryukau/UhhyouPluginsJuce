@@ -29,6 +29,7 @@ private:
 
   ExpSmoother<Sample> svfG;
   ExpSmoother<Sample> svfD;
+  ExpSmoother<Sample> svfK;
 
 public:
   void reset(Sample sampleRate, Sample seconds, Sample Q)
@@ -39,6 +40,7 @@ public:
     auto prm = secondToSvfParameters(sampleRate, seconds, Q);
     svfG.reset(prm[0]);
     svfD.reset(prm[1]);
+    svfK.reset(Sample(1) / Q);
   }
 
   void push(Sample sampleRate, Sample seconds, Sample Q)
@@ -46,6 +48,7 @@ public:
     auto prm = secondToSvfParameters(sampleRate, seconds, Q);
     svfG.push(prm[0]);
     svfD.push(prm[1]);
+    svfK.push(Sample(1) / Q);
   }
 
   Sample process(Sample v0)
@@ -58,6 +61,21 @@ public:
     ic1eq = Sample(2) * v1 - ic1eq;
     ic2eq = Sample(2) * v2 - ic2eq;
     return v2;
+  }
+
+  Sample processMod(Sample v0, Sample gMod, Sample resoMod)
+  {
+    const Sample g = std::clamp(
+      svfG.process() * std::exp2(std::min(gMod, Sample(16))), Sample(0), Sample(3000));
+    const Sample k = resoMod * svfK.process();
+
+    Sample v1 = (ic1eq + g * (v0 - ic2eq)) / (Sample(1) + g * g + g * k);
+    Sample v2 = ic2eq + g * v1;
+    ic1eq = Sample(2) * v1 - ic1eq;
+    ic2eq = Sample(2) * v2 - ic2eq;
+    return v2;
+
+    // return process(v0);
   }
 };
 
@@ -94,6 +112,18 @@ public:
     return buf[rptr0] + rFraction * (buf[rptr1] - buf[rptr0]);
   }
 };
+
+namespace BadLimiterType {
+enum BadLimiterType : size_t {
+  Immediate,
+  HardGate,
+  Spike,
+  CutoffMod,
+  Matched,
+  BadLimiter,
+  PolyDrive,
+};
+} // namespace BadLimiterType
 
 template<typename Sample> class BadLimiter {
 private:
@@ -155,6 +185,26 @@ public:
     return counter ? holdValue : holdValue + spike;
   }
 
+  inline Sample forwardHoldSpike(Sample absed, Sample spike)
+  {
+    ++counter;
+    if (counter > holdSamples || holdValue < absed) {
+      holdValue = absed;
+      counter = 0;
+    }
+    return counter ? holdValue : holdValue + spike;
+  }
+
+  inline Sample forwardHoldHardGate(Sample absed, Sample spike)
+  {
+    ++counter;
+    if (counter > holdSamples || holdValue < absed) {
+      holdValue = absed - Sample(1000) * spike;
+      counter = 0;
+    }
+    return holdValue;
+  }
+
   inline Sample getGainSigmoid(Sample peak)
   {
     if (peak < std::numeric_limits<Sample>::epsilon()) return 0;
@@ -177,13 +227,40 @@ public:
     return output;
   }
 
+  Sample processHardGate(Sample x0)
+  {
+    Sample peak = forwardHoldHardGate(std::abs(x0), amp.process());
+    Sample gain = getGainSigmoid(peak);
+    Sample smoothed = std::abs(svf.process(gain));
+    Sample output = smoothed * x0;
+    return output;
+  }
+
+  Sample processSpike(Sample x0)
+  {
+    Sample peak = forwardHoldSpike(std::abs(x0), amp.process());
+    Sample gain = getGainSigmoid(peak);
+    Sample smoothed = std::abs(svf.process(gain));
+    Sample output = smoothed * x0;
+    return output;
+  }
+
+  Sample processCutoffMod(Sample x0)
+  {
+    Sample peak = forwardHoldSpike(std::abs(x0), Sample(0));
+    Sample gain = getGainSigmoid(peak);
+    Sample smoothed = std::abs(svf.processMod(gain, x0 * amp.process(), Sample(1)));
+    Sample output = smoothed * x0;
+    return output;
+  }
+
   Sample processMatched(Sample x0)
   {
     Sample peak = forwardHold(std::abs(x0), amp.process());
     Sample gain = getGainSigmoid(peak);
     Sample smoothed = std::abs(svf.process(gain));
     Sample delayed = delay.process(x0, delayTimeSample.process());
-    Sample output = smoothed * (delayed - std::erf(x0));
+    Sample output = smoothed * (delayed + std::erf(x0));
     return output;
   }
 
@@ -193,7 +270,7 @@ public:
     Sample gain = getGainHardClip(peak);
     Sample smoothed = std::abs(svf.process(gain));
     Sample delayed = delay.process(x0, delayTimeSample.process());
-    Sample output = smoothed * (delayed - std::erf(x0));
+    Sample output = smoothed * (delayed + std::erf(x0));
     return output;
   }
 
@@ -203,7 +280,7 @@ public:
     Sample smoothed = std::abs(svf.process(peak));
     Sample delayed = delay.process(x0, delayTimeSample.process());
     Sample ratio = std::clamp(smoothed - Sample(1), Sample(0), Sample(1));
-    Sample output = poly(amp.process() * (delayed - std::erf(x0)), ratio);
+    Sample output = poly(amp.process() * (delayed + std::erf(x0)), ratio);
     return output;
   }
 };
