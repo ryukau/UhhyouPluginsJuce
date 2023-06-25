@@ -78,7 +78,7 @@ public:
 
     if (tabs.size() <= 0) return;
     const float tabWidth = float(getWidth()) / float(tabs.size());
-    for (int idx = 0; idx < tabs.size(); ++idx) {
+    for (size_t idx = 0; idx < tabs.size(); ++idx) {
       tabs[idx].rect.setBounds(float(idx) * tabWidth, float(0), tabWidth, tabHeight);
     }
   }

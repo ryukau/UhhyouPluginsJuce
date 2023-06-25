@@ -26,8 +26,8 @@ protected:
   juce::AudioProcessorEditor &editor;
   const juce::RangedAudioParameter *const parameter;
 
-  Palette &pal;
   Scale &scale;
+  Palette &pal;
   juce::ParameterAttachment attachment;
 
   juce::PopupMenu menu;
@@ -60,7 +60,7 @@ public:
           repaint();
         },
         undoManager)
-    , defaultIndex(size_t(scale.map(parameter->getDefaultValue())))
+    , defaultIndex(int(scale.map(parameter->getDefaultValue())))
     , font(palette.getFont(palette.textSizeUi()))
     , items(menuItems)
   {
@@ -99,7 +99,8 @@ public:
       ctx.setFont(font);
       ctx.setColour(pal.foreground());
       ctx.drawText(
-        items[itemIndex], juce::Rectangle<float>(float(0), float(0), width, height),
+        items[size_t(itemIndex)],
+        juce::Rectangle<float>(float(0), float(0), width, height),
         juce::Justification::centred);
     }
   }
@@ -133,9 +134,10 @@ public:
 
     if (event.mods.isLeftButtonDown()) {
       menu.clear();
-      for (int idx = 0; idx < items.size(); ++idx) {
-        menu.addItem(
-          juce::PopupMenu::Item(items[idx]).setID(idx + 1).setTicked(idx == itemIndex));
+      for (size_t idx = 0; idx < items.size(); ++idx) {
+        menu.addItem(juce::PopupMenu::Item(items[idx])
+                       .setID(int(idx) + 1)
+                       .setTicked(int(idx) == itemIndex));
       }
 
       menu.showMenuAsync(

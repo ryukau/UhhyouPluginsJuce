@@ -12,7 +12,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <format>
 #include <numbers>
 
 namespace Uhhyou {
@@ -25,8 +24,8 @@ protected:
   juce::AudioProcessorEditor &editor;
   const juce::RangedAudioParameter *const parameter;
 
-  Palette &pal;
   Scale &scale;
+  Palette &pal;
   juce::ParameterAttachment attachment;
 
   float value{}; // Normalized in [0, 1].
@@ -266,7 +265,7 @@ private:
   juce::Font font;
 
 public:
-  uint32_t precision = 0;
+  int precision = 0;
   int32_t offset = 0;
 
   TextKnob(
@@ -275,7 +274,7 @@ public:
     juce::UndoManager *undoManager,
     juce::RangedAudioParameter *parameter,
     Scale &scale,
-    uint32_t precision = 0)
+    int precision = 0)
     : KnobBase<Scale>(editor, palette, undoManager, parameter, scale)
     , font(palette.getFont(palette.textSizeUi()))
     , precision(precision)
@@ -324,7 +323,7 @@ public:
     ctx.setFont(font);
     ctx.setColour(this->pal.foreground());
     ctx.drawText(
-      this->parameter->getText(this->value, precision),
+      this->parameter->getText(this->value, int(precision)),
       juce::Rectangle<float>(float(0), float(0), width, height),
       juce::Justification::centred);
   }

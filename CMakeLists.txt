@@ -36,7 +36,7 @@ elseif((CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   target_compile_options(additional_compiler_flag
     INTERFACE
     $<$<CONFIG:Debug>:>
-    $<$<CONFIG:Release>:-ffast-math>)
+    $<$<CONFIG:Release>:-ffast-math -Wno-shadow>)
 endif()
 
 # Common components. Separeted to reduce build time.

@@ -78,7 +78,7 @@ inline nlohmann::json loadStyleJson()
 
 inline juce::uint8 strHexToUInt8(std::string str)
 {
-  return juce::uint8(std::clamp(std::stoi(str, 0, 16), 0, 255));
+  return juce::uint8(std::clamp(std::stoi(str, nullptr, 16), 0, 255));
 }
 
 /**

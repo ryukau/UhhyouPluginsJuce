@@ -23,8 +23,8 @@ private:
 
 protected:
   juce::AudioProcessorEditor &editor;
-  juce::UndoManager *undoManager = nullptr;
   juce::AudioProcessorValueTreeState &tree;
+  juce::UndoManager *undoManager = nullptr;
 
   Palette &pal;
 
@@ -142,7 +142,7 @@ public:
     Palette &palette,
     juce::UndoManager *undoManager,
     juce::AudioProcessorValueTreeState &tree)
-    : editor(editor), tree(tree), pal(palette), undoManager(undoManager)
+    : editor(editor), tree(tree), undoManager(undoManager), pal(palette)
   {
     refreshPreset();
 

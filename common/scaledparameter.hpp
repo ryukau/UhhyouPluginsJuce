@@ -52,7 +52,10 @@ public:
     ParameterTextRepresentation textRep = ParameterTextRepresentation::display,
     std::pair<textConvFn, textConvFn> textConversionFunctions = {nullptr, nullptr})
     : RangedAudioParameter(
-      juce::ParameterID(name, versionHint), name, unitLabel, category)
+      juce::ParameterID(name, versionHint),
+      name,
+      juce::AudioProcessorParameterWithIDAttributes().withCategory(category).withLabel(
+        unitLabel))
     , defaultNormalized(defaultNormalized)
     , raw(float(scale.map(defaultNormalized)))
     , scale(scale)

@@ -56,8 +56,7 @@ Editor::Editor(Processor &processor)
 
   , overDriveType(
       PRM("overDriveType", overDriveType),
-      {"Immediate", "HardGate", "Spike", "CutoffMod", "Matched", "BadLimiter",
-       "PolyDrive"})
+      {"Immediate", "Matched", "BadLimiter", "PolyDrive"})
   , overDriveHoldSecond(PRM("overDriveHoldSecond", overDriveHoldSecond), 5)
   , overDriveQ(PRM("overDriveQ", filterQ), 5)
   , overDriveCharacterAmp(PRM("overDriveCharacterAmp", gain), 5)
@@ -147,7 +146,6 @@ void Editor::paint(juce::Graphics &ctx)
 void Editor::resized()
 {
   using Rect = juce::Rectangle<int>;
-  using PointF = juce::Point<float>;
 
   const float scale = getDesktopScaleFactor() * getHeight() / float(defaultHeight);
   palette.resize(scale);

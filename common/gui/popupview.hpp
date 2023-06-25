@@ -65,13 +65,12 @@ private:
 protected:
   static constexpr int popUpInset = 20;
 
-  Palette &pal;
-
   FullScreenButton dismissButton;
   TabView popUp;
   juce::TextEditor infoDisplay{"Information"};
   juce::TextEditor licenseDisplay{"License"};
 
+  Palette &pal;
   bool isMouseEntered = false;
   juce::Font font;
   juce::String label;
