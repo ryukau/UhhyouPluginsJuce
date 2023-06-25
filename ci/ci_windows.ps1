@@ -30,3 +30,5 @@ ForEach-Object {
   Get-ChildItem -Path $PLUGIN_DIR -Include @("*.lib", "*.exp") -Recurse | Remove-Item -Force
   Move-Item -Path "$PLUGIN_DIR\*" -Destination $ARTIFACT_DIR -Force
 }
+
+tree /A /F $ARTIFACT_DIR # debug

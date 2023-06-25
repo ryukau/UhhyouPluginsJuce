@@ -5,8 +5,6 @@
 
 set -e
 
-mkdir build
-
 cmake --version
 
 cmake \
@@ -22,3 +20,5 @@ mkdir -p $ARTIFACT_DIR
 
 rm -rf ./build/*_artefacts/Release/*.a
 mv ./build/*_artefacts/Release/* $ARTIFACT_DIR
+
+find $ARTIFACT_DIR # debug
