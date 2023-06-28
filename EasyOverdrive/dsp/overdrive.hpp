@@ -14,6 +14,50 @@
 
 namespace Uhhyou {
 
+// 3rd order Lagrange Interpolation.
+// Range of t is in [0, 1]. Interpolates between y1 and y2.
+template<typename Sample>
+inline Sample cubicInterp(const std::array<Sample, 4> &y, Sample t)
+{
+  auto u = 1 + t;
+  auto d0 = y[0] - y[1];
+  auto d1 = d0 - (y[1] - y[2]);
+  auto d2 = d1 - ((y[1] - y[2]) - (y[2] - y[3]));
+  return y[0] - ((d2 * (2 - u) / 3 + d1) * (1 - u) / 2 + d0) * u;
+}
+
+// BLT: Bilinear transform.
+template<typename Sample> class BLTLP1 {
+private:
+  Sample bn = 1;
+  Sample a1 = -1; // Negated.
+  Sample x1 = 0;
+  Sample y1 = 0;
+
+public:
+  void reset()
+  {
+    x1 = 0;
+    y1 = 0;
+  }
+
+  void setCutoff(Sample sampleRate, Sample cutoffHz)
+  {
+    constexpr Sample pi = std::numbers::pi_v<Sample>;
+    auto k = std::tan(pi * cutoffHz / sampleRate);
+    auto a0 = Sample(1) + Sample(1) / k;
+    bn = Sample(1) / a0;
+    a1 = (k - Sample(1)) / a0; // Negated.
+  }
+
+  Sample process(Sample x0)
+  {
+    y0 = bn * (x0 + x1) + a1 * y1;
+    x1 = x0;
+    return y1 = y0;
+  }
+};
+
 template<typename T>
 inline std::array<T, 2> secondToSvfParameters(T sampleRate, T seconds, T Q)
 {
@@ -118,6 +162,7 @@ enum BadLimiterType : size_t {
   Immediate,
   HardGate,
   Spike,
+  SpikeCubic,
   CutoffMod,
   Matched,
   BadLimiter,
@@ -130,6 +175,10 @@ private:
   Sample holdValue = 0;
   size_t counter = 0;
   size_t holdSamples = 1024;
+
+  Sample previousPeak = 0;
+  Sample fractionalDelay = 0;
+  std::array<Sample, 4> cubicBuffer{};
 
   ExpSmoother<Sample> amp;
   ExpSmoother<Sample> delayTimeSample;
@@ -146,6 +195,10 @@ public:
     holdValue = 0;
     counter = 0;
     holdSamples = size_t(sampleRate * holdSeconds);
+
+    previousPeak = 0;
+    fractionalDelay = 0;
+    cubicBuffer.fill({});
 
     amp.reset(characterAmp);
     svf.reset(sampleRate, holdSeconds, Q);
@@ -195,6 +248,25 @@ public:
     return counter ? holdValue : holdValue + spike;
   }
 
+  inline Sample forwardHoldSpikeCubic(Sample absed, Sample spike)
+  {
+    ++counter;
+    if (counter > holdSamples || holdValue < absed) {
+      holdValue = absed;
+      counter = 0;
+
+      fractionalDelay = absed > std::numeric_limits<Sample>::epsilon()
+        ? std::clamp((holdValue - previousPeak) / absed, Sample(0), Sample(1))
+        : Sample(1);
+    }
+    previousPeak = absed;
+
+    std::rotate(cubicBuffer.rbegin(), cubicBuffer.rbegin() + 1, cubicBuffer.rend());
+    cubicBuffer[0] = counter ? 0 : spike;
+
+    return holdValue + cubicInterp(cubicBuffer, fractionalDelay);
+  }
+
   inline Sample forwardHoldHardGate(Sample absed, Sample spike)
   {
     ++counter;
@@ -239,6 +311,15 @@ public:
   Sample processSpike(Sample x0)
   {
     Sample peak = forwardHoldSpike(std::abs(x0), amp.process());
+    Sample gain = getGainSigmoid(peak);
+    Sample smoothed = std::abs(svf.process(gain));
+    Sample output = smoothed * x0;
+    return output;
+  }
+
+  Sample processSpikeCubic(Sample x0)
+  {
+    Sample peak = forwardHoldSpikeCubic(std::abs(x0), amp.process());
     Sample gain = getGainSigmoid(peak);
     Sample smoothed = std::abs(svf.process(gain));
     Sample output = smoothed * x0;

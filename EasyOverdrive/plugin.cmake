@@ -2,7 +2,7 @@
 
 juce_add_plugin(EasyOverdrive
   PRODUCT_NAME "EasyOverdrive"
-  VERSION "0.0.1"
+  VERSION "0.0.2"
   COMPANY_NAME "Uhhyou Plugins"
   COMPANY_EMAIL "ryukau@gmail.com"
   COMPANY_COPYRIGHT "Copyright 2023 Takamitsu Endo."

@@ -134,6 +134,11 @@ std::array<double, 2> DSPCore::processFrame(const std::array<double, 2> &frame)
       sig1 = overDrive[1].processSpike(sig1);
     } break;
 
+    case BadLimiterType::SpikeCubic: {
+      sig0 = overDrive[0].processSpikeCubic(sig0);
+      sig1 = overDrive[1].processSpikeCubic(sig1);
+    } break;
+
     case BadLimiterType::CutoffMod: {
       sig0 = overDrive[0].processCutoffMod(sig0);
       sig1 = overDrive[1].processCutoffMod(sig1);

@@ -56,7 +56,8 @@ Editor::Editor(Processor &processor)
 
   , overDriveType(
       PRM("overDriveType", overDriveType),
-      {"Immediate", "Matched", "BadLimiter", "PolyDrive"})
+      {"Immediate", "HardGate", "Spike", "SpikeCubic", "CutoffMod", "Matched",
+       "BadLimiter", "PolyDrive"})
   , overDriveHoldSecond(PRM("overDriveHoldSecond", overDriveHoldSecond), 5)
   , overDriveQ(PRM("overDriveQ", filterQ), 5)
   , overDriveCharacterAmp(PRM("overDriveCharacterAmp", gain), 5)

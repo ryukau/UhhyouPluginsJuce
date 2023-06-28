@@ -30,7 +30,7 @@ struct Scales {
   DecibelScl filterQ{float(-20), float(40), false};
   DecibelScl envelopeSecond{float(-80), float(40), true};
 
-  UIntScl overDriveType{6};
+  UIntScl overDriveType{7};
   DecibelScl overDriveHoldSecond{float(-100), float(-20), true};
 
   DecibelScl asymDriveDecayBias{float(-40), float(40), false};

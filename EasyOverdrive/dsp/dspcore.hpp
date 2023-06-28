@@ -18,14 +18,6 @@ namespace Uhhyou {
 
 class DSPCore {
 public:
-  struct NoteInfo {
-    bool isNoteOn;
-    int frame;
-    int_fast32_t id;
-    double pitch;
-    double velocity;
-  };
-
   DSPCore(ParameterStore &param) : param(param) {}
 
   ParameterStore &param;
