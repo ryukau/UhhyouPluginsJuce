@@ -55,3 +55,4 @@ target_compile_definitions(UhhyouCommon PRIVATE JUCE_GLOBAL_MODULE_SETTINGS_INCL
 
 # Plugins.
 include("EasyOverdrive/plugin.cmake")
+include("SlopeFilter/plugin.cmake")
