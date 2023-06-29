@@ -19,6 +19,7 @@ ARTIFACT_DIR="./plugins_macOS"
 mkdir -p $ARTIFACT_DIR
 
 rm -rf ./build/*_artefacts/Release/*.a
-mv ./build/*_artefacts/Release/* $ARTIFACT_DIR
+mkdir -p $ARTIFACT_DIR
+cp -r ./build/*_artefacts/Release/* $ARTIFACT_DIR
 
 find $ARTIFACT_DIR # debug
