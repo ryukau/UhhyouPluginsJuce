@@ -23,7 +23,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```
 
-Plugins will be built into `build/JuceTestPlugin_artefacts/Release`.
+Plugins will be built into `build/*_artefacts/Release` where `*` is plugin name.
 
 ## Directory Structure
 - `.github/workflows` and `ci`: CI scripts for GitHub Actions.
@@ -31,6 +31,10 @@ Plugins will be built into `build/JuceTestPlugin_artefacts/Release`.
 - `lib`: External libraries.
 
 Other directories are individual plugins.
+
+## List of Plugins
+- EasyOverdrive: Simple overdrive.
+- SlopeFilter: IIR filter to apply arbitrary dB/oct slope.
 
 ## License
 [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html). See `lib/README.md` for complete licenses which includes the ones from libraries.
