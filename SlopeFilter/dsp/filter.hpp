@@ -37,9 +37,15 @@ public:
   {
     using S = Sample;
 
-    constexpr S minCut = S(10 / 48000.0);
-    cutoffNormalized = std::max(cutoffNormalized, minCut);
-    if (cutoffNormalized <= minCut) gainAmp = S(1);
+    constexpr S minCut = S(10.0 / 48000.0);
+    constexpr S maxCut = S(20000.0 / 44100.0);
+    if (cutoffNormalized < minCut) {
+      cutoffNormalized = minCut;
+      gainAmp = S(1);
+    } else if (cutoffNormalized > maxCut) {
+      cutoffNormalized = maxCut;
+      gainAmp = S(1);
+    }
 
     constexpr S pi = std::numbers::pi_v<S>;
     constexpr S phim = S(1.9510565162951536); // 1 - cos(pi * 0.9).
