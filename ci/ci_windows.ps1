@@ -4,10 +4,9 @@
 
 $ErrorActionPreference = "Stop"
 
-mkdir build
-$SRC_ROOT = (Get-Item .).FullName
+New-Item -Path build -ItemType "directory" -Force
 
-cmake --version
+cmake --version # debug
 
 cmake `
   -S . `
@@ -21,14 +20,13 @@ cmake --build build -j --config Release
 # https://gitlab.com/gitlab-org/gitlab-runner/issues/3194#note_196458158
 if (!$?) { Exit $LASTEXITCODE }
 
-$ARTIFACT_DIR = "$SRC_ROOT\plugins_windows"
-New-Item -Path "$ARTIFACT_DIR" -ItemType "directory"
+$ARTIFACT_DIR = ".\plugins_windows"
+New-Item -Path "$ARTIFACT_DIR" -ItemType "directory" -Force
 
-Get-ChildItem -Path "$SRC_ROOT\build" -Filter "*_artefacts" |
+Get-ChildItem -Path ".\build" -Filter "*_artefacts" |
 ForEach-Object {
-  $PLUGIN_DIR = "$($_.FullName)\Release"
-  Get-ChildItem -Path $PLUGIN_DIR -Include @("*.lib", "*.exp") -Recurse | Remove-Item -Force
-  Copy-Item -Path "$PLUGIN_DIR\*" -Destination $ARTIFACT_DIR -Force
+  $PLUGIN_DIR = "$($_.FullName)\Release\VST3"
+  tree /A /F $PLUGIN_DIR # debug
+  Copy-Item -Recurse -Path "$PLUGIN_DIR\*.vst3" -Destination $ARTIFACT_DIR -Force
 }
-
 tree /A /F $ARTIFACT_DIR # debug
