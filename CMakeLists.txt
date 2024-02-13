@@ -54,5 +54,6 @@ target_include_directories(UhhyouCommon PRIVATE "lib/JUCE/modules")
 target_compile_definitions(UhhyouCommon PRIVATE JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1)
 
 # Plugins.
+include("AmplitudeModulator/plugin.cmake")
 include("EasyOverdrive/plugin.cmake")
 include("SlopeFilter/plugin.cmake")

@@ -51,46 +51,56 @@ public:
   inline Sample output() { return y0[Sos::co.size() - 1]; }
 };
 
-template<typename Sample> class FirstOrderAllpass {
+template<typename Sample, size_t nSection> class FirstOrderAllpassSections {
 private:
-  Sample x1 = 0;
-  Sample y1 = 0;
+  std::array<Sample, nSection> x{};
+  std::array<Sample, nSection> y{};
 
 public:
   void reset()
   {
-    x1 = 0;
-    y1 = 0;
+    x.fill(0);
+    y.fill(0);
   }
 
-  Sample process(Sample x0, Sample a)
+  Sample process(Sample input, const std::array<Sample, nSection> &a)
   {
-    y1 = a * (x0 - y1) + x1;
-    x1 = x0;
-    return y1;
+    for (size_t i = 0; i < nSection; ++i) {
+      y[i] = a[i] * (input - y[i]) + x[i];
+      x[i] = input;
+      input = y[i];
+    }
+    return y.back();
   }
 };
 
 template<typename Sample, typename Coefficient> class HalfBandIIR {
 private:
-  std::array<FirstOrderAllpass<Sample>, Coefficient::h0_a.size()> ap0;
-  std::array<FirstOrderAllpass<Sample>, Coefficient::h1_a.size()> ap1;
+  FirstOrderAllpassSections<Sample, Coefficient::h0_a.size()> ap0;
+  FirstOrderAllpassSections<Sample, Coefficient::h1_a.size()> ap1;
 
 public:
   void reset()
   {
-    for (auto &ap : ap0) ap.reset();
-    for (auto &ap : ap1) ap.reset();
+    ap0.reset();
+    ap1.reset();
   }
 
-  // input[0] must be earlier sample.
+  // For down-sampling. input[0] must be earlier sample.
   Sample process(const std::array<Sample, 2> &input)
   {
-    auto s0 = input[0];
-    for (size_t i = 0; i < ap0.size(); ++i) s0 = ap0[i].process(s0, Coefficient::h0_a[i]);
-    auto s1 = input[1];
-    for (size_t i = 0; i < ap1.size(); ++i) s1 = ap1[i].process(s1, Coefficient::h1_a[i]);
+    auto s0 = ap0.process(input[0], Coefficient::h0_a);
+    auto s1 = ap1.process(input[1], Coefficient::h1_a);
     return Sample(0.5) * (s0 + s1);
+  }
+
+  // For up-sampling.
+  std::array<Sample, 2> processUp(Sample input)
+  {
+    return {
+      ap1.process(input, Coefficient::h1_a),
+      ap0.process(input, Coefficient::h0_a),
+    };
   }
 };
 

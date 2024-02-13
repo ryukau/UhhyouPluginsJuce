@@ -33,6 +33,7 @@ Plugins will be built into `build/*_artefacts/Release` where `*` is plugin name.
 Other directories are individual plugins.
 
 ## List of Plugins
+- AmplitudeModulator: A showcase of AM anti-aliasing techniques.
 - EasyOverdrive: Simple overdrive.
 - SlopeFilter: IIR filter to apply arbitrary dB/oct slope.
 
