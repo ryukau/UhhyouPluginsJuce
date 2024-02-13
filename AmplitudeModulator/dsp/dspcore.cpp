@@ -61,8 +61,8 @@ void DSPCore::setParameters() { ASSIGN_PARAMETER(push); }
     auto sideBand1 = PROCESSOR[1].process(inCar1[i], inMod1[i]);                         \
     auto mix = carriorSideBandMix.process();                                             \
     auto gain = outputGain.process();                                                    \
-    out0[i] = float(gain * std::lerp(inCar0[i], sideBand0, mix));                        \
-    out1[i] = float(gain * std::lerp(inCar1[i], sideBand1, mix));                        \
+    out0[i] = float(gain * std::lerp(double(inCar0[i]), sideBand0, mix));                \
+    out1[i] = float(gain * std::lerp(double(inCar1[i]), sideBand1, mix));                \
   }
 
 void DSPCore::process(
