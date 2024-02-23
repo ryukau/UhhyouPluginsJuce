@@ -11,10 +11,6 @@
 
 namespace Uhhyou {
 
-constexpr double limiterAttackSecond = 0.001;
-
-template<typename T> T decibelToAmp(T dB) { return std::pow(T(10), dB / T(20)); }
-
 void DSPCore::setup(double sampleRate_)
 {
   sampleRate = double(sampleRate_);
