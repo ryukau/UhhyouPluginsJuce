@@ -33,9 +33,10 @@ Plugins will be built into `build/*_artefacts/Release` where `*` is plugin name.
 Other directories are individual plugins.
 
 ## List of Plugins
-- AmplitudeModulator: A showcase of AM anti-aliasing techniques.
+- AmplitudeModulator: A showcase of AM anti-aliasing techniques. It has 2 stereo inputs for modulator and carrior, but doesn't have built in oscillator.
 - EasyOverdrive: Simple overdrive.
 - SlopeFilter: IIR filter to apply arbitrary dB/oct slope.
+- TwoBandStereo: 2-band stereo merger.
 
 ## License
 [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html). See `lib/README.md` for complete licenses which includes the ones from libraries.

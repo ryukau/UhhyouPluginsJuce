@@ -57,3 +57,4 @@ target_compile_definitions(UhhyouCommon PRIVATE JUCE_GLOBAL_MODULE_SETTINGS_INCL
 include("AmplitudeModulator/plugin.cmake")
 include("EasyOverdrive/plugin.cmake")
 include("SlopeFilter/plugin.cmake")
+include("TwoBandStereo/plugin.cmake")
