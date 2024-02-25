@@ -63,7 +63,9 @@ jobs:
       - name: Download Artifacts
         uses: actions/download-artifact@v4
       - name: Run package script
-        run: zip -r UhhyouPluginsJuce.zip *.zip
+        run: |
+          tree -an
+          zip -r UhhyouPluginsJuce.zip plugins_*
       - name: Get Release Notes
         run: 'echo "$(git tag -l --format="%(contents:body)" $GITHUB_REF_NAME)" > RELEASE_NOTES'
       - name: Release
