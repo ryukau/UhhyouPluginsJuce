@@ -1,0 +1,16 @@
+{
+  "keyboardFocusEnabled": false,
+  "windowScale"         : 0.85,
+  "fontUiName"          : "Helvetica",
+  "fontUiStyle"         : "Bold",
+  "fontMonoName"        : "Consolas",
+  "fontMonoStyle"       : "Regular",
+  "foregroundLight"     : "#ffffff",
+  "foregroundDark"      : "#000000",
+  "background"          : "#494440",
+  "surface"             : "#061f4a",
+  "border"              : "#000000",
+  "main"                : "#205493",
+  "accent"              : "#ff9d1e",
+  "warning"             : "#c62d1f"
+}

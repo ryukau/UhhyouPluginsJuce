@@ -1,0 +1,50 @@
+title: 'Uhhyou Plugins'
+baseURL: 'https://ryukau.github.io/UhhyouPluginsJuce/'
+
+languageCode: 'en-us'
+defaultContentLanguage: 'en'
+defaultContentLanguageInSubdir: true
+
+enableGitInfo: true
+
+frontmatter:
+  date: ["lastmod", ":git", "date", "publishDate"]
+  lastmod: [":git", "lastmod", "date"]
+  publishDate: ["publishDate", "date"]
+
+markup:
+  goldmark:
+    parser:
+      autoDefinitionTermID: true
+    renderer:
+      unsafe: true
+  highlight:
+    noClasses: false
+    guessSyntax: true
+
+languages:
+  en:
+    weight: 1
+    label: 'English'
+    locale: 'en-US'
+  ja:
+    weight: 2
+    label: '日本語'
+    locale: 'ja-JP'
+
+minify:
+  disableCSS: true
+  disableHTML: false
+  disableJS: true
+  disableJSON: true
+  disableSVG: true
+  disableXML: true
+  minifyOutput: true
+  tdewolff:
+    html:
+      keepComments: true
+      keepDefaultAttrVals: true
+      keepDocumentTags: true
+      keepEndTags: true
+      keepQuotes: false
+      keepWhitespace: false

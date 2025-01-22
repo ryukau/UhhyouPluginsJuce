@@ -1,0 +1,581 @@
+:root {
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+
+  --foreground-color: #000000;
+  --background-color: #ffffff;
+  --link-color: #0000ee;
+  --link-visited-color: #751acb;
+  --link-active-color: #ff0000;
+  --link-hover-background-color: #ffe590;
+  --border-dark-color: #444444;
+  --border-color: #888888;
+  --border-light-color: #bbbbbb;
+  --table-p1-color: #fafafa;
+  --table-p2-color: #f4f4f4;
+  --table-p3-color: #e8e8e8;
+  --code-inline-color: #101010;
+
+  --component-main: #fcc04f;
+  --component-accent: #13c136;
+  --component-warning: #fc8080;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --foreground-color: #dfdfdf;
+  --background-color: #202020;
+  --link-color: #dfdf2c;
+  --link-visited-color: #9fcb76;
+  --link-active-color: #df2020;
+  --link-hover-background-color: #525252;
+  --border-dark-color: #acacac;
+  --border-color: #797979;
+  --border-light-color: #525252;
+  --table-p1-color: #2b2b2b;
+  --table-p2-color: #323232;
+  --table-p3-color: #383838;
+  --code-inline-color: #f8f8f8;
+
+  --component-main: #d88000;
+  --component-accent: #008f1d;
+  --component-warning: #dd3939;
+}
+
+[data-theme="dark"] img:not(.staySameInDark),
+[data-theme="dark"] h1::after {
+  filter: invert(0.8745);
+}
+
+html {
+  scroll-padding-top: 1rem;
+
+  /*
+  TODO: Change `overflow-y` below to `scrollbar-gutter: stable both-edges;` or equivalents in future. When this comment was written, the gradients couldn't fill the blank region made for scrollbar.
+  */
+  overflow-y: scroll;
+
+  --c1: var(--table-p3-color);
+  --c2: var(--background-color);
+  --l1: 5em;
+  --l2: 10em;
+  background:
+    repeating-linear-gradient(110deg,
+      var(--c1) 0 var(--l1),
+      var(--c2) var(--l1) var(--l2)) 0 0 / 100% 100% no-repeat;
+}
+
+@media (forced-colors: active) {
+
+  html,
+  .custom-container {
+    scrollbar-color: auto;
+  }
+}
+
+body {
+  box-sizing: border-box;
+  min-height: 100dvh;
+  max-width: calc(max(704px, 44em));
+  margin: auto;
+  padding: calc(max(32px, 2em)) calc(max(8px, 0.5em));
+  color: var(--foreground-color);
+  font-family: var(--font-sans);
+  background-color: var(--background-color);
+  outline: 2em solid var(--background-color);
+  line-height: 1.6;
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--font-mono);
+}
+
+
+p {
+  margin: 1em 0;
+}
+
+img {
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+video {
+  max-width: 100%;
+}
+
+summary {
+  cursor: pointer;
+}
+
+details {
+  margin: 0.5em 0;
+}
+
+details > .indent {
+  margin-left: 1em;
+}
+
+.toc-filler {
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+kbd {
+  --b1: calc(max(1px, 0.0625em));
+  --b2: calc(max(2px, 0.125em));
+
+  display: inline-block;
+  min-width: 0.75em;
+  text-align: center;
+
+  font-size: 0.75em;
+  font-family: inherit;
+  border-style: outset;
+  border-width: var(--b1) var(--b2) var(--b2) var(--b1);
+  border-radius: var(--b2);
+  border-color: var(--border-light-color);
+  padding: var(--b2) calc(max(4px, 0.25em));
+  margin: var(--b2);
+
+  background: var(--background-color);
+}
+
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  background-color: var(--link-hover-background-color);
+}
+
+:link {
+  color: var(--link-color);
+}
+
+:visited {
+  color: var(--link-visited-color);
+}
+
+:link:active,
+:visited:active {
+  color: var(--link-active-color);
+}
+
+:link > *,
+:visited > *,
+:link:active > *,
+:visited:active > * {
+  color: revert;
+}
+
+.is-targeted > a:is(:link, :visited, :link:active, :visited:active) {
+  outline: calc(max(4px, 0.25em)) double var(--border-color);
+  outline-offset: 0.125rem;
+}
+
+.header-anchor:hover {
+  color: var(--link-color);
+}
+
+:is(h1, h2, h3, h4, h5, h6, dt) > :is(a:link, a:visited, a:link:active, a:visited:active) {
+  color: var(--foreground-color);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: normal;
+}
+
+h1 {
+  font-size: 2em;
+  vertical-align: middle;
+}
+
+h1::after {
+  --side: 8rem;
+  display: inline-block;
+  background-image: url('../favicon/favicon.svg');
+  content: "";
+  vertical-align: middle;
+  background-size: var(--side) var(--side);
+  width: var(--side);
+  height: var(--side);
+  margin-left: 1em;
+}
+
+/* Grouped headings for consistent asymmetrical margins */
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+}
+
+h2 {
+  font-size: 1.5em;
+  border-bottom: calc(max(1px, 0.0625em)) solid var(--border-dark-color);
+  padding-bottom: 0.125em;
+}
+
+h3 {
+  font-size: 1.31em;
+  text-decoration: dashed underline calc(max(1px, 0.0625em)) var(--border-color);
+  text-underline-position: under;
+}
+
+h4 {
+  font-size: 1.15em;
+}
+
+h5 {
+  font-size: 1em;
+}
+
+h6 {
+  font-size: 0.875em;
+}
+
+table {
+  --b1: calc(max(1px, 0.0625em));
+  border-spacing: 0;
+  border-collapse: separate;
+  border-left: var(--b1) solid var(--border-color);
+  border-right: var(--b1) solid var(--border-color);
+  border-top: var(--b1) solid var(--border-color);
+  border-bottom: hidden;
+}
+
+tr:nth-child(3n+1) {
+  background: var(--background-color);
+}
+
+tr:nth-child(3n+2) {
+  background: var(--table-p1-color);
+}
+
+tr:nth-child(3n+3) {
+  background: var(--table-p2-color);
+}
+
+th {
+  height: 2em;
+  padding: calc(max(4px, 0.25em)) 1em;
+  background: var(--background-color);
+  border-bottom: calc(max(1px, 0.0625em)) dashed var(--border-color);
+}
+
+th:not(:first-child) {
+  border-left: calc(max(1px, 0.0625em)) solid var(--border-color);
+}
+
+td {
+  height: 1.5em;
+  padding: calc(max(4px, 0.25em)) 1em;
+  border-bottom: calc(max(1px, 0.0625em)) solid var(--border-color);
+}
+
+td:not(:first-child) {
+  border-left: calc(max(1px, 0.0625em)) solid var(--border-color);
+}
+
+.custom-dl .dl-row {
+  display: grid;
+  grid-template-columns: 1fr 3fr;
+  margin-bottom: 0;
+  align-items: center;
+
+  border: calc(max(1px, 0.0625em)) solid var(--border-color);
+  border-bottom: 0;
+}
+
+.custom-dl .dl-row:last-child {
+  border-bottom: calc(max(1px, 0.0625em)) solid var(--border-color);
+}
+
+.custom-dl .dl-row:nth-child(3n+1) {
+  background: var(--background-color);
+  /* border: calc(max(1px, 0.0625em)) solid var(--table-p1-color); */
+}
+
+.custom-dl .dl-row:nth-child(3n+2) {
+  background: var(--table-p1-color);
+}
+
+.custom-dl .dl-row:nth-child(3n+3) {
+  background: var(--table-p2-color);
+}
+
+dd {
+  margin-left: 0;
+  padding-left: 1em;
+}
+
+dt {
+  width: 100%;
+}
+
+.custom-dl .dt-column,
+.custom-dl .dd-content {
+  margin-top: 0.125em;
+  margin-bottom: 0.125em;
+}
+
+.custom-dl .dd-column {
+  padding-left: 0.25em;
+  grid-column: 2;
+}
+
+.custom-dl .dt-column {
+  margin-left: 0.25em;
+  grid-column: 1;
+}
+
+.custom-dl .dd-content > * {
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+
+.custom-dl .dt-column:first-of-type {
+  margin-top: 0;
+}
+
+.custom-dl .dd-content > *:first-child {
+  margin-top: 0;
+}
+
+.custom-dl .dd-content > *:last-child {
+  margin-bottom: 0;
+}
+
+audio {
+  margin-left: 0.25em;
+  margin-right: 0.25em;
+  vertical-align: middle;
+}
+
+label {
+  vertical-align: middle;
+}
+
+code {
+  white-space: pre-wrap;
+}
+
+:not(pre) > code {
+  margin-left: 0.25em;
+  margin-right: 0.25em;
+  color: var(--code-inline-color);
+}
+
+div.highlight {
+  overflow: auto;
+  margin: 1em 0;
+  /* padding: 0.75em 0.5em; */
+  /* outline: calc(max(1px, 0.0625em)) solid var(--border-color); */
+}
+
+div.highlight pre {
+  border: none;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+}
+
+ul {
+  padding-left: 1em;
+}
+
+li {
+  margin: 0.125em 0;
+}
+
+summary:hover {
+  background-color: var(--table-p2-color);
+}
+
+header {
+  border-bottom: calc(max(1px, 0.0625em)) var(--border-color) solid;
+  padding: 0.5em 0;
+  margin-bottom: 1em;
+}
+
+.grid-a {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+}
+
+.grid-a > .nav-group {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  margin: 0;
+}
+
+.nav-group > .nav-link {
+  margin: 0;
+  line-height: 1;
+  display: block;
+}
+
+.nav-group > .nav-language-selector {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+
+.lang-item {
+  display: inline-block;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: 1;
+
+  text-align: center;
+  padding: 0.25em 0.5em;
+  font-size: 0.875em;
+  text-decoration: none;
+
+  color: var(--foreground-color);
+  background-color: var(--background-color);
+  border-color: var(--background-color);
+  border-width: calc(max(4px, 0.25em));
+  border-style: outset;
+  cursor: pointer;
+}
+
+[data-theme="dark"] .lang-item {
+  border-color: var(--border-dark-color);
+}
+
+a.lang-item:hover {
+  border-style: groove;
+  background-color: var(--link-hover-background-color);
+  color: var(--foreground-color);
+}
+
+a.lang-item:active {
+  border-style: inset;
+}
+
+span.lang-item.is-active {
+  border-style: inset;
+  background-color: var(--table-p2-color);
+  cursor: default;
+}
+
+.grid-a > button {
+  margin: 0;
+}
+
+.grid-a > .meta-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1em;
+  text-align: left;
+  margin: 0;
+}
+
+.meta-dates > p {
+  margin: 0;
+  line-height: 1;
+}
+
+footer {
+  border-top: calc(max(1px, 0.0625em)) var(--border-color) solid;
+  padding: 0.5em 0;
+  margin-top: 1em;
+}
+
+button {
+  background-color: var(--background-color);
+  color: var(--foreground-color);
+  border-color: var(--background-color);
+  border-width: calc(max(4px, 0.25em));
+  border-style: outset;
+  padding: 0.25em 1em;
+  font-family: inherit;
+  font-size: 0.875em;
+  vertical-align: middle;
+  cursor: pointer;
+  line-height: 1;
+}
+
+[data-theme="dark"] button {
+  border-color: var(--border-dark-color);
+}
+
+button:hover {
+  border-style: groove;
+  outline: none;
+}
+
+button:active {
+  border-style: inset;
+}
+
+/* .fallback, .mac-only, and .pc-only are used to switch OS specific text. For example, ⌘ and Ctrl. */
+.fallback {
+  display: inline;
+}
+
+.mac-only,
+.pc-only {
+  display: none;
+}
+
+.is-mac .fallback,
+.is-mac .pc-only {
+  display: none;
+}
+
+.is-mac .mac-only {
+  display: inline;
+}
+
+.is-pc .fallback,
+.is-pc .mac-only {
+  display: none;
+}
+
+.is-pc .pc-only {
+  display: inline;
+}
+
+/*
+Firefox specific fix. Heights may change depending on the `lang` attribute.
+If the layout is breaking, try adding more tags, including `::before` and `::after`.
+*/
+li::marker,
+summary::marker {
+  line-height: 1;
+}
+
+
+/* Screen reader specifics. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

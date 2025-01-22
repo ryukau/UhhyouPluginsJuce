@@ -1,0 +1,16 @@
+{
+  "keyboardFocusEnabled": false,
+  "windowScale"         : 1.0,
+  "fontUiName"          : "Futura",
+  "fontUiStyle"         : "Regular",
+  "fontMonoName"        : "",
+  "fontMonoStyle"       : "Regular",
+  "foregroundLight"     : "#ffffff",
+  "foregroundDark"      : "#000000",
+  "background"          : "#ffffff",
+  "surface"             : "#000000",
+  "border"              : "#000000",
+  "main"                : "#ffcc00",
+  "accent"              : "#f09500",
+  "warning"             : "#c4017f"
+}

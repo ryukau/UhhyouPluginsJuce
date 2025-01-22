@@ -1,0 +1,16 @@
+{
+  "keyboardFocusEnabled": false,
+  "windowScale"         : 1.0,
+  "fontUiName"          : "",
+  "fontUiStyle"         : "Regular",
+  "fontMonoName"        : "",
+  "fontMonoStyle"       : "Regular",
+  "foregroundLight"     : "#fcfdbf",
+  "foregroundDark"      : "#000004",
+  "background"          : "#fcfdbf",
+  "surface"             : "#fec287",
+  "border"              : "#fc8961",
+  "main"                : "#fc8961",
+  "accent"              : "#721f81",
+  "warning"             : "#bb0906"
+}

@@ -1,0 +1,844 @@
+// Copyright Takamitsu Endo (ryukau@gmail.com).
+// SPDX-License-Identifier: AGPL-3.0-only
+
+#pragma once
+
+#include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_graphics/juce_graphics.h>
+#include <juce_gui_basics/juce_gui_basics.h>
+
+#include "parameterarrayattachment.hpp"
+#include "style.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <limits>
+#include <random>
+#include <sstream>
+#include <string>
+
+namespace Uhhyou {
+
+template<typename Scale, size_t nParameter> class BarBox : public juce::Component {
+private:
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BarBox)
+
+  enum class BarState : uint8_t { active, lock };
+
+  juce::AudioProcessorEditor& editor_;
+  std::array<juce::RangedAudioParameter*, nParameter> parameter_;
+  Scale& scale_;
+  Uhhyou::Palette& pal_;
+  ParameterArrayAttachment<nParameter> attachment_;
+
+  bool isMouseEntered_ = false;
+  juce::Point<float> mousePosition_{float(-1), float(-1)};
+  juce::Point<float> anchor_{float(-1), float(-1)};
+  BarState anchorState_ = BarState::active;
+  int indexL_ = 0;
+  int indexR_ = 0;
+  int indexRange_ = 0;
+  float sliderWidth_ = float(1);
+  float barMargin_ = float(1);
+
+  std::string name_;
+  std::array<std::string, nParameter> barIndices_;
+  std::array<BarState, nParameter> barState_{};
+  std::vector<float> active_, locked_; // Used to store temporary values.
+
+  std::array<float, nParameter> value_{};
+  std::array<float, nParameter> defaultValue_{};
+  std::vector<std::array<float, nParameter>> undoValue_;
+
+  auto constructBarIndices() {
+    std::array<std::string, nParameter> indices;
+    for (size_t i = 0; i < indices.size(); ++i) { indices[i] = std::to_string(i); }
+    return indices;
+  }
+
+  auto constructDefaultValue(std::array<juce::RangedAudioParameter*, nParameter>& params) {
+    std::array<float, nParameter> val;
+    for (size_t i = 0; i < val.size(); ++i) { val[i] = params[i]->getDefaultValue(); }
+    return val;
+  }
+
+  void updateValue() {
+    for (int i = 0; i < value_.size(); ++i) {
+      attachment_.setValueAsPartOfGesture(i, scale_.map(value_[i]));
+    }
+  }
+
+  void editAndUpdateValue() {
+    for (int i = 0; i < nParameter; ++i) {
+      attachment_.setValueAsCompleteGesture(i, scale_.map(value_[i]));
+    }
+  }
+
+public:
+  float sliderZero = 0;
+  int32_t indexOffset = 0;
+  bool liveUpdateLineEdit = true; // Set this false when line edit is slow.
+  float scrollSensitivity = float(0.01);
+  float altScrollSensitivity = float(0.001);
+  std::array<float, nParameter> snapValue;
+
+  BarBox(juce::AudioProcessorEditor& editor, Palette& palette, juce::UndoManager* undoManager,
+         std::array<juce::RangedAudioParameter*, nParameter> parameter, Scale& scale,
+         std::string name)
+      : editor_(editor), parameter_(parameter), scale_(scale), pal_(palette),
+        attachment_(
+          parameter,
+          [&](int index, float rawValue) {
+            if (index < 0 && index >= value_.size()) { return; }
+            auto normalized = scale_.invmap(rawValue);
+            if (value_[index] != normalized) {
+              value_[index] = normalized;
+              repaint();
+            }
+          },
+          undoManager),
+        name_(name), barIndices_(constructBarIndices()),
+        defaultValue_(constructDefaultValue(parameter)) {
+    setWantsKeyboardFocus(true);
+
+    setViewRange(0, 1);
+
+    for (size_t i = 0; i < 4; ++i) { undoValue_.emplace_back(defaultValue_); }
+
+    barState_.fill(BarState::active);
+    active_.reserve(nParameter);
+    locked_.reserve(nParameter);
+
+    attachment_.sendInitialUpdate();
+
+    editor_.addAndMakeVisible(*this, 0);
+  }
+
+  virtual void paint(juce::Graphics& ctx) override {
+    using namespace juce;
+    using RectF = juce::Rectangle<float>;
+
+    const float lw1 = pal_.borderWidth(); // Border width.
+    const float lw2 = 2 * lw1;
+    const float lwHalf = lw1 / 2;
+    const float indexTextSize = pal_.getFontHeight(TextSize::small) * float(1.25);
+    const float width = float(getWidth());
+    const float height = float(getHeight());
+
+    // Background.
+    juce::Colour bgColour = pal_.surface();
+    ctx.setColour(bgColour);
+    ctx.fillRoundedRectangle(0.0f, 0.0f, width, height, lw2);
+
+    // Value bar.
+    float sliderZeroHeight = height * (float(1) - sliderZero);
+    for (int i = indexL_; i < indexR_; ++i) {
+      auto left = (i - indexL_) * sliderWidth_;
+      auto barWidth = sliderWidth_ - barMargin_;
+      auto top = height - value_[i] * height;
+      auto bottom = sliderZeroHeight;
+      if (top > bottom) { std::swap(top, bottom); }
+      ctx.setColour(barState_[i] == BarState::active ? pal_.main() : pal_.border().withAlpha(0.3f));
+      ctx.fillRect(left, top, barWidth, bottom - top);
+    }
+
+    // Index text.
+    ctx.setFont(pal_.getFont(TextSize::small));
+    ctx.setColour(pal_.getForeground(bgColour));
+    if (sliderWidth_ >= indexTextSize) {
+      for (int i = indexL_; i < indexR_; ++i) {
+        auto left = (i - indexL_) * sliderWidth_;
+        auto barWidth = sliderWidth_ - barMargin_;
+        ctx.drawText(barIndices_[i].c_str(),
+                     RectF(left, height - indexTextSize, barWidth, indexTextSize),
+                     Justification::centred, false);
+        if (barState_[i] != BarState::active) {
+          ctx.drawText("L", RectF(left, 0, barWidth, indexTextSize), Justification::centred, false);
+        }
+      }
+    }
+
+    // Additional index text for zoom in.
+    auto colorOverlayText = pal_.getForeground(bgColour).withAlpha(0.25f);
+    auto colorOverlayMain = pal_.main().withAlpha(0.25f);
+    if (value_.size() != size_t(indexRange_)) {
+      ctx.setColour(colorOverlayText);
+      std::string str = "<- #" + std::to_string(indexL_);
+      ctx.drawText(str.c_str(), RectF(2, 2, 10 * indexTextSize, 2 * indexTextSize),
+                   Justification::centredLeft);
+    }
+
+    // Border.
+    ctx.setColour(pal_.getForeground(bgColour));
+    ctx.drawRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2, lw1);
+
+    // Highlight.
+    if (isMouseEntered_) {
+      size_t index = size_t(indexL_ + indexRange_ * mousePosition_.x / width);
+      if (index < value_.size()) {
+        ctx.setColour(colorOverlayMain);
+        ctx.fillRect((index - indexL_) * sliderWidth_, 0.0f, sliderWidth_, height);
+
+        // Index text.
+        ctx.setFont(pal_.getFont(TextSize::large));
+        ctx.setColour(colorOverlayText);
+        std::ostringstream os;
+        os << "#" << std::to_string(index + indexOffset) << ": "
+           << std::to_string(scale_.map(value_[index]));
+        auto indexText = os.str();
+        ctx.drawText(indexText.c_str(), RectF(0, 0, width, height), Justification::centred);
+
+        if (barState_[index] != BarState::active) {
+          ctx.setFont(pal_.getFont(TextSize::small));
+          ctx.drawText("Locked", RectF(0, indexTextSize, width, 2 * indexTextSize),
+                       Justification::centred);
+        }
+      }
+    } else {
+      // Title.
+      ctx.setFont(pal_.getFont(TextSize::large));
+      ctx.setColour(colorOverlayText);
+      ctx.drawText(name_.c_str(), RectF(0, 0, width, height), Justification::centred);
+    }
+
+    // Zero line.
+    auto zeroLineHeight = height - sliderZero * height;
+    ctx.setColour(colorOverlayText);
+    ctx.fillRect(0.0f, zeroLineHeight - lw1 / 2, width, lw1);
+  }
+
+  void resized() override { refreshSliderWidth(float(getWidth())); }
+
+  void mouseMove(const juce::MouseEvent& event) override {
+    mousePosition_ = event.position;
+    repaint();
+  }
+
+  void mouseEnter(const juce::MouseEvent&) override {
+    isMouseEntered_ = true;
+    repaint();
+  }
+
+  void mouseExit(const juce::MouseEvent&) override {
+    giveAwayKeyboardFocus();
+
+    isMouseEntered_ = false;
+    repaint();
+  }
+
+  void mouseDown(const juce::MouseEvent& event) override {
+    if (event.mods.isRightButtonDown()) {
+      auto hostContext = editor_.getHostContext();
+      if (hostContext == nullptr) { return; }
+
+      mousePosition_ = event.position;
+      size_t index = calcIndex(mousePosition_);
+      if (index >= parameter_.size()) { return; }
+
+      auto hostContextMenu = hostContext->getContextMenuForParameter(parameter_[index]);
+      if (hostContextMenu == nullptr) { return; }
+
+      hostContextMenu->showNativeMenu(editor_.getMouseXYRelative());
+      return;
+    }
+
+    grabKeyboardFocus();
+
+    mousePosition_ = event.position;
+    anchor_ = mousePosition_;
+
+    if (event.mods.isMiddleButtonDown() && event.mods.isCommandDown() && event.mods.isShiftDown()) {
+      anchorState_ = setStateFromPosition(mousePosition_, BarState::lock);
+    } else {
+      setValueFromPosition(mousePosition_, event.mods);
+    }
+    repaint();
+  }
+
+  void mouseUp(const juce::MouseEvent&) override {
+    attachment_.endGesture();
+    pushUndoValue();
+  }
+
+  void mouseDrag(const juce::MouseEvent& event) override {
+    mousePosition_ = event.position;
+    if (event.mods.isLeftButtonDown()) {
+      if (event.mods.isCommandDown() && event.mods.isShiftDown()) {
+        setValueFromPosition(mousePosition_, event.mods);
+      } else {
+        setValueFromLine(anchor_, mousePosition_, event.mods);
+      }
+      anchor_ = mousePosition_;
+    } else if (event.mods.isMiddleButtonDown()) {
+      if (event.mods.isCommandDown() && event.mods.isShiftDown()) {
+        setStateFromLine(anchor_, mousePosition_, anchorState_);
+      } else if (event.mods.isShiftDown()) {
+        mousePosition_.x = anchor_.x;
+        setValueFromPosition(mousePosition_, false, false);
+      } else {
+        setValueFromLine(anchor_, mousePosition_, event.mods);
+      }
+    }
+    repaint(); // Required to refresh highlighting position.
+  }
+
+  void mouseWheelMove(const juce::MouseEvent& event,
+                      const juce::MouseWheelDetails& wheel) override {
+    if (wheel.deltaY == 0) { return; }
+
+    grabKeyboardFocus();
+
+    size_t index = calcIndex(mousePosition_);
+    if (index >= value_.size()) { return; }
+
+    if (barState_[index] != BarState::active) { return; }
+
+    if (event.mods.isShiftDown()) {
+      setValueAtIndex(index, value_[index] + wheel.deltaY * altScrollSensitivity);
+    } else {
+      setValueAtIndex(index, value_[index] + wheel.deltaY * scrollSensitivity);
+    }
+    attachment_.setValueAsCompleteGesture(int(index), scale_.map(value_[index]));
+    repaint();
+  }
+
+  bool keyPressed(const juce::KeyPress& key) override {
+    constexpr auto isKey = juce::KeyPress::isKeyCurrentlyDown;
+
+    if (!isMouseEntered_ || !key.isValid()) { return false; }
+
+    size_t index = calcIndex(mousePosition_);
+    if (index >= value_.size()) { index = 0; }
+
+    const auto shift = key.getModifiers().isShiftDown();
+    if (isKey('a')) {
+      alternateSign(index);
+    } else if (shift && isKey('d')) { // Alternative default. (toggle min/max)
+      toggleMinMidMax(index);
+    } else if (isKey('d')) { // reset to Default.
+      resetToDefault();
+    } else if (shift && isKey('e')) {
+      emphasizeHigh(index);
+    } else if (isKey('e')) {
+      emphasizeLow(index);
+    } else if (shift && isKey('f')) {
+      highpass(index);
+    } else if (isKey('f')) {
+      averageLowpass(index);
+    } else if (shift && isKey('i')) {
+      invertInRange(index);
+    } else if (isKey('i')) {
+      invertFull(index);
+    } else if (shift && isKey('l')) {
+      lockAll(index);
+    } else if (isKey('l')) {
+      barState_[index] = barState_[index] == BarState::active ? BarState::lock : BarState::active;
+    } else if (shift && isKey('n')) {
+      normalizeFull(index);
+    } else if (isKey('n')) {
+      normalizeInRange(index);
+    } else if (isKey('p')) { // Permute.
+      applyAlgorithm(index, [&]() {
+        std::random_device device;
+        std::mt19937 rng(device());
+        std::shuffle(active_.begin(), active_.end(), rng);
+      });
+    } else if (shift && isKey('r')) {
+      sparseRandomize(index);
+    } else if (isKey('r')) {
+      totalRandomize(index);
+    } else if (shift && isKey('S')) { // Sort ascending order.
+      applyAlgorithm(index, [&]() { std::sort(active_.begin(), active_.end()); });
+    } else if (isKey('s')) { // Sort descending order.
+      applyAlgorithm(index, [&]() { std::sort(active_.begin(), active_.end(), std::greater<>()); });
+    } else if (shift && isKey('t')) { // subTle randomize.
+      mixRandomize(index, float(0.02));
+    } else if (isKey('t')) { // subTle randomize. Random walk.
+      randomize(index, float(0.02));
+    } else if (shift && isKey('z')) { // Redo
+      redo();
+      editAndUpdateValue();
+      repaint();
+      return true;
+    } else if (isKey('z')) { // Undo
+      undo();
+      editAndUpdateValue();
+      repaint();
+      return true;
+    } else if (isKey(',')) { // Rotate back.
+      applyAlgorithm(index,
+                     [&]() { std::rotate(active_.begin(), active_.begin() + 1, active_.end()); });
+    } else if (isKey('.')) { // Rotate forward.
+      applyAlgorithm(
+        index, [&]() { std::rotate(active_.rbegin(), active_.rbegin() + 1, active_.rend()); });
+    } else if (isKey('1')) { // Decrease.
+      multiplySkip(index, 1);
+    } else if (isKey('2')) { // Decrease 2n.
+      multiplySkip(index, 2);
+    } else if (isKey('3')) { // Decrease 3n.
+      multiplySkip(index, 3);
+    } else if (isKey('4')) { // Decrease 4n.
+      multiplySkip(index, 4);
+    } else if (isKey('5')) { // Decimate and hold 2 samples.
+      decimateHold(index, 2);
+    } else if (isKey('6')) { // Decimate and hold 3 samples.
+      decimateHold(index, 3);
+    } else if (isKey('7')) { // Decimate and hold 4 samples.
+      decimateHold(index, 4);
+    } else if (isKey('8')) { // Decimate and hold 5 samples.
+      decimateHold(index, 5);
+    } else if (isKey('9')) { // Decimate and hold 6 samples.
+      decimateHold(index, 6);
+    } else {
+      return false;
+    }
+    repaint();
+    editAndUpdateValue();
+    pushUndoValue();
+    return true;
+  }
+
+  void setViewRange(float left, float right) {
+    indexL_ = int(std::clamp<float>(left, float(0), float(1)) * value_.size());
+    indexR_ = int(std::clamp<float>(right, float(0), float(1)) * value_.size());
+    indexRange_ = indexR_ >= indexL_ ? indexR_ - indexL_ : 0;
+    refreshSliderWidth(float(getWidth()));
+    repaint();
+  }
+
+private:
+  inline size_t calcIndex(juce::Point<float>& position) {
+    return size_t(indexL_ + position.x / sliderWidth_);
+  }
+
+  void refreshSliderWidth(float width) {
+    sliderWidth_ = indexRange_ >= 1 ? width / indexRange_ : width;
+    barMargin_ = sliderWidth_ <= float(4) ? float(1) : float(2);
+  }
+
+  float snap(float currentValue) {
+    size_t index = 0;
+    for (; index < snapValue.size(); ++index) {
+      if (snapValue[index] >= currentValue) { break; }
+    }
+    return index < snapValue.size() ? snapValue[index] : float(1);
+  }
+
+  BarState setStateFromPosition(juce::Point<float>& position, BarState state) {
+    size_t index = calcIndex(position);
+    if (index >= value_.size()) { return BarState::active; }
+
+    barState_[index] = barState_[index] != state ? state : BarState::active;
+    return barState_[index];
+  }
+
+  void setStateFromLine(juce::Point<float>& p0, juce::Point<float>& p1, BarState state) {
+    if (p0.x > p1.x) { std::swap(p0, p1); }
+
+    int last = int(value_.size()) - 1;
+    if (last < 0) {
+      last = 0; // std::clamp is undefined if low is greater than high.
+    }
+
+    int left = int(calcIndex(p0));
+    int right = int(calcIndex(p1));
+
+    if ((left < 0 && right < 0) || (left > last && right > last)) { return; }
+
+    left = std::clamp(left, 0, last);
+    right = std::clamp(right, 0, last);
+
+    for (int idx = left; idx >= 0 && idx <= right; ++idx) { barState_[idx] = state; }
+
+    repaint();
+  }
+
+  void setValueFromPosition(juce::Point<float>& position, const juce::ModifierKeys& modifiers) {
+    setValueFromPosition(position, modifiers.isCommandDown(), modifiers.isShiftDown());
+  }
+
+  void setValueFromPosition(juce::Point<float>& position, const bool ctrl, const bool shift) {
+    size_t index = calcIndex(position);
+    if (index >= value_.size()) { return; }
+    if (barState_[index] != BarState::active) { return; }
+
+    if (ctrl && !shift) {
+      setValueAtIndex(index, defaultValue_[index]);
+    } else if (!ctrl && shift) {
+      setValueAtIndex(index, snap(float(1) - position.y / getHeight()));
+    } else {
+      setValueAtIndex(index, float(1) - position.y / getHeight());
+    }
+
+    attachment_.setValueAsPartOfGesture(int(index), scale_.map(value_[index]));
+    repaint();
+  }
+
+  void setValueAtIndex(size_t index, float normalized) {
+    if (barState_[index] != BarState::active) { return; }
+    if (index >= value_.size()) { return; }
+    attachment_.beginGesture(int(index));
+    value_[index] = std::clamp(normalized, float(0), float(1));
+  }
+
+  void setValueFromLine(juce::Point<float> p0, juce::Point<float> p1,
+                        const juce::ModifierKeys& modifiers) {
+    if (p0.x > p1.x) { std::swap(p0, p1); }
+
+    size_t left = calcIndex(p0);
+    size_t right = calcIndex(p1);
+    if (left >= value_.size() || right >= value_.size()) { return; }
+
+    const float p0y = p0.y;
+    const float p1y = p1.y;
+
+    if (left == right) { // p0 and p1 are in a same bar.
+      if (barState_[left] != BarState::active) { return; }
+
+      if (modifiers.isCommandDown()) {
+        setValueAtIndex(left, defaultValue_[left]);
+      } else if (modifiers.isShiftDown()) {
+        setValueAtIndex(left, snap(float(1) - anchor_.y / getHeight()));
+      } else {
+        setValueAtIndex(left, float(1) - anchor_.y / getHeight());
+      }
+
+      attachment_.setValueAsPartOfGesture(int(left), scale_.map(value_[left]));
+      repaint();
+      return;
+    } else if (modifiers.isCommandDown()) {
+      for (size_t idx = left; idx >= 0 && idx <= right; ++idx) {
+        if (barState_[left] != BarState::active) { return; }
+        setValueAtIndex(idx, defaultValue_[idx]);
+      }
+      if (liveUpdateLineEdit) { updateValue(); }
+      return;
+    }
+
+    const bool isSnapping = modifiers.isShiftDown();
+
+    if (barState_[left] == BarState::active) {
+      auto val = float(1) - p0y / getHeight();
+      setValueAtIndex(left, isSnapping ? snap(val) : val);
+    }
+    if (barState_[right] == BarState::active) {
+      auto val = float(1) - p1y / getHeight();
+      setValueAtIndex(right, isSnapping ? snap(val) : val);
+    }
+
+    // In between.
+    const float p0x = sliderWidth_ * (left + 1);
+    const float p1x = sliderWidth_ * right;
+    float pDiff = p1x - p0x;
+    constexpr auto eps = std::numeric_limits<float>::epsilon();
+    if (std::abs(pDiff) < eps) { pDiff = std::copysign(eps, pDiff); }
+    const float slope = (p1y - p0y) / pDiff;
+
+    const float yInc = slope * sliderWidth_;
+    float y = p0y;
+    for (size_t idx = left + 1; idx < right; ++idx) {
+      auto val = 1.0f - (y + 0.5f * yInc) / getHeight();
+      setValueAtIndex(idx, isSnapping ? snap(val) : val);
+      y += yInc;
+    }
+
+    if (liveUpdateLineEdit) { updateValue(); }
+    repaint();
+  }
+
+  void pushUndoValue() {
+    std::rotate(undoValue_.begin(), undoValue_.begin() + 1, undoValue_.end());
+    undoValue_.back() = value_;
+  }
+
+  void undo() {
+    std::rotate(undoValue_.rbegin(), undoValue_.rbegin() + 1, undoValue_.rend());
+    value_ = undoValue_.back();
+  }
+
+  void redo() {
+    std::rotate(undoValue_.begin(), undoValue_.begin() + 1, undoValue_.end());
+    value_ = undoValue_.back();
+  }
+
+  template<typename Func> void applyAlgorithm(size_t start, Func func) {
+    active_.resize(0);
+    locked_.resize(0);
+
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] == BarState::active) {
+        active_.push_back(value_[i]);
+      } else {
+        locked_.push_back(value_[i]);
+      }
+    }
+
+    func();
+
+    size_t activeIndex = 0;
+    size_t lockedIndex = 0;
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] == BarState::active) {
+        value_[i] = active_[activeIndex];
+        ++activeIndex;
+      } else {
+        value_[i] = locked_[lockedIndex];
+        ++lockedIndex;
+      }
+    }
+  }
+
+  void resetToDefault() {
+    for (size_t i = 0; i < value_.size(); ++i) {
+      if (barState_[i] == BarState::active) { value_[i] = defaultValue_[i]; }
+    }
+  }
+
+  void toggleMinMidMax(size_t start) {
+    float filler = 0;
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      filler = value_[i] == 0 ? float(0.5) : value_[i] == float(0.5) ? float(1) : float(0);
+      start = i;
+      break;
+    }
+
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] == BarState::active) { value_[i] = filler; }
+    }
+  }
+
+  void lockAll(size_t index) {
+    std::fill(barState_.begin(), barState_.end(),
+              barState_[index] == BarState::active ? BarState::lock : BarState::active);
+  }
+
+  void alternateSign(size_t start) {
+    for (size_t i = start; i < value_.size(); i += 2) {
+      if (barState_[i] != BarState::active) { continue; }
+      setValueAtIndex(i, 2 * sliderZero - value_[i]);
+    }
+  }
+
+  void averageLowpass(size_t start) {
+    const int32_t range = 1;
+
+    std::array<float, nParameter> result{value_};
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      result[i] = 0;
+      for (int32_t j = -range; j <= range; ++j) {
+        size_t index = i + static_cast<size_t>(j); // Note that index is unsigned.
+        if (index >= value_.size()) { continue; }
+        result[i] += value_[index] - sliderZero;
+      }
+      setValueAtIndex(i, sliderZero + result[i] / float(2 * range + 1));
+    }
+  }
+
+  /**
+  Highpass equation is:
+    `value[i] = sum((-0.5, 1.0, -0.5) * value[(i - 1, i, i + 1)])`
+  Value of index outside of array is assumed to be same as closest element.
+  */
+  void highpass(size_t start) {
+    std::array<float, nParameter> result{value_};
+    size_t last = value_.size() - 1;
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      auto val = value_[i] - sliderZero;
+      result[i] = 0;
+      result[i] -= (i >= 1) ? value_[i - 1] - sliderZero : val;
+      result[i] -= (i < last) ? value_[i + 1] - sliderZero : val;
+      result[i] = val + float(0.5) * result[i];
+      setValueAtIndex(i, sliderZero + result[i]);
+    }
+  }
+
+  void totalRandomize(size_t start) {
+    std::random_device dev;
+    std::mt19937_64 rng(dev());
+    std::uniform_real_distribution<float> dist(float(0), float(1));
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      value_[i] = dist(rng);
+    }
+  }
+
+  void randomize(size_t start, float amount) {
+    std::random_device dev;
+    std::mt19937_64 rng(dev());
+    amount /= 2;
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      std::uniform_real_distribution<float> dist(value_[i] - amount, value_[i] + amount);
+      setValueAtIndex(i, dist(rng));
+    }
+  }
+
+  void mixRandomize(size_t start, float mix) {
+    std::random_device dev;
+    std::mt19937_64 rng(dev());
+    std::uniform_real_distribution<float> dist(sliderZero - float(0.5), sliderZero + float(0.5));
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      setValueAtIndex(i, value_[i] + mix * (dist(rng) - value_[i]));
+    }
+  }
+
+  void sparseRandomize(size_t start) {
+    std::random_device device;
+    std::mt19937_64 rng(device());
+    std::uniform_real_distribution<float> dist(float(0), float(1));
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      if (dist(rng) < float(0.1)) { value_[i] = dist(rng); }
+    }
+  }
+
+  struct ValuePeak {
+    float minNeg = 2;
+    float minPos = 2;
+    float maxNeg = -1;
+    float maxPos = -1;
+  };
+
+  ValuePeak getValuePeak(size_t start, bool skipZero) {
+    ValuePeak pk;
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      float val = std::abs(value_[i] - sliderZero);
+      if (value_[i] == sliderZero) {
+        if (skipZero) { continue; }
+        pk.minNeg = 0;
+        pk.minPos = 0;
+      } else if (value_[i] < sliderZero) {
+        if (val > pk.maxNeg) {
+          pk.maxNeg = val;
+        } else if (val < pk.minNeg) {
+          pk.minNeg = val;
+        }
+      } else {
+        if (val > pk.maxPos) {
+          pk.maxPos = val;
+        } else if (val < pk.minPos) {
+          pk.minPos = val;
+        }
+      }
+    }
+    if (pk.minNeg > 1) { pk.minNeg = 0; }
+    if (pk.minPos > 1) { pk.minPos = 0; }
+    if (pk.maxNeg < 0) { pk.maxNeg = 0; }
+    if (pk.maxPos < 0) { pk.maxPos = 0; }
+    return pk;
+  }
+
+  void invertInRange(size_t start) {
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      float val
+        = value_[i] >= sliderZero ? float(1) - value_[i] + sliderZero : sliderZero - value_[i];
+      setValueAtIndex(i, val);
+    }
+  }
+
+  void invertFull(size_t start) {
+    auto pk = getValuePeak(start, false);
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+
+      if (value_[i] < sliderZero) {
+        auto x = float(1) + value_[i] - (value_[i] / sliderZero);
+        setValueAtIndex(i, std::clamp(x, sliderZero, float(1)));
+      } else {
+        auto x = sliderZero - sliderZero * (value_[i] - sliderZero) / (float(1) - sliderZero);
+        setValueAtIndex(i, std::clamp(x, float(0), sliderZero));
+      }
+    }
+  }
+
+  void normalizeFull(size_t start) {
+    float min = float(1);
+    float max = float(0);
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      if (value_[i] < min) { min = value_[i]; }
+      if (value_[i] > max) { max = value_[i]; }
+    }
+
+    if (max == min) { return; }
+
+    float scaling = float(1) / max - min;
+
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      setValueAtIndex(i, std::clamp(value_[i] * scaling, float(0), float(1)));
+    }
+  }
+
+  void normalizeInRange(size_t start) noexcept {
+    auto pk = getValuePeak(start, true);
+
+    float diffNeg = pk.maxNeg - pk.minNeg;
+    float diffPos = pk.maxPos - pk.minPos;
+
+    float mulNeg = (sliderZero - pk.minNeg) / diffNeg;
+    float mulPos = (float(1) - sliderZero - pk.minPos) / diffPos;
+
+    if (diffNeg == float(0)) {
+      mulNeg = float(0);
+      pk.minNeg = pk.maxNeg == float(0) ? float(0) : float(1);
+    }
+    if (diffPos == float(0)) {
+      mulPos = float(0);
+      pk.minPos = pk.maxPos == float(0) ? float(0) : float(1);
+    }
+
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      if (value_[i] == sliderZero) { continue; }
+      auto val = value_[i] < sliderZero
+        ? (value_[i] - sliderZero + pk.minNeg) * mulNeg + sliderZero - pk.minNeg
+        : (value_[i] - sliderZero - pk.minPos) * mulPos + sliderZero + pk.minPos;
+      setValueAtIndex(i, val);
+    }
+  }
+
+  void multiplySkip(size_t start, size_t interval) noexcept {
+    for (size_t i = start; i < value_.size(); i += interval) {
+      if (barState_[i] != BarState::active) { continue; }
+      setValueAtIndex(i, (value_[i] - sliderZero) * float(0.9) + sliderZero);
+    }
+  }
+
+  void decimateHold(size_t start, size_t interval) {
+    size_t counter = 0;
+    float hold = 0;
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+
+      if (counter == 0) { hold = value_[i]; }
+      counter = (counter + 1) % interval;
+      setValueAtIndex(i, hold);
+    }
+  }
+
+  void emphasizeLow(size_t start) {
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      setValueAtIndex(
+        i, (value_[i] - sliderZero) / std::pow(float(i + 1), float(0.0625)) + sliderZero);
+    }
+  }
+
+  void emphasizeHigh(size_t start) {
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      auto emphasis = float(0.9) + float(0.1) * float(i + 1) / value_.size();
+      setValueAtIndex(i, (value_[i] - sliderZero) * emphasis + sliderZero);
+    }
+  }
+};
+
+} // namespace Uhhyou

@@ -1,0 +1,16 @@
+{
+  "keyboardFocusEnabled": false,
+  "windowScale"         : 1.0,
+  "fontUiName"          : "SUSE",
+  "fontUiStyle"         : "Regular",
+  "fontMonoName"        : "SUSE Mono",
+  "fontMonoStyle"       : "Regular",
+  "foregroundLight"     : "#ffffff",
+  "foregroundDark"      : "#0c322c",
+  "background"          : "#ffffff",
+  "surface"             : "#efefef",
+  "border"              : "#90ebcd",
+  "main"                : "#30ba78",
+  "accent"              : "#2453ff",
+  "warning"             : "#192072"
+}

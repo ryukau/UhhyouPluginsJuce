@@ -1,0 +1,15 @@
+{
+  "keyboardFocusEnabled": false,
+  "windowScale"         : 0.75,
+  "fontUiName"          : "MS Gothic",
+  "fontUiStyle"         : "Regular",
+  "fontMonoName"        : "MS Gothic",
+  "fontMonoStyle"       : "Regular",
+  "foreground"          : "#000000",
+  "background"          : "#C0C0C0",
+  "surface"             : "#F0F0F0",
+  "border"              : "#404040",
+  "main"                : "#FFFF00",
+  "accent"              : "#00FF00",
+  "warning"             : "#FF0000"
+}

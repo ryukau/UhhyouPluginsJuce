@@ -1,0 +1,24 @@
+back_to_index:
+  other: "Back to Index"
+language_selection:
+  other: "Language selection"
+toggle_theme_aria:
+  other: "Toggle light/dark theme."
+toggle_theme:
+  other: "Toggle Theme"
+published:
+  other: "Published: "
+update:
+  other: "Update: "
+not_available:
+  other: "N/A"
+table_of_contents:
+  other: "Table of Contents"
+theme_light_active:
+  other: "● Light | Dark"
+theme_dark_active:
+  other: "Light | Dark ●"
+switch_to_light:
+  other: "Switch to light theme"
+switch_to_dark:
+  other: "Switch to dark theme"

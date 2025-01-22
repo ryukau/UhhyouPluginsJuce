@@ -4,23 +4,51 @@
 #
 
 set -e
+shopt -s globstar
+shopt -s nullglob
 
-# Without update, some package will be 404.
-sudo apt-get update
-sudo apt-get install libasound2-dev libjack-jackd2-dev \
+PLUGIN=${1:-"ALL"}
+
+# Dependencies are based on `JUCE/docs/Linux Dependencies.md`.
+sudo apt update
+sudo apt install libasound2-dev libjack-jackd2-dev \
   ladspa-sdk \
-  libfreetype6-dev \
-  libx11-dev libxcomposite-dev libxcursor-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev \
-  libglu1-mesa-dev mesa-common-dev
+  libcurl4-openssl-dev  \
+  libfreetype-dev libfontconfig1-dev \
+  libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev \
+  libwebkit2gtk-4.1-dev \
+  libglu1-mesa-dev mesa-common-dev \
+  ninja-build
 
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build
+cmake --version
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+if [ "$PLUGIN" = "ALL" ] ||[ -z "$PLUGIN" ]; then
+  cmake --build build
+else
+  cmake --build build --target "${PLUGIN}_All"
+fi
+
+echo "UhhyouDebug: Printing ./build"
+tree ./build
 
 ARTIFACT_DIR="./plugins_ubuntu"
 mkdir -p $ARTIFACT_DIR
 
-rm -rf ./build/*_artefacts/Release/*.a
-mkdir -p $ARTIFACT_DIR
-cp -r ./build/*_artefacts/Release/* $ARTIFACT_DIR
+function copyArtifact () {
+  for artefact in "$1"/**/*_artefacts/ ; do
+    release_dir="$artefact/Release"
+    if [ -d "$release_dir" ]; then
+      find "$release_dir" -maxdepth 1 -name "*.a" -delete
+      files_to_copy=("$release_dir"/*)
+      if [ ${#files_to_copy[@]} -gt 0 ]; then
+        cp -r "${files_to_copy[@]}" "$ARTIFACT_DIR"
+        echo "UhhyouDebug: Copied artifacts from: $release_dir"
+      fi
+    fi
+  done
+}
+copyArtifact ./build
 
-find $ARTIFACT_DIR # debug
+echo "UhhyouDebug: Printing $ARTIFACT_DIR"
+tree $ARTIFACT_DIR # debug

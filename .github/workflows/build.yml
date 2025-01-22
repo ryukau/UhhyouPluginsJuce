@@ -2,83 +2,143 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - "*"
+      - "develop"
     tags:
       - "*"
 
-env:
-  package_path: UhhyouPluginsJuce_plugins
-
 jobs:
-  build-ubuntu:
+  setup-matrix:
     runs-on: ubuntu-latest
+    outputs:
+      plugins: ${{ steps.set-matrix.outputs.plugins }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Generate Matrix from Directories
+        id: set-matrix
+        run: |
+          python -c '
+          import os, json
+          plugins = []
+          for folder in ["plugins", "experimental"]:
+              if os.path.exists(folder):
+                  plugins.extend([d for d in os.listdir(folder) if os.path.isdir(os.path.join(folder, d)) and not d.startswith(".")])
+          print(f"plugins={json.dumps(plugins)}")
+          ' >> $GITHUB_OUTPUT
+
+  build-ubuntu:
+    needs: setup-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJSON(needs.setup-matrix.outputs.plugins) }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
     - name: Run script
-      run: ci/ci_ubuntu.sh
+      run: ci/ci_ubuntu.sh ${{ matrix.plugin }}
     - name: Upload
-      # if: ${{ startsWith(github.ref, 'refs/tags/') }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
-        name: plugins_ubuntu
+        name: plugins_ubuntu_${{ matrix.plugin }}
         path: plugins_ubuntu
 
   build-windows:
+    needs: setup-matrix
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJSON(needs.setup-matrix.outputs.plugins) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Run script
-        run: ci/ci_windows.ps1
+        run: ci/ci_windows.ps1 -Plugin ${{ matrix.plugin }}
       - name: Upload
-        # if: ${{ startsWith(github.ref, 'refs/tags/') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          name: plugins_windows
+          name: plugins_windows_${{ matrix.plugin }}
           path: plugins_windows
 
   build-macOS:
+    needs: setup-matrix
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJSON(needs.setup-matrix.outputs.plugins) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Run script
-        run: ci/ci_macOS.sh
+        run: ci/ci_macOS.sh ${{ matrix.plugin }}
       - name: Upload
-        # if: ${{ startsWith(github.ref, 'refs/tags/') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          name: plugins_macOS
+          name: plugins_macOS_${{ matrix.plugin }}
           path: plugins_macOS
 
   release-packaging:
     needs: [build-ubuntu, build-windows, build-macOS]
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/UhhyouPluginsJuce') }}
+    permissions:
+      contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4
+
+      - name: Download Linux Artifacts
+        uses: actions/download-artifact@v8
         with:
-          path: ${{ env.package_path }}
-      - name: Run package script
+          path: dist/linux
+          pattern: plugins_ubuntu_*
+          merge-multiple: true
+
+      - name: Download Windows Artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: dist/windows
+          pattern: plugins_windows_*
+          merge-multiple: true
+
+      - name: Download macOS Artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: dist/macos
+          pattern: plugins_macOS_*
+          merge-multiple: true
+
+      - name: Prepare Packages
         run: |
-          tree -an
-          zip -r UhhyouPluginsJuce.zip ${{ env.package_path }}
-      - name: Get Release Notes
-        run: 'echo "$(git tag -l --format="%(contents:body)" $GITHUB_REF_NAME)" > RELEASE_NOTES'
+          mkdir -p dist/linux/assets dist/windows/assets dist/macos/assets
+          cp -r assets/UhhyouPlugins dist/linux/assets/
+          cp -r assets/UhhyouPlugins dist/windows/assets/
+          cp -r assets/UhhyouPlugins dist/macos/assets/
+
+          find dist/windows -name "*.exp" -type f -delete
+          find dist/windows -name "*.lib" -type f -delete
+
+          cd dist/linux && zip -r ../../UhhyouPlugins_Linux.zip .
+          cd ../windows && zip -r ../../UhhyouPlugins_Windows.zip .
+          cd ../macos && zip -r ../../UhhyouPlugins_macOS.zip .
+
       - name: Release
-        uses: softprops/action-gh-release@v1
-        with:
-          body_path: RELEASE_NOTES
-          files: UhhyouPluginsJuce.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            UhhyouPlugins_Linux.zip \
+            UhhyouPlugins_Windows.zip \
+            UhhyouPlugins_macOS.zip \
+            --title "$GITHUB_REF_NAME" \
+            --notes-from-tag

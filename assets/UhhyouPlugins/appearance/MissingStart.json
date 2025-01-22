@@ -1,0 +1,16 @@
+{
+  "keyboardFocusEnabled": false,
+  "windowScale"         : 1.0,
+  "fontUiName"          : "Segoe UI",
+  "fontUiStyle"         : "Bold",
+  "fontMonoName"        : "Consolas",
+  "fontMonoStyle"       : "Bold",
+  "foregroundLight"     : "#FFFFFF",
+  "foregroundDark"      : "#000000",
+  "background"          : "#094AB2",
+  "surface"             : "#001E4E",
+  "border"              : "#001E4E",
+  "main"                : "#0A5BC4",
+  "accent"              : "#00C13F",
+  "warning"             : "#B81B1B"
+}

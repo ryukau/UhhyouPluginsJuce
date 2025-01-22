@@ -1,0 +1,45 @@
+// Copyright Takamitsu Endo (ryukau@gmail.com).
+// SPDX-License-Identifier: AGPL-3.0-only
+
+#pragma once
+
+#include "../parameter.hpp"
+#include "./crossover.hpp"
+#include "Uhhyou/dsp/multirate.hpp"
+#include "Uhhyou/dsp/smoother.hpp"
+
+#include <array>
+#include <cstdint>
+#include <random>
+
+namespace Uhhyou {
+
+class DSPCore {
+public:
+  DSPCore(ParameterStore& p) : param(p) {}
+
+  ParameterStore& param;
+  bool isPlaying = false;
+  double tempo = double(120);
+  double beatsElapsed = double(0);
+  double timeSigUpper = double(1);
+  double timeSigLower = double(4);
+
+  void setup(double sampleRate);
+  void reset();
+  void startup();
+  size_t getLatency();
+  void setParameters();
+  void process(const size_t length, const float* in0, const float* in1, float* out0, float* out1);
+
+private:
+  double sampleRate_ = 44100;
+
+  SmootherParameter<double> smoo_;
+  ExpSmoother<double> crossoverFreq_{smoo_};
+  ExpSmoother<double> lowerStereoSpread_{smoo_};
+  ExpSmoother<double> upperStereoSpread_{smoo_};
+  std::array<LinkwitzRileyFIR2Band4n<double, 4, 8>, 2> crossoverFilter_;
+};
+
+} // namespace Uhhyou
