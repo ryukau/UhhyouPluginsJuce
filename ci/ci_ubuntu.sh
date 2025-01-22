@@ -4,23 +4,35 @@
 #
 
 set -e
+shopt -s globstar
 
-# Without update, some package will be 404.
-sudo apt-get update
-sudo apt-get install libasound2-dev libjack-jackd2-dev \
+# Dependencies are based on `JUCE/docs/Linux Dependencies.md`.
+sudo apt update
+sudo apt install libasound2-dev libjack-jackd2-dev \
   ladspa-sdk \
-  libfreetype6-dev \
-  libx11-dev libxcomposite-dev libxcursor-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev \
+  libcurl4-openssl-dev  \
+  libfreetype-dev libfontconfig1-dev \
+  libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev \
+  libwebkit2gtk-4.1-dev \
   libglu1-mesa-dev mesa-common-dev
 
+cmake --version
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
+
+echo "UhhyouDebug: Printing ./build"
+tree ./build
 
 ARTIFACT_DIR="./plugins_ubuntu"
 mkdir -p $ARTIFACT_DIR
 
-rm -rf ./build/*_artefacts/Release/*.a
-mkdir -p $ARTIFACT_DIR
-cp -r ./build/*_artefacts/Release/* $ARTIFACT_DIR
+function copyArtifact () {
+  for artefact in "$1"/**/*_artefacts/ ; do
+    rm -rf "$artefact"/Release/*.a
+    cp -r "$artefact"/Release/* $ARTIFACT_DIR
+  done
+}
+copyArtifact ./build/experimental
 
-find $ARTIFACT_DIR # debug
+echo "UhhyouDebug: Printing $ARTIFACT_DIR"
+tree $ARTIFACT_DIR # debug
