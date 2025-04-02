@@ -1,5 +1,5 @@
 # Uhhyou Plugins on JUCE
-Some audio plugins writtein on [JUCE](https://github.com/juce-framework/JUCE).
+Audio plugins writtein on [JUCE](https://github.com/juce-framework/JUCE).
 
 Currently, everything on this repository is experimental. Always render the result to audio file after using the plugins in this repository. Breaking changes might be introduced in future.
 
@@ -39,4 +39,4 @@ Other directories are individual plugins.
 - TwoBandStereo: 2-band stereo merger.
 
 ## License
-[GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html). See `lib/README.md` for complete licenses which includes the ones from libraries.
+AGPL-3.0-only. See `lib/README.md` for complete licenses which includes the ones from libraries.
