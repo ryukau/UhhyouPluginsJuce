@@ -48,10 +48,33 @@ inline auto constructParamArray(
 }
 
 Editor::Editor(Processor &processor)
-  : UhhyouEditor(
-      processor,
-      informationText,
-      [&]() { // onRandomize
+  : AudioProcessorEditor(processor)
+  , processor(processor)
+
+  , pluginNameButton(
+      *this, palette, processor.getName(), informationText, libraryLicenseText)
+  , undoButton(
+      *this,
+      palette,
+      numberEditor,
+      "Undo",
+      [&]() {
+        if (processor.undoManager.canUndo()) processor.undoManager.undo();
+      })
+  , redoButton(
+      *this,
+      palette,
+      numberEditor,
+      "Redo",
+      [&]() {
+        if (processor.undoManager.canRedo()) processor.undoManager.redo();
+      })
+  , randomizeButton(
+      *this,
+      palette,
+      numberEditor,
+      "Randomize",
+      [&]() {
         std::uniform_real_distribution<float> dist{0.0f, 1.0f};
         std::random_device dev;
         std::mt19937 rng(dev());
@@ -63,6 +86,8 @@ Editor::Editor(Processor &processor)
           prm->endChangeGesture();
         }
       })
+  , presetManager((*this), (palette), &(processor.undoManager), processor.param.tree)
+
   , shelvingType(PRM("shelvingType", shelvingType), {"Low Shelf", "High Shelf"})
   , startHz(PRM("startHz", startHz), 5)
   , slopeDecibel(PRM("slopeDecibel", slopeDecibel), 5)
