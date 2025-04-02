@@ -8,6 +8,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 
 #include "../scaledparameter.hpp"
+#include "./numbereditor.hpp"
 #include "style.hpp"
 
 #include <algorithm>
@@ -28,6 +29,7 @@ protected:
 
   Scale &scale;
   Palette &pal;
+  NumberEditor &textInput;
   juce::ParameterAttachment attachment;
 
   juce::PopupMenu menu;
@@ -46,11 +48,13 @@ public:
     juce::UndoManager *undoManager,
     juce::RangedAudioParameter *parameter,
     Scale &scale,
+    NumberEditor &textInput,
     std::vector<juce::String> menuItems)
     : editor(editor)
     , parameter(parameter)
     , scale(scale)
     , pal(palette)
+    , textInput(textInput)
     , attachment(
         *parameter,
         [&](float newRaw) {

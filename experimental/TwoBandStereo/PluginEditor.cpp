@@ -18,7 +18,7 @@
 #define TREE() processor.param.tree
 
 // Parameter related arguments.
-#define PRM(id, scale) HEAD, PARAMETER(id), SCALE(scale)
+#define PRM(id, scale) HEAD, PARAMETER(id), SCALE(scale), numberEditor
 
 namespace Uhhyou {
 
@@ -31,7 +31,7 @@ inline juce::File getPresetDirectory(const juce::AudioProcessor &processor)
                   .getFullPathName();
   auto sep = juce::File::getSeparatorString();
 
-  juce::File presetDir(appDir + sep + "Audiobulb" + sep + processor.getName());
+  juce::File presetDir(appDir + sep + "Uhhyou" + sep + processor.getName());
   if (!(presetDir.exists() && presetDir.isDirectory())) presetDir.createDirectory();
   return presetDir;
 }
@@ -48,34 +48,10 @@ inline auto constructParamArray(
 }
 
 Editor::Editor(Processor &processor)
-  : AudioProcessorEditor(processor)
-  , processor(processor)
-
-  , crossoverHz(PRM("crossoverHz", crossoverHz), 5)
-  , upperStereoSpread(PRM("upperStereoSpread", unipolar), 5)
-  , lowerStereoSpread(PRM("lowerStereoSpread", unipolar), 5)
-
-  , pluginNameButton(
-      *this, palette, processor.getName(), informationText, libraryLicenseText)
-  , undoButton(
-      *this,
-      palette,
-      "Undo",
-      [&]() {
-        if (processor.undoManager.canUndo()) processor.undoManager.undo();
-      })
-  , redoButton(
-      *this,
-      palette,
-      "Redo",
-      [&]() {
-        if (processor.undoManager.canRedo()) processor.undoManager.redo();
-      })
-  , randomizeButton(
-      *this,
-      palette,
-      "Randomize",
-      [&]() {
+  : UhhyouEditor(
+      processor,
+      informationText,
+      [&]() { // onRandomize
         std::uniform_real_distribution<float> dist{0.0f, 1.0f};
         std::random_device dev;
         std::mt19937 rng(dev());
@@ -87,7 +63,10 @@ Editor::Editor(Processor &processor)
           prm->endChangeGesture();
         }
       })
-  , presetManager(HEAD, processor.param.tree)
+  , crossoverHz(PRM("crossoverHz", crossoverHz), 5)
+  , upperStereoSpread(PRM("upperStereoSpread", unipolar), 5)
+  , lowerStereoSpread(PRM("lowerStereoSpread", unipolar), 5)
+
 {
   setResizable(true, false);
 

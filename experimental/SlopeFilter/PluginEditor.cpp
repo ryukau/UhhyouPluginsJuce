@@ -18,7 +18,7 @@
 #define TREE() processor.param.tree
 
 // Parameter related arguments.
-#define PRM(id, scale) HEAD, PARAMETER(id), SCALE(scale)
+#define PRM(id, scale) HEAD, PARAMETER(id), SCALE(scale), numberEditor
 
 namespace Uhhyou {
 
@@ -31,7 +31,7 @@ inline juce::File getPresetDirectory(const juce::AudioProcessor &processor)
                   .getFullPathName();
   auto sep = juce::File::getSeparatorString();
 
-  juce::File presetDir(appDir + sep + "Audiobulb" + sep + processor.getName());
+  juce::File presetDir(appDir + sep + "Uhhyou" + sep + processor.getName());
   if (!(presetDir.exists() && presetDir.isDirectory())) presetDir.createDirectory();
   return presetDir;
 }
@@ -48,35 +48,10 @@ inline auto constructParamArray(
 }
 
 Editor::Editor(Processor &processor)
-  : AudioProcessorEditor(processor)
-  , processor(processor)
-
-  , shelvingType(PRM("shelvingType", shelvingType), {"Low Shelf", "High Shelf"})
-  , startHz(PRM("startHz", startHz), 5)
-  , slopeDecibel(PRM("slopeDecibel", slopeDecibel), 5)
-  , outputGain(PRM("outputGain", outputGain), 5)
-
-  , pluginNameButton(
-      *this, palette, processor.getName(), informationText, libraryLicenseText)
-  , undoButton(
-      *this,
-      palette,
-      "Undo",
-      [&]() {
-        if (processor.undoManager.canUndo()) processor.undoManager.undo();
-      })
-  , redoButton(
-      *this,
-      palette,
-      "Redo",
-      [&]() {
-        if (processor.undoManager.canRedo()) processor.undoManager.redo();
-      })
-  , randomizeButton(
-      *this,
-      palette,
-      "Randomize",
-      [&]() {
+  : UhhyouEditor(
+      processor,
+      informationText,
+      [&]() { // onRandomize
         std::uniform_real_distribution<float> dist{0.0f, 1.0f};
         std::random_device dev;
         std::mt19937 rng(dev());
@@ -88,7 +63,10 @@ Editor::Editor(Processor &processor)
           prm->endChangeGesture();
         }
       })
-  , presetManager(HEAD, processor.param.tree)
+  , shelvingType(PRM("shelvingType", shelvingType), {"Low Shelf", "High Shelf"})
+  , startHz(PRM("startHz", startHz), 5)
+  , slopeDecibel(PRM("slopeDecibel", slopeDecibel), 5)
+  , outputGain(PRM("outputGain", outputGain), 5)
 {
   setResizable(true, false);
 
@@ -149,6 +127,7 @@ void Editor::resized()
   const int eqTop2 = eqTop0 + 2 * labelY;
   const int eqTop3 = eqTop0 + 3 * labelY;
   const int eqTop4 = eqTop0 + 4 * labelY;
+  const int eqTop5 = eqTop0 + 5 * labelY;
   const int eqLeft0 = left0;
   const int eqLeft1 = left1;
   groupLabels.push_back(
@@ -165,6 +144,9 @@ void Editor::resized()
 
   labels.push_back({"Output [dB]", Rect{eqLeft0, eqTop4, labelWidth, labelHeight}});
   outputGain.setBounds(Rect{eqLeft1, eqTop4, labelWidth, labelHeight});
+
+  addChildComponent(numberEditor, -2);
+  numberEditor.setBounds(Rect{eqLeft1, eqTop5, labelWidth, labelHeight});
 
   const int actionTop0 = top0;
   const int actionTop1 = actionTop0 + 1 * labelY;

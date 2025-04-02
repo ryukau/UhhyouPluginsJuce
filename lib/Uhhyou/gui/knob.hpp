@@ -8,10 +8,12 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 
 #include "../scaledparameter.hpp"
+#include "./numbereditor.hpp"
 #include "style.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <numbers>
 
 namespace Uhhyou {
@@ -26,6 +28,7 @@ protected:
 
   Scale &scale;
   Palette &pal;
+  NumberEditor &textInput;
   juce::ParameterAttachment attachment;
 
   float value{}; // Normalized in [0, 1].
@@ -46,6 +49,17 @@ protected:
     return {-std::sin(radian) * length, std::cos(radian) * length};
   }
 
+  void invokeTextEditor()
+  {
+    textInput.invoke(
+      *this, juce::Rectangle<int>{0, 0, getWidth(), getHeight()},
+      this->parameter->getText(this->value, std::numeric_limits<float>::digits10 + 1),
+      [&](juce::String text) {
+        const auto value = parameter->getValueForText(text);
+        attachment.setValueAsCompleteGesture(float(this->scale.map(value)));
+      });
+  }
+
 public:
   bool liveUpdate = true;           // When false, only update value on mouse up event.
   float sensitivity = float(0.004); // MovedPixel * sensitivity = valueChanged.
@@ -57,11 +71,13 @@ public:
     Palette &palette,
     juce::UndoManager *undoManager,
     juce::RangedAudioParameter *parameter,
-    Scale &scale)
+    Scale &scale,
+    NumberEditor &textInput)
     : editor(editor)
     , parameter(parameter)
     , scale(scale)
     , pal(palette)
+    , textInput(textInput)
     , attachment(
         *parameter,
         [&](float newRaw) {
@@ -83,6 +99,9 @@ public:
   {
     editor.addAndMakeVisible(*this, 0);
     attachment.sendInitialUpdate();
+
+    setFocusContainerType(juce::Component::FocusContainerType::keyboardFocusContainer);
+    setWantsKeyboardFocus(true);
   }
 
   virtual ~KnobBase() override {}
@@ -178,7 +197,7 @@ public:
       attachment.setValueAsCompleteGesture(float(scale.map(value)));
   }
 
-  virtual void mouseDoubleClick(const juce::MouseEvent &) override {}
+  virtual void mouseDoubleClick(const juce::MouseEvent &) override { invokeTextEditor(); }
 
   virtual void
   mouseWheelMove(const juce::MouseEvent &, const juce::MouseWheelDetails &wheel) override
@@ -186,6 +205,16 @@ public:
     value = std::clamp(value + wheel.deltaY * wheelSensitivity, 0.0f, 1.0f);
     attachment.setValueAsCompleteGesture(float(scale.map(value)));
     repaint();
+  }
+
+  bool keyPressed(const juce::KeyPress &key) override
+  {
+    constexpr auto isKey = juce::KeyPress::isKeyCurrentlyDown;
+    using KP = juce::KeyPress;
+
+    if (!isFocusContainer() || !key.isValid()) return false;
+    if (isKey(KP::returnKey) || isKey(KP::spaceKey)) invokeTextEditor();
+    return true;
   }
 };
 
@@ -200,8 +229,9 @@ public:
     Palette &palette,
     juce::UndoManager *undoManager,
     juce::RangedAudioParameter *parameter,
-    Scale &scale)
-    : KnobBase<Scale>(editor, palette, undoManager, parameter, scale)
+    Scale &scale,
+    NumberEditor &textInput)
+    : KnobBase<Scale>(editor, palette, undoManager, parameter, scale, textInput)
   {
   }
 
@@ -274,8 +304,9 @@ public:
     juce::UndoManager *undoManager,
     juce::RangedAudioParameter *parameter,
     Scale &scale,
+    NumberEditor &textInput,
     int precision = 0)
-    : KnobBase<Scale>(editor, palette, undoManager, parameter, scale)
+    : KnobBase<Scale>(editor, palette, undoManager, parameter, scale, textInput)
     , font(palette.getFont(palette.textSizeUi()))
     , precision(precision)
   {

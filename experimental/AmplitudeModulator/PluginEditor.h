@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "Uhhyou/gui/uhhyoueditor.hpp"
 #include "Uhhyou/gui/widgets.hpp"
 
 #include "PluginProcessor.h"
@@ -12,19 +13,15 @@
 
 namespace Uhhyou {
 
-class Editor final : public juce::AudioProcessorEditor {
+class Editor final : public UhhyouEditor {
 public:
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Editor)
+
   explicit Editor(Processor &);
   ~Editor() override;
 
   void paint(juce::Graphics &) override;
   void resized() override;
-
-private: // JUCE related internals.
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Editor)
-
-  Processor &processor;
-  Palette palette;
 
 private: // Controls tied to parameters.
   ComboBox<decltype(Scales::amType)> amType;
@@ -36,16 +33,6 @@ private: // Drawing and action items.
   std::vector<Line> lines;
   std::vector<TextLabel> labels;
   std::vector<GroupLabel> groupLabels;
-
-  PopUpButton pluginNameButton;
-
-  ActionButton<> undoButton;
-  ActionButton<> redoButton;
-  ActionButton<> randomizeButton;
-
-  std::unique_ptr<juce::FileChooser> fileChooser;
-
-  PresetManager presetManager;
 };
 
 } // namespace Uhhyou

@@ -18,7 +18,7 @@
 #define TREE() processor.param.tree
 
 // Parameter related arguments.
-#define PRM(id, scale) HEAD, PARAMETER(id), SCALE(scale)
+#define PRM(id, scale) HEAD, PARAMETER(id), SCALE(scale), numberEditor
 
 namespace Uhhyou {
 
@@ -31,7 +31,7 @@ inline juce::File getPresetDirectory(const juce::AudioProcessor &processor)
                   .getFullPathName();
   auto sep = juce::File::getSeparatorString();
 
-  juce::File presetDir(appDir + sep + "Audiobulb" + sep + processor.getName());
+  juce::File presetDir(appDir + sep + "Uhhyou" + sep + processor.getName());
   if (!(presetDir.exists() && presetDir.isDirectory())) presetDir.createDirectory();
   return presetDir;
 }
@@ -48,9 +48,21 @@ inline auto constructParamArray(
 }
 
 Editor::Editor(Processor &processor)
-  : AudioProcessorEditor(processor)
-  , processor(processor)
+  : UhhyouEditor(
+      processor,
+      informationText,
+      [&]() {
+        std::uniform_real_distribution<float> dist{0.0f, 1.0f};
+        std::random_device dev;
+        std::mt19937 rng(dev());
 
+        auto params = processor.getParameters();
+        for (auto &prm : params) {
+          prm->beginChangeGesture();
+          prm->setValueNotifyingHost(dist(rng));
+          prm->endChangeGesture();
+        }
+      })
   , amType(
       PRM("amType", amType),
       {
@@ -90,40 +102,6 @@ Editor::Editor(Processor &processor)
   , swapCarriorAndModulator(PRM("swapCarriorAndModulator", boolean), "Swap Input")
   , carriorSideBandMix(PRM("carriorSideBandMix", unipolar), 5)
   , outputGain(PRM("outputGain", gain), 5)
-
-  , pluginNameButton(
-      *this, palette, processor.getName(), informationText, libraryLicenseText)
-  , undoButton(
-      *this,
-      palette,
-      "Undo",
-      [&]() {
-        if (processor.undoManager.canUndo()) processor.undoManager.undo();
-      })
-  , redoButton(
-      *this,
-      palette,
-      "Redo",
-      [&]() {
-        if (processor.undoManager.canRedo()) processor.undoManager.redo();
-      })
-  , randomizeButton(
-      *this,
-      palette,
-      "Randomize",
-      [&]() {
-        std::uniform_real_distribution<float> dist{0.0f, 1.0f};
-        std::random_device dev;
-        std::mt19937 rng(dev());
-
-        auto params = processor.getParameters();
-        for (auto &prm : params) {
-          prm->beginChangeGesture();
-          prm->setValueNotifyingHost(dist(rng));
-          prm->endChangeGesture();
-        }
-      })
-  , presetManager(HEAD, processor.param.tree)
 {
   setResizable(true, false);
 

@@ -20,7 +20,7 @@ namespace Uhhyou {
 This is basically `ParameterAttachment`, but can handle an array of parameters instead of
 a single parameter.
 
-I throught taking `AudioProcessorParameterGroup` (APPG) at constructor is better, but APPG
+I thought taking `AudioProcessorParameterGroup` (APPG) at constructor is better, but APPG
 doesn't have method to return `RangedAudioParameter` in JUCE 7. Maybe rewrite this when
 something like `RangedAudioParameterGroup` is added to JUCE.
 

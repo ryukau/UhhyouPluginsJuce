@@ -8,6 +8,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 
 #include "../scaledparameter.hpp"
+#include "./numbereditor.hpp"
 #include "style.hpp"
 
 #include <algorithm>
@@ -23,6 +24,7 @@ private:
 
 protected:
   Palette &pal;
+  NumberEditor &textInput;
 
   float value{}; // Normalized in [0, 1].
 
@@ -32,8 +34,11 @@ protected:
 
 public:
   ButtonBase(
-    juce::AudioProcessorEditor &editor, Palette &palette, const juce::String &label)
-    : pal(palette), font(juce::FontOptions{}), label(label)
+    juce::AudioProcessorEditor &editor,
+    Palette &palette,
+    NumberEditor &textInput,
+    const juce::String &label)
+    : pal(palette), textInput(textInput), font(juce::FontOptions{}), label(label)
   {
     editor.addAndMakeVisible(*this, 0);
   }
@@ -112,9 +117,10 @@ public:
   ActionButton(
     juce::AudioProcessorEditor &editor,
     Palette &palette,
+    NumberEditor &textInput,
     const juce::String &label,
     std::function<void(void)> onClick)
-    : ButtonBase<style>(editor, palette, label), onClick(onClick)
+    : ButtonBase<style>(editor, palette, textInput, label), onClick(onClick)
   {
   }
 
@@ -162,8 +168,9 @@ public:
     juce::UndoManager *undoManager,
     juce::RangedAudioParameter *parameter,
     Scale &scale,
+    NumberEditor &textInput,
     const juce::String &label)
-    : ButtonBase<style>(editor, palette, label)
+    : ButtonBase<style>(editor, palette, textInput, label)
     , editor(editor)
     , parameter(parameter)
     , scale(scale)
