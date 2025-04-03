@@ -24,7 +24,8 @@ private:
 
 protected:
   Palette &pal;
-  NumberEditor &textInput;
+  StatusBar &statusBar;
+  NumberEditor &numberEditor;
 
   float value{}; // Normalized in [0, 1].
 
@@ -36,9 +37,14 @@ public:
   ButtonBase(
     juce::AudioProcessorEditor &editor,
     Palette &palette,
-    NumberEditor &textInput,
+    StatusBar &statusBar,
+    NumberEditor &numberEditor,
     const juce::String &label)
-    : pal(palette), textInput(textInput), font(juce::FontOptions{}), label(label)
+    : pal(palette)
+    , statusBar(statusBar)
+    , numberEditor(numberEditor)
+    , font(juce::FontOptions{})
+    , label(label)
   {
     editor.addAndMakeVisible(*this, 0);
   }
@@ -117,10 +123,11 @@ public:
   ActionButton(
     juce::AudioProcessorEditor &editor,
     Palette &palette,
-    NumberEditor &textInput,
+    StatusBar &statusBar,
+    NumberEditor &numberEditor,
     const juce::String &label,
     std::function<void(void)> onClick)
-    : ButtonBase<style>(editor, palette, textInput, label), onClick(onClick)
+    : ButtonBase<style>(editor, palette, statusBar, numberEditor, label), onClick(onClick)
   {
   }
 
@@ -154,11 +161,19 @@ protected:
 
   float defaultValue{};
 
-  inline void toggleValue()
+  void toggleValue()
   {
     this->value = this->value >= float(1) ? float(0) : float(1);
     attachment.setValueAsCompleteGesture(
       this->value >= float(1) ? float(scale.getMax()) : float(scale.getMin()));
+
+    // update statusBar.
+    auto text = parameter->getName(256);
+    text += ": ";
+    text += juce::String(int(this->value) ? "ON" : "OFF");
+    text += " ";
+    text += parameter->getLabel();
+    this->statusBar.setText(text);
   }
 
 public:
@@ -168,9 +183,10 @@ public:
     juce::UndoManager *undoManager,
     juce::RangedAudioParameter *parameter,
     Scale &scale,
-    NumberEditor &textInput,
+    StatusBar &statusBar,
+    NumberEditor &numberEditor,
     const juce::String &label)
-    : ButtonBase<style>(editor, palette, textInput, label)
+    : ButtonBase<style>(editor, palette, statusBar, numberEditor, label)
     , editor(editor)
     , parameter(parameter)
     , scale(scale)

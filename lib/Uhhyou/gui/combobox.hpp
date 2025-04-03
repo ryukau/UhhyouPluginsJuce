@@ -29,7 +29,8 @@ protected:
 
   Scale &scale;
   Palette &pal;
-  NumberEditor &textInput;
+  StatusBar &statusBar;
+  NumberEditor &numberEditor;
   juce::ParameterAttachment attachment;
 
   juce::PopupMenu menu;
@@ -41,6 +42,20 @@ protected:
   juce::Font font;
   std::vector<juce::String> items;
 
+  void updateStatusBar()
+  {
+    // TODO: Use <format>.
+    auto text = parameter->getName(256);
+    text += ": ";
+    text += items[itemIndex];
+    text += " (";
+    text += juce::String(itemIndex + 1);
+    text += "/";
+    text += juce::String(items.size());
+    text += ")";
+    statusBar.setText(text);
+  }
+
 public:
   ComboBox(
     juce::AudioProcessorEditor &editor,
@@ -48,13 +63,15 @@ public:
     juce::UndoManager *undoManager,
     juce::RangedAudioParameter *parameter,
     Scale &scale,
-    NumberEditor &textInput,
+    StatusBar &statusBar,
+    NumberEditor &numberEditor,
     std::vector<juce::String> menuItems)
     : editor(editor)
     , parameter(parameter)
     , scale(scale)
     , pal(palette)
-    , textInput(textInput)
+    , statusBar(statusBar)
+    , numberEditor(numberEditor)
     , attachment(
         *parameter,
         [&](float newRaw) {
@@ -150,6 +167,7 @@ public:
           if (idx < 0 || idx >= int(items.size())) return;
           itemIndex = idx;
           attachment.setValueAsCompleteGesture(float(itemIndex));
+          updateStatusBar();
           repaint();
         });
     }
@@ -167,6 +185,7 @@ public:
     const int size = int(items.size());
     itemIndex = (itemIndex + (wheel.deltaY < 0 ? -1 : 1) + size) % size;
     attachment.setValueAsCompleteGesture(float(itemIndex));
+    updateStatusBar();
     repaint();
   }
 };

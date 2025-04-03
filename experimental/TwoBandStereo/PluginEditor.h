@@ -32,6 +32,7 @@ private: // JUCE related internals.
   Palette palette;
 
 private: // Action items.
+  StatusBar statusBar;
   NumberEditor numberEditor;
   PopUpButton pluginNameButton;
   ActionButton<> undoButton;

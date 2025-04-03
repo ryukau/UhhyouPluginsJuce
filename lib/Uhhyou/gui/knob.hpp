@@ -28,7 +28,8 @@ protected:
 
   Scale &scale;
   Palette &pal;
-  NumberEditor &textInput;
+  StatusBar &statusBar;
+  NumberEditor &numberEditor;
   juce::ParameterAttachment attachment;
 
   float value{}; // Normalized in [0, 1].
@@ -51,7 +52,7 @@ protected:
 
   void invokeTextEditor()
   {
-    textInput.invoke(
+    numberEditor.invoke(
       *this, juce::Rectangle<int>{0, 0, getWidth(), getHeight()},
       this->parameter->getText(this->value, std::numeric_limits<float>::digits10 + 1),
       [&](juce::String text) {
@@ -72,12 +73,14 @@ public:
     juce::UndoManager *undoManager,
     juce::RangedAudioParameter *parameter,
     Scale &scale,
-    NumberEditor &textInput)
+    StatusBar &statusBar,
+    NumberEditor &numberEditor)
     : editor(editor)
     , parameter(parameter)
     , scale(scale)
     , pal(palette)
-    , textInput(textInput)
+    , statusBar(statusBar)
+    , numberEditor(numberEditor)
     , attachment(
         *parameter,
         [&](float newRaw) {
@@ -151,6 +154,7 @@ public:
 
       if (value != oldValue) {
         this->attachment.setValueAsCompleteGesture(float(this->scale.map(value)));
+        statusBar.update(parameter);
       }
       repaint();
       return;
@@ -161,6 +165,7 @@ public:
     if (event.mods.isCommandDown()) {
       value = defaultValue;
       attachment.setValueAsCompleteGesture(float(scale.map(value)));
+      statusBar.update(parameter);
       repaint();
       return;
     }
@@ -178,7 +183,10 @@ public:
     const auto sensi = event.mods.isShiftDown() ? lowSensitivity : sensitivity;
     value = std::clamp(value + (anchor.y - event.position.y) * sensi, 0.0f, 1.0f);
 
-    if (liveUpdate) attachment.setValueAsPartOfGesture(float(scale.map(value)));
+    if (liveUpdate) {
+      attachment.setValueAsPartOfGesture(float(scale.map(value)));
+      statusBar.update(parameter);
+    }
     repaint();
 
     anchor = event.position;
@@ -195,6 +203,9 @@ public:
       attachment.endGesture();
     else
       attachment.setValueAsCompleteGesture(float(scale.map(value)));
+
+    statusBar.update(parameter);
+    repaint();
   }
 
   virtual void mouseDoubleClick(const juce::MouseEvent &) override { invokeTextEditor(); }
@@ -204,6 +215,7 @@ public:
   {
     value = std::clamp(value + wheel.deltaY * wheelSensitivity, 0.0f, 1.0f);
     attachment.setValueAsCompleteGesture(float(scale.map(value)));
+    statusBar.update(parameter);
     repaint();
   }
 
@@ -230,8 +242,10 @@ public:
     juce::UndoManager *undoManager,
     juce::RangedAudioParameter *parameter,
     Scale &scale,
-    NumberEditor &textInput)
-    : KnobBase<Scale>(editor, palette, undoManager, parameter, scale, textInput)
+    StatusBar &statusBar,
+    NumberEditor &numberEditor)
+    : KnobBase<Scale>(
+        editor, palette, undoManager, parameter, scale, statusBar, numberEditor)
   {
   }
 
@@ -304,9 +318,11 @@ public:
     juce::UndoManager *undoManager,
     juce::RangedAudioParameter *parameter,
     Scale &scale,
-    NumberEditor &textInput,
+    StatusBar &statusBar,
+    NumberEditor &numberEditor,
     int precision = 0)
-    : KnobBase<Scale>(editor, palette, undoManager, parameter, scale, textInput)
+    : KnobBase<Scale>(
+        editor, palette, undoManager, parameter, scale, statusBar, numberEditor)
     , font(palette.getFont(palette.textSizeUi()))
     , precision(precision)
   {

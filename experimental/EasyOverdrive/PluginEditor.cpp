@@ -18,7 +18,8 @@
 #define TREE() processor.param.tree
 
 // Parameter related arguments.
-#define PRM(id, scale) HEAD, PARAMETER(id), SCALE(scale), numberEditor
+#define ACTION_BUTTON (*this), palette, statusBar, numberEditor
+#define PRM(id, scale) HEAD, PARAMETER(id), SCALE(scale), statusBar, numberEditor
 
 namespace Uhhyou {
 
@@ -54,25 +55,19 @@ Editor::Editor(Processor &processor)
   , pluginNameButton(
       *this, palette, processor.getName(), informationText, libraryLicenseText)
   , undoButton(
-      *this,
-      palette,
-      numberEditor,
+      ACTION_BUTTON,
       "Undo",
       [&]() {
         if (processor.undoManager.canUndo()) processor.undoManager.undo();
       })
   , redoButton(
-      *this,
-      palette,
-      numberEditor,
+      ACTION_BUTTON,
       "Redo",
       [&]() {
         if (processor.undoManager.canRedo()) processor.undoManager.redo();
       })
   , randomizeButton(
-      *this,
-      palette,
-      numberEditor,
+      ACTION_BUTTON,
       "Randomize",
       [&]() {
         std::uniform_real_distribution<float> dist{0.0f, 1.0f};
