@@ -30,6 +30,7 @@ public:
 private: // JUCE related internals.
   Processor &processor;
   Palette palette;
+  juce::LookAndFeel_V4 lookAndFeel;
 
 private: // Action items.
   StatusBar statusBar;

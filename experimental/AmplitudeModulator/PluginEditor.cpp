@@ -51,6 +51,8 @@ inline auto constructParamArray(
 Editor::Editor(Processor &processor)
   : AudioProcessorEditor(processor)
   , processor(processor)
+  , statusBar(*this, palette)
+  , numberEditor(palette)
 
   , pluginNameButton(
       *this, palette, processor.getName(), informationText, libraryLicenseText)
@@ -123,6 +125,8 @@ Editor::Editor(Processor &processor)
   , carriorSideBandMix(PRM("carriorSideBandMix", unipolar), 5)
   , outputGain(PRM("outputGain", gain), 5)
 {
+  setDefaultColor(lookAndFeel, palette);
+
   setResizable(true, false);
 
   constexpr double ratio = double(defaultWidth) / double(defaultHeight);
@@ -165,6 +169,7 @@ void Editor::resized()
   const int margin = int(5 * scale);
   const int labelHeight = int(20 * scale);
   const int labelWidth = int(100 * scale);
+  const int bottom = int(scale * defaultHeight);
 
   const int uiMargin = 4 * margin;
   const int labelX = labelWidth + 2 * margin;
@@ -173,60 +178,27 @@ void Editor::resized()
 
   const int top0 = uiMargin;
   const int left0 = uiMargin;
-  const int left1 = left0 + 1 * labelX;
-  const int left2 = left0 + 2 * labelX;
-  const int left3 = left0 + 3 * labelX;
+  const int left1 = left0 + 2 * labelX;
 
-  const int eqTop0 = top0;
-  const int eqTop1 = eqTop0 + 1 * labelY;
-  const int eqTop2 = eqTop0 + 2 * labelY;
-  const int eqTop3 = eqTop0 + 3 * labelY;
-  const int eqTop4 = eqTop0 + 4 * labelY;
-  const int eqLeft0 = left0;
-  const int eqLeft1 = left1;
-  groupLabels.push_back(
-    {"Amplitude Modulator", Rect{eqLeft0, eqTop0, sectionWidth, labelHeight}});
+  layoutVerticalSection(
+    labels, groupLabels, left0, top0, sectionWidth, labelWidth, labelWidth, labelX,
+    labelHeight, labelY, "Amplitude Modulator",
+    {
+      {"Type", amType},
+      {"Side-band Mix", carriorSideBandMix},
+      {"Output [dB]", outputGain},
+      {"", swapCarriorAndModulator, LabeledWidget::expand},
+    });
 
-  labels.push_back({"Type", Rect{eqLeft0, eqTop1, labelWidth, labelHeight}});
-  amType.setBounds(Rect{eqLeft1, eqTop1, labelWidth, labelHeight});
+  const int nameTop0 = layoutActionSection(
+    groupLabels, left1, top0, sectionWidth, labelWidth, labelWidth, labelX, labelHeight,
+    labelY, undoButton, redoButton, randomizeButton, presetManager);
 
-  labels.push_back({"Side-band Mix", Rect{eqLeft0, eqTop2, labelWidth, labelHeight}});
-  carriorSideBandMix.setBounds(Rect{eqLeft1, eqTop2, labelWidth, labelHeight});
-
-  labels.push_back({"Output [dB]", Rect{eqLeft0, eqTop3, labelWidth, labelHeight}});
-  outputGain.setBounds(Rect{eqLeft1, eqTop3, labelWidth, labelHeight});
-
-  swapCarriorAndModulator.setBounds(Rect{eqLeft0, eqTop4, sectionWidth, labelHeight});
-
-  const int actionTop0 = top0;
-  const int actionTop1 = actionTop0 + 1 * labelY;
-  const int actionTop2 = actionTop0 + 2 * labelY;
-  const int actionLeft0 = left2;
-  const int actionLeft1 = left3;
-  groupLabels.push_back(
-    {"Action", Rect{actionLeft0, actionTop0, sectionWidth, labelHeight}});
-
-  undoButton.setBounds(Rect{actionLeft0, actionTop1, labelWidth, labelHeight});
-  redoButton.setBounds(Rect{actionLeft1, actionTop1, labelWidth, labelHeight});
-
-  randomizeButton.setBounds(Rect{actionLeft0, actionTop2, sectionWidth, labelHeight});
-
-  const int presetTop0 = actionTop2 + labelY;
-  const int presetTop1 = presetTop0 + 1 * labelY;
-  const int presetLeft0 = left2;
-  groupLabels.push_back(
-    {"Preset", Rect{presetLeft0, presetTop0, sectionWidth, labelHeight}});
-
-  presetManager.setBounds(Rect{presetLeft0, presetTop1, sectionWidth, labelHeight});
-
-  // Plugin name.
-  pluginNameButton.setBounds(
-    Rect{presetLeft0, presetTop1 + labelY, sectionWidth, labelHeight});
-  pluginNameButton.scale(scale);
-
-  addChildComponent(statusBar);
   statusBar.setBounds(
-    Rect{left0, defaultHeight - labelHeight - uiMargin, 2 * sectionWidth, labelHeight});
+    Rect{left0, bottom - labelHeight - uiMargin, 2 * sectionWidth, labelHeight});
+
+  pluginNameButton.setBounds(Rect{left1, nameTop0, sectionWidth, labelHeight});
+  pluginNameButton.scale(scale);
 }
 
 } // namespace Uhhyou

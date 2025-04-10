@@ -30,6 +30,7 @@ public:
 private: // JUCE related internals.
   Processor &processor;
   Palette palette;
+  juce::LookAndFeel_V4 lookAndFeel;
 
 private: // Action items.
   StatusBar statusBar;
@@ -47,7 +48,7 @@ private: // Controls tied to parameters.
   TextKnob<decltype(Scales::unipolar)> carriorSideBandMix;
   TextKnob<decltype(Scales::gain)> outputGain;
 
-private: // Drawing and action items.
+private: // Drawing items.
   std::vector<Line> lines;
   std::vector<TextLabel> labels;
   std::vector<GroupLabel> groupLabels;
