@@ -47,9 +47,9 @@ namespace Uhhyou {
 //    Output, real ( kind = rk ) BJN, DJN, FJN, BYN, DYN, FYN, the values of
 //    Jn(x), Jn'(x), Jn"(x), Yn(x), Yn'(x), Yn"(x).
 //
-std::array<double, 6> jyndd(int n, double x)
+inline std::array<double, 6> jyndd(int n, double x)
 {
-  double f;
+  double f{};
 
   int nt;
   for (nt = 1; nt <= 900; ++nt) {
@@ -137,7 +137,7 @@ std::array<double, 6> jyndd(int n, double x)
 //    Output, real ( kind = rk ) RJ0(NT), RJ1(NT), RY0(NT), RY1(NT), the zeros
 //    of Jn(x), Jn'(x), Yn(x), Yn'(x).
 //
-std::array<std::vector<double>, 4> jyzo(int n, int nt)
+inline std::array<std::vector<double>, 4> jyzo(int n, int nt)
 {
   std::vector<double> rj0(nt, 0.0);
   std::vector<double> rj1(nt, 0.0);
