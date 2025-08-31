@@ -29,6 +29,7 @@ Plugins will be built into `build/*_artefacts/Release` where `*` is plugin name.
 - `.github/workflows` and `ci`: CI scripts for GitHub Actions.
 - `common`: Common components across plugins.
 - `lib`: External libraries.
+- `tool`: Development tools.
 
 Other directories are individual plugins.
 

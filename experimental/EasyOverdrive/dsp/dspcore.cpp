@@ -13,11 +13,6 @@ namespace Uhhyou {
 
 constexpr double limiterAttackSecond = 0.001;
 
-template<typename T> T getKp(T sampleRate, T cutoffHz, T maxHz)
-{
-  return cutoffHz >= maxHz ? T(1) : T(EMAFilter<double>::cutoffToP(sampleRate, cutoffHz));
-}
-
 void DSPCore::setup(double sampleRate_)
 {
   sampleRate = double(sampleRate_);
