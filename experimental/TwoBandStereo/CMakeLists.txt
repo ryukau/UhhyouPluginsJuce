@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 
 juce_add_plugin(TwoBandStereo
   PRODUCT_NAME "TwoBandStereo"
-  VERSION "0.0.3"
+  VERSION "0.0.4"
   COMPANY_NAME "UhhyouPlugins"
   COMPANY_EMAIL "ryukau@gmail.com"
   COMPANY_COPYRIGHT "Copyright 2024 Takamitsu Endo."

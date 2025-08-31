@@ -11,30 +11,34 @@
 
 namespace Uhhyou {
 
+// cutoffNormalized = (cutoff in Hz) / (sampling rate). The value range is [0.0, 0.5).
+// Lower bound of cutoff in Hz is around 3 to 4 Hz for single presision (float).
+template<typename T> inline T cutoffToEmaKp(T cutoffNormalized)
+{
+  auto y = T(1) - std::cos(T(2) * std::numbers::pi_v<T> * cutoffNormalized);
+  return std::sqrt((y + T(2)) * y) - y;
+}
+
+template<typename T> inline T cutoffToEmaKp(T sampleRate, T cutoffHz)
+{
+  return cutoffToEmaKp(cutoffHz / sampleRate);
+}
+
+template<typename T> inline T secondToEmaKp(T sampleRate, T second)
+{
+  if (second < std::numeric_limits<T>::epsilon()) return T(1);
+  return cutoffToEmaKp(sampleRate, T(1) / second);
+}
+
 // Exponential moving average filter.
 template<typename Sample> class EMAFilter {
 public:
   Sample kp = Sample(1); // In [0, 1].
   Sample value = 0;
 
-  // Lower bound of cutoffHz is around 3 to 4 Hz for single presision (float).
-  static Sample cutoffToP(Sample sampleRate, Sample cutoffHz)
-  {
-    constexpr Sample twopi = Sample(2) * std::numbers::pi_v<Sample>;
-    auto omega_c = Sample(twopi) * cutoffHz / sampleRate;
-    auto y = Sample(1) - std::cos(omega_c);
-    return -y + std::sqrt((y + Sample(2)) * y);
-  }
-
-  static Sample secondToP(Sample sampleRate, Sample second)
-  {
-    if (second < std::numeric_limits<Sample>::epsilon()) return Sample(1);
-    return cutoffToP(sampleRate, Sample(1) / second);
-  }
-
   void setCutoff(Sample sampleRate, Sample cutoffHz)
   {
-    kp = Sample(EMAFilter<double>::cutoffToP(sampleRate, cutoffHz));
+    kp = Sample(cutoffToEmaKp<double>(double(sampleRate), double(cutoffHz)));
   }
 
   void setP(Sample p) { kp = std::clamp<Sample>(p, Sample(0), Sample(1)); };
@@ -65,12 +69,12 @@ public:
   {
     kp = cutoffHz >= sampleRate / Sample(2)
       ? Sample(1)
-      : Sample(EMAFilter<double>::cutoffToP(sampleRate, cutoffHz));
+      : Sample(cutoffToEmaKp<double>(double(sampleRate), double(cutoffHz)));
   }
 
   void setSecond(Sample sampleRate, Sample second)
   {
-    kp = Sample(EMAFilter<double>::secondToP(sampleRate, second));
+    kp = Sample(cutoffToEmaKp<double>(double(sampleRate), double(second)));
   }
 
   Sample getValue() { return v2; }
@@ -103,8 +107,8 @@ public:
   static void setTime(Sample seconds)
   {
     timeInSamples = seconds * sampleRate;
-    kp = Sample(EMAFilter<double>::cutoffToP(
-      sampleRate, std::clamp<double>(1.0 / seconds, 0.0, sampleRate / 2.0)));
+    kp = Sample(cutoffToEmaKp(
+      double(sampleRate), std::clamp<double>(1.0 / seconds, 0.0, sampleRate / 2.0)));
   }
   static void setBufferSize(Sample _bufferSize) { bufferSize = _bufferSize; }
 
@@ -361,6 +365,37 @@ public:
   {
     push(value);
     return process(rate);
+  }
+};
+
+template<typename Sample, size_t length> class ParallelRateLimiter {
+public:
+  std::array<Sample, length> target{};
+  std::array<Sample, length> value{};
+
+  inline Sample v(size_t index) { return value[index]; }
+  inline Sample getValueAt(size_t index) { return value[index]; }
+
+  void resetAt(size_t index, Sample resetValue = 0)
+  {
+    this->value[index] = resetValue;
+    this->target[index] = resetValue;
+  }
+
+  void pushAt(size_t index, Sample pushTarget) { this->target[index] = pushTarget; }
+
+  void process(Sample rate)
+  {
+    for (size_t idx = 0; idx < length; ++idx) {
+      auto diff = target[idx] - value[idx];
+      if (diff > rate) {
+        value[idx] += rate;
+      } else if (diff < -rate) {
+        value[idx] -= rate;
+      } else {
+        value[idx] = target[idx];
+      }
+    }
   }
 };
 

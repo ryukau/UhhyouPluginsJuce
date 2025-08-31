@@ -12,8 +12,7 @@
 
 #include <mutex>
 
-class Processor final : public juce::AudioProcessor,
-                        public juce::MPEInstrument::Listener {
+class Processor final : public juce::AudioProcessor {
 public:
   Processor();
   ~Processor() override;
@@ -45,17 +44,7 @@ public:
   void getStateInformation(juce::MemoryBlock &destData) override;
   void setStateInformation(const void *data, int sizeInBytes) override;
 
-  virtual void noteAdded(juce::MPENote newNote) override;
-  virtual void notePressureChanged(juce::MPENote changedNote) override;
-  virtual void notePitchbendChanged(juce::MPENote changedNote) override;
-  virtual void noteTimbreChanged(juce::MPENote changedNote) override;
-  virtual void noteKeyStateChanged(juce::MPENote changedNote) override;
-  virtual void noteReleased(juce::MPENote finishedNote) override;
-  virtual void zoneLayoutChanged() override;
-
 public:
-  int midiSampleOffset = 0;
-  juce::MPEInstrument mpeInstrument;
   juce::UndoManager undoManager{32768, 512};
 
   Uhhyou::ParameterStore param;

@@ -6,4 +6,6 @@ set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "" FORCE) # Build univer
 project(UhhyouPlugins VERSION 0.2.0)
 
 add_subdirectory(lib)
+
+# add_subdirectory(plugin)
 add_subdirectory(experimental)

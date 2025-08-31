@@ -5,14 +5,14 @@
 #include "PluginEditor.h"
 
 Processor::Processor()
-  : AudioProcessor(BusesProperties()
-                     .withInput("InputCarrior", juce::AudioChannelSet::stereo(), true)
-                     .withInput("InputModulator", juce::AudioChannelSet::stereo(), true)
-                     .withOutput("Output", juce::AudioChannelSet::stereo(), true))
+  : AudioProcessor(
+      BusesProperties()
+        .withInput("InputCarrior", juce::AudioChannelSet::stereo(), true)
+        .withInput("InputModulator", juce::AudioChannelSet::stereo(), true)
+        .withOutput("Output", juce::AudioChannelSet::stereo(), true))
   , param(*this, &undoManager, juce::Identifier("Root"))
   , dsp(param)
 {
-  mpeInstrument.addListener(this);
 }
 
 Processor::~Processor() {}
@@ -37,7 +37,6 @@ void Processor::prepareToPlay(double sampleRate, int)
   } else {
     dsp.reset();
   }
-  mpeInstrument.releaseAllNotes();
   setLatencySamples(int(dsp.getLatency()));
   previousSampleRate = sampleRate;
 }
@@ -58,7 +57,8 @@ bool Processor::isBusesLayoutSupported(const BusesLayout &layouts) const
   return true;
 }
 
-void Processor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiBuffer &midi)
+void Processor::processBlock(
+  juce::AudioBuffer<float> &buffer, juce::MidiBuffer & /*midi*/)
 {
   // I guess mutex shouldn't be used here. However, this is a mitigation of a crash on FL
   // when refreshing a plugin. It seems like `prepareToPlay` and `processBlock` might be
@@ -66,13 +66,6 @@ void Processor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiBuffer 
   std::lock_guard<std::mutex> guard(setupMutex);
 
   juce::ScopedNoDenormals noDenormals;
-
-  for (const juce::MidiMessageMetadata &metadata : midi) {
-    if (metadata.data == nullptr) continue;
-    if (metadata.numBytes <= 0) continue;
-    midiSampleOffset = metadata.samplePosition; // Sad hack to propagate message timing.
-    mpeInstrument.processNextMidiEvent(metadata.getMessage());
-  }
 
   auto audioPlayHead = getPlayHead();
   if (audioPlayHead != nullptr) {
@@ -133,13 +126,5 @@ void Processor::setStateInformation(const void *data, int sizeInBytes)
     }
   }
 }
-
-void Processor::noteAdded(juce::MPENote) {}
-void Processor::noteReleased(juce::MPENote) {}
-void Processor::notePressureChanged(juce::MPENote) {}
-void Processor::notePitchbendChanged(juce::MPENote) {}
-void Processor::noteTimbreChanged(juce::MPENote) {}
-void Processor::noteKeyStateChanged(juce::MPENote) {}
-void Processor::zoneLayoutChanged() {}
 
 juce::AudioProcessor *JUCE_CALLTYPE createPluginFilter() { return new Processor(); }

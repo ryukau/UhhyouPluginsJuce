@@ -121,10 +121,9 @@ Editor::Editor(Processor &processor)
   setDefaultColor(lookAndFeel, palette);
 
   setResizable(true, false);
-
-  constexpr double ratio = double(defaultWidth) / double(defaultHeight);
-  getConstrainer()->setFixedAspectRatio(ratio);
-  setSize(defaultWidth, defaultHeight);
+  getConstrainer()->setFixedAspectRatio(double(defaultWidth) / double(defaultHeight));
+  const float scale = getStateTree().getProperty("scale", 1.0f);
+  setSize(int(scale * defaultWidth), int(scale * defaultHeight));
 }
 
 Editor::~Editor() {}
@@ -153,6 +152,7 @@ void Editor::resized()
   using Rect = juce::Rectangle<int>;
 
   const float scale = getDesktopScaleFactor() * getHeight() / float(defaultHeight);
+  getStateTree().setProperty("scale", scale, nullptr);
   palette.resize(scale);
 
   lines.clear();

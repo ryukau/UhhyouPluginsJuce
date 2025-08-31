@@ -32,6 +32,11 @@ private: // JUCE related internals.
   Palette palette;
   juce::LookAndFeel_V4 lookAndFeel;
 
+  inline juce::ValueTree getStateTree()
+  {
+    return processor.param.tree.state.getOrCreateChildWithName("GUI", nullptr);
+  }
+
 private: // Action items.
   StatusBar statusBar;
   NumberEditor numberEditor;
