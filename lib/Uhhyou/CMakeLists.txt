@@ -6,8 +6,7 @@ include("cmake/additional_compiler_flag.cmake")
 add_library(UhhyouCommon OBJECT
   gui/style.cpp)
 
-target_link_libraries(UhhyouCommon
-  PRIVATE
+target_link_libraries(UhhyouCommon PRIVATE
   juce::juce_recommended_config_flags
   juce::juce_recommended_warning_flags
   additional_compiler_flag)
@@ -21,3 +20,8 @@ target_include_directories(UhhyouCommon PRIVATE
   "."
   "../JUCE/modules")
 target_compile_definitions(UhhyouCommon PRIVATE JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1)
+
+juce_add_binary_data(UhhyouLicenseData
+  SOURCES ../README.md
+  NAMESPACE UhhyouLicense)
+target_link_libraries(UhhyouCommon PUBLIC UhhyouLicenseData)
