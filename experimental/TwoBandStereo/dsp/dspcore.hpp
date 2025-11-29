@@ -7,7 +7,6 @@
 #include "./crossover.hpp"
 #include "Uhhyou/dsp/multirate.hpp"
 #include "Uhhyou/dsp/smoother.hpp"
-#include "Uhhyou/dsp/svf.hpp"
 
 #include <array>
 #include <cstdint>
