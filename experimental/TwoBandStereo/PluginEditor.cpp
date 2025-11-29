@@ -55,7 +55,7 @@ Editor::Editor(Processor &processor)
   , numberEditor(palette)
 
   , pluginNameButton(
-      *this, palette, processor.getName(), informationText, libraryLicenseText)
+      *this, palette, processor.getName(), informationText, getLibraryLicenseText())
   , undoButton(
       ACTION_BUTTON,
       "Undo",

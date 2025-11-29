@@ -76,6 +76,8 @@ private:
   ExpSmoother<Sample> svfK;
 
 public:
+  SVFLP(const SmootherParameter<Sample> &smoo) : svfG(smoo), svfD(smoo), svfK(smoo) {}
+
   void reset(Sample sampleRate, Sample seconds, Sample Q)
   {
     ic1eq = 0;
@@ -186,6 +188,11 @@ private:
   Delay<Sample> delay;
 
 public:
+  BadLimiter(const SmootherParameter<Sample> &smoo)
+    : amp(smoo), delayTimeSample(smoo), svf(smoo)
+  {
+  }
+
   // size_t latency(size_t upfold) { return attackFrames / upfold; }
 
   void resize(size_t maxDelaySample) { delay.resize(maxDelaySample); }
@@ -380,6 +387,11 @@ private:
   SVFLP<Sample> svf;
 
 public:
+  AsymmetricDrive(const SmootherParameter<Sample> &smoo)
+    : decayP(smoo), decayN(smoo), exponentRange(smoo), svf(smoo)
+  {
+  }
+
   void reset(
     Sample sampleRate, Sample decaySecond, Sample decayBias, Sample Q, Sample expRange)
   {
@@ -418,10 +430,10 @@ public:
 
     if (d0 > 0) {
       accP += d0;
-      accN *= decayN.v();
+      accN *= decayN.value();
     } else {
       accN += d0;
-      accP *= decayP.v();
+      accP *= decayP.value();
     }
 
     Sample r = exponentRange.process();

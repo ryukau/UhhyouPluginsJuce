@@ -15,8 +15,7 @@ void DSPCore::setup(double sampleRate_)
 {
   sampleRate = double(sampleRate_);
 
-  SmootherCommon<double>::setSampleRate(sampleRate);
-  SmootherCommon<double>::setTime(double(1));
+  smoo.setTime(sampleRate, double(1));
 
   reset();
   startup();
@@ -58,11 +57,9 @@ inline std::array<Sample, 2> mixStereo(Sample inL, Sample inR, Sample spread)
 void DSPCore::process(
   const size_t length, const float *in0, const float *in1, float *out0, float *out1)
 {
-  SmootherCommon<double>::setBufferSize(double(length));
-
   for (size_t i = 0; i < length; ++i) {
     crossoverFreq.process();
-    for (auto &x : crossoverFilter) x.prepare(crossoverFreq.getValue());
+    for (auto &x : crossoverFilter) x.prepare(crossoverFreq.value());
 
     crossoverFilter[0].process(double(in0[i]));
     crossoverFilter[1].process(double(in1[i]));

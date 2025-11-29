@@ -12,6 +12,11 @@
 
 namespace Uhhyou {
 
+namespace ScaleInternal {
+template<typename T> inline T dbToAmp(T dB) { return std::pow(T(10), dB / T(20)); }
+template<typename T> inline T ampToDB(T amp) { return T(20) * std::log10(amp); }
+} // namespace ScaleInternal
+
 // Range is [min, max]. Beware that `max` is inclusive.
 template<typename T> class IntScale {
 private:
@@ -316,18 +321,18 @@ public:
     minToZero = minToZero_;
     minDB = minDB_;
     maxDB = maxDB_;
-    minAmp = minToZero ? T(0) : dbToAmp(minDB);
-    maxAmp = dbToAmp(maxDB);
+    minAmp = minToZero ? T(0) : ScaleInternal::dbToAmp(minDB);
+    maxAmp = ScaleInternal::dbToAmp(maxDB);
     scaleDB = (maxDB - minDB);
   }
 
-  T map(T normalized) { return dbToAmp(toDisplay(normalized)); }
+  T map(T normalized) { return ScaleInternal::dbToAmp(toDisplay(normalized)); }
   T reverseMap(T input) const { return map(T(1) - input); }
 
   T invmap(T amplitude)
   {
     if (amplitude <= T(0)) return T(0);
-    T normalized = (ampToDB(amplitude) - minDB) / scaleDB;
+    T normalized = (ScaleInternal::ampToDB(amplitude) - minDB) / scaleDB;
     return std::clamp(normalized, T(0), T(1));
   }
 
@@ -352,9 +357,6 @@ public:
   T getMinDB() { return minDB; }
   T getMaxDB() { return maxDB; }
   T getRangeDB() { return scaleDB; }
-
-  inline T dbToAmp(T dB) { return std::pow(T(10), dB / T(20)); }
-  inline T ampToDB(T amplitude) { return T(20) * std::log10(amplitude); }
 
 protected:
   bool minToZero;
@@ -396,6 +398,10 @@ public:
 
   T getMin() { return offset - scale.getMax(); }
   T getMax() { return offset - scale.getMin(); }
+
+  T getMinDB() { return scale.getMinDB(); }
+  T getMaxDB() { return scale.getMaxDB(); }
+  T getRangeDB() { return scale.getScaleDB(); }
 
 protected:
   DecibelScale<T> scale;
@@ -440,7 +446,7 @@ public:
   T invmapDB(T dB, T sign)
   {
     if (sign == 0 || dB < scale.getMinDB()) return center;
-    return invmap(std::copysign(scale.dbToAmp(dB), sign));
+    return invmap(std::copysign(ScaleInternal::dbToAmp(dB), sign));
   }
 
   T toDisplay(T normalized)
@@ -468,6 +474,75 @@ private:
   static constexpr T lowerRangeEnd = center * (T(1) - tolerance);
 
   DecibelScale<T> scale;
+};
+
+// DecibelScale, but can have negative values when normalized value is below `center`.
+//
+// - `center` is fixed to 0.5.
+// - When normalized value is in `center`, `map()` outputs 0.
+// - Same decibel range is used for positive and negative values.
+//
+// Added to use for feedback or resonance. Increasing normalized value makes the raw value
+// to be close to `offset`.
+template<typename T> class BipolarNegativeDecibelScale {
+public:
+  BipolarNegativeDecibelScale(T minDB, T maxDB) : scale(minDB, maxDB, T(1), false) {}
+
+  void set(T minDB, T maxDB) { scale.set(minDB, maxDB, T(1), false); }
+
+  T map(T normalized)
+  {
+    if (normalized >= upperRangeStart) {
+      return scale.map((normalized - upperRangeStart) / (T(1) - upperRangeStart));
+    } else if (normalized <= lowerRangeEnd) {
+      return -scale.map(T(1) - normalized / lowerRangeEnd);
+    }
+    return 0;
+  }
+
+  T reverseMap(T input) const { return map(T(1) - input); }
+
+  T invmap(T amplitude)
+  {
+    if (amplitude > 0) {
+      return scale.invmap(amplitude) * (T(1) - upperRangeStart) + upperRangeStart;
+    } else if (amplitude < 0) {
+      return (T(1) - scale.invmap(-amplitude)) * lowerRangeEnd;
+    }
+    return center;
+  }
+
+  T invmapDB(T dB, T sign)
+  {
+    if (sign == 0 || dB < scale.getMinDB()) return center;
+    return invmap(std::copysign(ScaleInternal::dbToAmp(dB), sign));
+  }
+
+  T toDisplay(T normalized)
+  {
+    if (normalized >= upperRangeStart) {
+      return scale.toDisplay((normalized - upperRangeStart) / (T(1) - upperRangeStart));
+    } else if (normalized <= lowerRangeEnd) {
+      return -scale.toDisplay(T(1) - normalized / lowerRangeEnd);
+    }
+    return 0;
+  }
+
+  T fromDisplay(T decibel)
+  {
+    return invmapDB(std::abs(decibel), std::copysign(T(1), decibel));
+  }
+
+  T getMin() { return 0; }
+  T getMax() { return scale.getMax(); }
+
+private:
+  static constexpr T tolerance = std::numeric_limits<T>::epsilon();
+  static constexpr T center = T(0.5);
+  static constexpr T upperRangeStart = center * (T(1) + tolerance);
+  static constexpr T lowerRangeEnd = center * (T(1) - tolerance);
+
+  NegativeDecibelScale<T> scale;
 };
 
 } // namespace Uhhyou

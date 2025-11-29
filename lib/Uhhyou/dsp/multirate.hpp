@@ -10,74 +10,67 @@
 namespace Uhhyou {
 
 template<typename Sample, typename Sos> class DecimationLowpass {
-  std::array<Sample, Sos::co.size()> x0{};
-  std::array<Sample, Sos::co.size()> x1{};
-  std::array<Sample, Sos::co.size()> x2{};
-  std::array<Sample, Sos::co.size()> y0{};
-  std::array<Sample, Sos::co.size()> y1{};
-  std::array<Sample, Sos::co.size()> y2{};
+  struct State {
+    Sample s1 = 0;
+    Sample s2 = 0;
+  };
+  std::array<State, Sos::co.size()> states{};
+  Sample last = 0;
 
 public:
   void reset()
   {
-    x0.fill(0);
-    x1.fill(0);
-    x2.fill(0);
-    y0.fill(0);
-    y1.fill(0);
-    y2.fill(0);
+    states.fill({});
+    last = 0;
   }
 
-  void push(Sample input) noexcept
+  inline void push(Sample x)
   {
-    x0[0] = input;
-    std::copy(y0.begin(), y0.end() - 1, x0.begin() + 1);
-
     for (size_t i = 0; i < Sos::co.size(); ++i) {
-      y0[i]                      //
-        = Sos::co[i][0] * x0[i]  //
-        + Sos::co[i][1] * x1[i]  //
-        + Sos::co[i][2] * x2[i]  //
-        - Sos::co[i][3] * y1[i]  //
-        - Sos::co[i][4] * y2[i]; //
+      const auto &c = Sos::co[i];
+      Sample y = c[0] * x + states[i].s1;
+      states[i].s1 = states[i].s2 + c[1] * x - c[3] * y;
+      states[i].s2 = c[2] * x - c[4] * y;
+      x = y;
     }
-
-    x2 = x1;
-    x1 = x0;
-    y2 = y1;
-    y1 = y0;
+    last = x;
   }
 
-  inline Sample output() { return y0[Sos::co.size() - 1]; }
+  inline Sample output() const { return last; }
 };
 
-template<typename Sample, size_t nSection> class FirstOrderAllpassSections {
+template<typename Sample, const auto &Coefficients> class AllpassCascade {
 private:
-  std::array<Sample, nSection> x{};
-  std::array<Sample, nSection> y{};
+  std::array<Sample, Coefficients.size()> s{};
 
-public:
-  void reset()
+  template<std::size_t... I>
+  inline Sample process_impl(Sample input, std::index_sequence<I...>)
   {
-    x.fill(0);
-    y.fill(0);
+    ((input = process_section<I>(input)), ...);
+    return input;
   }
 
-  Sample process(Sample input, const std::array<Sample, nSection> &a)
+  template<std::size_t Index> inline Sample process_section(Sample input)
   {
-    for (size_t i = 0; i < nSection; ++i) {
-      y[i] = a[i] * (input - y[i]) + x[i];
-      x[i] = input;
-      input = y[i];
-    }
-    return y.back();
+    constexpr auto coeff = Coefficients[Index];
+    Sample y = coeff * input + s[Index];
+    s[Index] = input - coeff * y;
+    return y;
+  }
+
+public:
+  void reset() { s.fill(Sample(0)); }
+
+  inline Sample process(Sample input)
+  {
+    return process_impl(input, std::make_index_sequence<Coefficients.size()>{});
   }
 };
 
 template<typename Sample, typename Coefficient> class HalfBandIIR {
 private:
-  FirstOrderAllpassSections<Sample, Coefficient::h0_a.size()> ap0;
-  FirstOrderAllpassSections<Sample, Coefficient::h1_a.size()> ap1;
+  AllpassCascade<Sample, Coefficient::h0_a> ap0;
+  AllpassCascade<Sample, Coefficient::h1_a> ap1;
 
 public:
   void reset()
@@ -87,20 +80,17 @@ public:
   }
 
   // For down-sampling. input[0] must be earlier sample.
-  Sample process(const std::array<Sample, 2> &input)
+  inline Sample process(const std::array<Sample, 2> &input)
   {
-    auto s0 = ap0.process(input[0], Coefficient::h0_a);
-    auto s1 = ap1.process(input[1], Coefficient::h1_a);
+    auto s0 = ap0.process(input[0]);
+    auto s1 = ap1.process(input[1]);
     return Sample(0.5) * (s0 + s1);
   }
 
   // For up-sampling.
   std::array<Sample, 2> processUp(Sample input)
   {
-    return {
-      ap1.process(input, Coefficient::h1_a),
-      ap0.process(input, Coefficient::h0_a),
-    };
+    return {ap1.process(input), ap0.process(input)};
   }
 };
 

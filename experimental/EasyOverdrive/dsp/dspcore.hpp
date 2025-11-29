@@ -50,12 +50,13 @@ private:
   bool asymDriveEnabled = true;
   bool limiterEnabled = true;
 
-  ExpSmoother<double> preDriveGain;
-  ExpSmoother<double> limiterInputGain;
-  ExpSmoother<double> postDriveGain;
+  SmootherParameter<double> smoo;
+  ExpSmoother<double> preDriveGain{smoo};
+  ExpSmoother<double> limiterInputGain{smoo};
+  ExpSmoother<double> postDriveGain{smoo};
 
-  std::array<BadLimiter<double>, 2> overDrive;
-  std::array<AsymmetricDrive<double>, 2> asymDrive;
+  std::array<BadLimiter<double>, 2> overDrive{{{smoo}, {smoo}}};
+  std::array<AsymmetricDrive<double>, 2> asymDrive{{{smoo}, {smoo}}};
   std::array<BasicLimiter<double>, 2> limiter;
 
   std::array<CubicUpSampler<double, upFold>, 2> upSampler;

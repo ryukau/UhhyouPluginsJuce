@@ -5,7 +5,6 @@
 
 #include "../parameter.hpp"
 #include "./am.hpp"
-#include "Uhhyou/dsp/basiclimiter.hpp"
 #include "Uhhyou/dsp/multirate.hpp"
 #include "Uhhyou/dsp/smoother.hpp"
 #include "Uhhyou/dsp/svf.hpp"
@@ -46,8 +45,9 @@ private:
 
   size_t amType = 0;
   bool swapCarriorAndModulator = false;
-  ExpSmoother<double> carriorSideBandMix;
-  ExpSmoother<double> outputGain;
+  SmootherParameter<double> smoo;
+  ExpSmoother<double> carriorSideBandMix{smoo};
+  ExpSmoother<double> outputGain{smoo};
 
   // `AA` is short for anti-aliasing. `Naive` means no anti-alising here.
   std::array<AmplitudeModulator<double>, 2> amNaive;

@@ -11,16 +11,9 @@
 
 namespace Uhhyou {
 
-constexpr double limiterAttackSecond = 0.001;
-
-template<typename T> T decibelToAmp(T dB) { return std::pow(T(10), dB / T(20)); }
-
 void DSPCore::setup(double sampleRate_)
 {
   sampleRate = double(sampleRate_);
-
-  SmootherCommon<double>::setSampleRate(sampleRate);
-  SmootherCommon<double>::setTime(double(0.1));
 
   reset();
   startup();
@@ -52,8 +45,6 @@ void DSPCore::setParameters() { ASSIGN_PARAMETER(push); }
 void DSPCore::process(
   const size_t length, const float *in0, const float *in1, float *out0, float *out1)
 {
-  SmootherCommon<double>::setBufferSize(double(length));
-
   for (size_t i = 0; i < length; ++i) {
     out0[i] = float(slopeFilter[0].process(in0[i]));
     out1[i] = float(slopeFilter[1].process(in1[i]));

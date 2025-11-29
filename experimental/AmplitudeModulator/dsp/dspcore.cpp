@@ -15,8 +15,7 @@ void DSPCore::setup(double sampleRate_)
 {
   sampleRate = double(sampleRate_);
 
-  SmootherCommon<double>::setSampleRate(sampleRate);
-  SmootherCommon<double>::setTime(double(0.1));
+  smoo.setTime(sampleRate, double(0.1));
 
   reset();
   startup();
@@ -70,8 +69,6 @@ void DSPCore::process(
   float *out0,
   float *out1)
 {
-  SmootherCommon<double>::setBufferSize(double(length));
-
   if (swapCarriorAndModulator) {
     std::swap(inCar0, inCar1);
     std::swap(inMod0, inMod1);

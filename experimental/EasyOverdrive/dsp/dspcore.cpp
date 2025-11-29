@@ -43,7 +43,7 @@ size_t DSPCore::getLatency()
 #define ASSIGN_PARAMETER(METHOD)                                                         \
   auto &pv = param.value;                                                                \
                                                                                          \
-  SmootherCommon<double>::setTime(pv.parameterSmoothingSecond->load());                  \
+  smoo.setTime(upRate, pv.parameterSmoothingSecond->load());                             \
                                                                                          \
   overDriveType = size_t(pv.overDriveType->load());                                      \
   asymDriveEnabled = (pv.asymDriveEnabled->load()) != 0;                                 \
@@ -69,11 +69,7 @@ size_t DSPCore::getLatency()
     x.prepare(upRate, limiterAttackSecond, pv.limiterReleaseSecond->load(), double(1));  \
   }
 
-void DSPCore::updateUpRate()
-{
-  upRate = double(sampleRate) * fold[oversampling];
-  SmootherCommon<double>::setSampleRate(upRate);
-}
+void DSPCore::updateUpRate() { upRate = double(sampleRate) * fold[oversampling]; }
 
 void DSPCore::reset()
 {
@@ -109,8 +105,8 @@ std::array<double, 2> DSPCore::processFrame(const std::array<double, 2> &frame)
   limiterInputGain.process();
   postDriveGain.process();
 
-  auto sig0 = preDriveGain.v() * frame[0];
-  auto sig1 = preDriveGain.v() * frame[1];
+  auto sig0 = preDriveGain.value() * frame[0];
+  auto sig1 = preDriveGain.value() * frame[1];
 
   switch (overDriveType) {
     default:
@@ -161,12 +157,12 @@ std::array<double, 2> DSPCore::processFrame(const std::array<double, 2> &frame)
   }
 
   if (limiterEnabled) {
-    sig0 = limiter[0].process(sig0 * limiterInputGain.v());
-    sig1 = limiter[1].process(sig1 * limiterInputGain.v());
+    sig0 = limiter[0].process(sig0 * limiterInputGain.value());
+    sig1 = limiter[1].process(sig1 * limiterInputGain.value());
   }
 
-  sig0 *= postDriveGain.v();
-  sig1 *= postDriveGain.v();
+  sig0 *= postDriveGain.value();
+  sig1 *= postDriveGain.value();
 
   return {sig0, sig1};
 }
@@ -174,10 +170,6 @@ std::array<double, 2> DSPCore::processFrame(const std::array<double, 2> &frame)
 void DSPCore::process(
   const size_t length, const float *in0, const float *in1, float *out0, float *out1)
 {
-  // auto &pv = param.value; // TODO
-
-  SmootherCommon<double>::setBufferSize(double(length));
-
   for (size_t i = 0; i < length; ++i) {
     upSampler[0].process(in0[i]);
     upSampler[1].process(in1[i]);

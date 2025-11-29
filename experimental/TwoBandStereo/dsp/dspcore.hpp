@@ -5,7 +5,6 @@
 
 #include "../parameter.hpp"
 #include "./crossover.hpp"
-#include "Uhhyou/dsp/basiclimiter.hpp"
 #include "Uhhyou/dsp/multirate.hpp"
 #include "Uhhyou/dsp/smoother.hpp"
 #include "Uhhyou/dsp/svf.hpp"
@@ -38,9 +37,10 @@ public:
 private:
   double sampleRate = 44100;
 
-  ExpSmoother<double> crossoverFreq;
-  ExpSmoother<double> lowerStereoSpread;
-  ExpSmoother<double> upperStereoSpread;
+  SmootherParameter<double> smoo;
+  ExpSmoother<double> crossoverFreq{smoo};
+  ExpSmoother<double> lowerStereoSpread{smoo};
+  ExpSmoother<double> upperStereoSpread{smoo};
   std::array<LinkwitzRileyFIR2Band4n<double, 4, 8>, 2> crossoverFilter;
 };
 
