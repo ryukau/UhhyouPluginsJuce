@@ -101,7 +101,7 @@ protected:
     const juce::String &sectionTitle,
     const juce::String &label,
     juce::Component &component,
-    LabeledWidget::Layout option = 0)
+    LabeledWidget::Layout option = LabeledWidget::hideLabel)
   {
     auto [iter, inserted] = sections.try_emplace(sectionTitle);
     iter->second.emplace_back(label, component, option);

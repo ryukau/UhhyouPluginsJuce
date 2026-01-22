@@ -23,39 +23,6 @@
 
 namespace Uhhyou {
 
-class TestTile : public juce::Component {
-private:
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TestTile)
-
-  juce::Colour color;
-  juce::uint8 alpha = 0xff;
-
-public:
-  TestTile(juce::Colour color, juce::uint8 alpha) : color(color), alpha(alpha) {}
-
-  virtual void paint(juce::Graphics &ctx) override
-  {
-    ctx.setColour(color);
-    ctx.fillAll();
-  }
-};
-
-struct Line {
-  juce::Point<float> start{};
-  juce::Point<float> end{};
-  float thickness{};
-
-  Line(juce::Point<float> start, juce::Point<float> end, float thickness)
-    : start(start), end(end), thickness(thickness)
-  {
-  }
-
-  void paint(juce::Graphics &ctx) const
-  {
-    ctx.drawLine(start.x, start.y, end.x, end.y, thickness);
-  }
-};
-
 struct TextLabel {
   juce::String text;
   juce::Rectangle<int> rect;
@@ -111,7 +78,7 @@ struct LabeledWidget {
   const juce::String label;
   juce::Component &widget;
 
-  enum Layout : decltype(option) { showLabel = 1, expand = 2 };
+  enum Layout : decltype(option) { hideLabel = 0, showLabel = 1, expand = 2 };
 
   LabeledWidget(
     const juce::String &label,

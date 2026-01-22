@@ -92,8 +92,6 @@ public:
       || (toTextFunc != nullptr && fromTextFunc != nullptr));
   }
 
-  virtual ~ScaledParameter() {}
-
   const juce::NormalisableRange<float> &getNormalisableRange() const override
   {
     return range;

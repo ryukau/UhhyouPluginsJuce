@@ -26,7 +26,6 @@ private:
   Palette &pal;
   StatusBar &statusBar;
   ParameterArrayAttachment<2> attachment;
-  bool ignoreCallbacks = false;
 
   std::array<float, 2> value{0.0f, 0.0f}; // Internal normalized values (0.0 - 1.0)
   juce::Point<float> mousePosition{-1.0f, -1.0f};

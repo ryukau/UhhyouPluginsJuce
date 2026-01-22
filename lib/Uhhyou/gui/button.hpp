@@ -192,7 +192,8 @@ public:
     , scale(scale)
     , attachment(
         *parameter,
-        [&](float newRaw) {
+        [&](float newRaw)
+        {
           auto normalized = newRaw >= scale.getMax() ? float(1) : float(0);
           if (this->value == normalized) return;
           this->value = normalized;

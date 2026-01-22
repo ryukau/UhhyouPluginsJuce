@@ -5,6 +5,7 @@
 
 set -e
 shopt -s globstar
+shopt -s nullglob
 
 # Dependencies are based on `JUCE/docs/Linux Dependencies.md`.
 sudo apt update
@@ -28,11 +29,18 @@ mkdir -p $ARTIFACT_DIR
 
 function copyArtifact () {
   for artefact in "$1"/**/*_artefacts/ ; do
-    rm -rf "$artefact"/Release/*.a
-    cp -r "$artefact"/Release/* $ARTIFACT_DIR
+    release_dir="$artefact/Release"
+    if [ -d "$release_dir" ]; then
+      find "$release_dir" -maxdepth 1 -name "*.a" -delete
+      files_to_copy=("$release_dir"/*)
+      if [ ${#files_to_copy[@]} -gt 0 ]; then
+        cp -r "${files_to_copy[@]}" "$ARTIFACT_DIR"
+        echo "UhhyouDebug: Copied artifacts from: $release_dir"
+      fi
+    fi
   done
 }
-copyArtifact ./build/experimental
+copyArtifact ./build
 
 echo "UhhyouDebug: Printing $ARTIFACT_DIR"
 tree $ARTIFACT_DIR # debug
