@@ -23,6 +23,22 @@
 
 namespace Uhhyou {
 
+struct Line {
+  juce::Point<float> start{};
+  juce::Point<float> end{};
+  float thickness{};
+
+  Line(juce::Point<float> start, juce::Point<float> end, float thickness)
+    : start(start), end(end), thickness(thickness)
+  {
+  }
+
+  void paint(juce::Graphics &ctx) const
+  {
+    ctx.drawLine(start.x, start.y, end.x, end.y, thickness);
+  }
+};
+
 struct TextLabel {
   juce::String text;
   juce::Rectangle<int> rect;
