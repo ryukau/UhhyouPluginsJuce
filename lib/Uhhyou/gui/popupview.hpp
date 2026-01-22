@@ -67,8 +67,10 @@ protected:
 
   FullScreenButton dismissButton;
   TabView popUp;
-  juce::TextEditor infoDisplay{"Information"};
-  juce::TextEditor licenseDisplay{"License"};
+  juce::CodeDocument infoDocument{};
+  juce::CodeEditorComponent infoDisplay{infoDocument, nullptr};
+  juce::CodeDocument licenseDocument{};
+  juce::CodeEditorComponent licenseDisplay{licenseDocument, nullptr};
 
   Palette &pal;
   bool isMouseEntered = false;
@@ -86,7 +88,8 @@ public:
     const juce::String &licenseText)
     : dismissButton(
         palette,
-        [&]() {
+        [&]()
+        {
           dismissButton.setVisible(false);
           popUp.setVisible(false);
         })
@@ -103,50 +106,32 @@ public:
     parent.addChildComponent(popUp, -1);
     popUp.setBoundsInset(juce::BorderSize<int>{popUpInset});
 
-    popUp.addWidget(TabIndex::information, &infoDisplay);
+    auto popUpAddWidget =
+      [&](
+        TabIndex tabIndex, juce::CodeEditorComponent &display, const juce::String &source)
     {
-      using ColorId = juce::TextEditor::ColourIds;
-      infoDisplay.setColour(ColorId::backgroundColourId, pal.background());
-      infoDisplay.setColour(ColorId::textColourId, pal.foreground());
-      infoDisplay.setColour(ColorId::highlightColourId, pal.overlayHighlight());
-      infoDisplay.setColour(ColorId::highlightedTextColourId, pal.foreground());
-      infoDisplay.setColour(ColorId::outlineColourId, juce::Colours::transparentWhite);
-      infoDisplay.setColour(
-        ColorId::focusedOutlineColourId, juce::Colours::transparentWhite);
-      infoDisplay.setColour(ColorId::shadowColourId, pal.foreground());
+      popUp.addWidget(tabIndex, &display);
 
-      infoDisplay.setMultiLine(true);
-      infoDisplay.setScrollbarsShown(true);
-      infoDisplay.setFont(pal.getFont(pal.textSizeUi()));
-      infoDisplay.setText(infoText);
-      infoDisplay.setReadOnly(true);
-    }
+      using ColorId = juce::CodeEditorComponent::ColourIds;
+      display.setColour(ColorId::backgroundColourId, pal.background());
+      display.setColour(ColorId::defaultTextColourId, pal.foreground());
+      display.setColour(ColorId::highlightColourId, pal.overlayHighlight());
+      display.setColour(ColorId::lineNumberBackgroundId, pal.background());
+      display.setColour(ColorId::lineNumberTextId, pal.foreground().withAlpha(0.5f));
 
-    popUp.addWidget(TabIndex::license, &licenseDisplay);
-    {
-      using ColorId = juce::TextEditor::ColourIds;
-      licenseDisplay.setColour(ColorId::backgroundColourId, pal.background());
-      licenseDisplay.setColour(ColorId::textColourId, pal.foreground());
-      licenseDisplay.setColour(ColorId::highlightColourId, pal.overlayHighlight());
-      licenseDisplay.setColour(ColorId::highlightedTextColourId, pal.foreground());
-      licenseDisplay.setColour(ColorId::outlineColourId, juce::Colours::transparentWhite);
-      licenseDisplay.setColour(
-        ColorId::focusedOutlineColourId, juce::Colours::transparentWhite);
-      licenseDisplay.setColour(ColorId::shadowColourId, pal.foreground());
-
-      licenseDisplay.setMultiLine(true);
-      licenseDisplay.setScrollbarsShown(true);
-      licenseDisplay.setFont(pal.getFont(pal.textSizeUi()));
-      licenseDisplay.setText(licenseText);
-      licenseDisplay.setReadOnly(true);
-    }
+      display.setReadOnly(true);
+      display.loadContent(source);
+      display.setLineNumbersShown(false);
+    };
+    popUpAddWidget(TabIndex::information, infoDisplay, infoText);
+    popUpAddWidget(TabIndex::license, licenseDisplay, licenseText);
   }
 
   virtual ~PopUpButton() override {}
 
   virtual void resized() override
   {
-    font = pal.getFont(pal.textSizeBig());
+    font = pal.getFont(pal.textSizeBig(), FontType::ui);
 
     dismissButton.setBoundsInset(juce::BorderSize<int>{0});
     popUp.setBoundsInset(juce::BorderSize<int>{popUpInset});
@@ -154,10 +139,10 @@ public:
     auto innerBounds = popUp.getInnerBounds();
 
     infoDisplay.setBounds(innerBounds);
-    infoDisplay.setFont(pal.getFont(pal.textSizeUi()));
+    infoDisplay.setFont(pal.getFont(pal.textSizeUi(), FontType::monospace));
 
     licenseDisplay.setBounds(innerBounds);
-    licenseDisplay.setFont(pal.getFont(pal.textSizeUi()));
+    licenseDisplay.setFont(pal.getFont(pal.textSizeUi(), FontType::monospace));
 
     popUp.refreshTab();
   }

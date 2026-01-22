@@ -34,12 +34,12 @@ public:
   {
     kp = cutoffHz >= sampleRate / Sample(2)
       ? Sample(1)
-      : Sample(cutoffToEmaKp<double>(double(sampleRate), double(cutoffHz)));
+      : Sample(cutoffToEmaAlpha<double>(double(sampleRate), double(cutoffHz)));
   }
 
   void setSecond(Sample sampleRate, Sample second)
   {
-    kp = Sample(cutoffToEmaKp<double>(double(sampleRate), double(second)));
+    kp = Sample(cutoffToEmaAlpha<double>(double(sampleRate), double(second)));
   }
 
   Sample getValue() { return v2; }

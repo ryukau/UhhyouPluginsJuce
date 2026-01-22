@@ -12,22 +12,21 @@
 namespace Uhhyou {
 
 // cutoffNormalized = (cutoff in Hz) / (sampling rate). The value range is [0.0, 0.5).
-template<typename T> inline T cutoffToEmaKp(T cutoffNormalized)
+template<typename T> inline T cutoffToEmaAlpha(T cutoffNormalized)
 {
   const auto sn = std::sin(std::numbers::pi_v<T> * cutoffNormalized);
-  const auto y = T(2) * sn * sn;
-  return T(2) / (std::sqrt(T(1) + T(2) / y) + T(1));
+  return T(2) * sn / (std::sqrt(sn * sn + T(1)) + sn);
 }
 
-template<typename T> inline T cutoffToEmaKp(T sampleRate, T cutoffHz)
+template<typename T> inline T cutoffToEmaAlpha(T sampleRate, T cutoffHz)
 {
-  return cutoffToEmaKp(cutoffHz / sampleRate);
+  return cutoffToEmaAlpha(cutoffHz / sampleRate);
 }
 
-template<typename T> inline T secondToEmaKp(T sampleRate, T second)
+template<typename T> inline T secondToEmaAlpha(T sampleRate, T second)
 {
   if (second < std::numeric_limits<T>::epsilon()) return T(1);
-  return cutoffToEmaKp(T(1) / (second * sampleRate));
+  return cutoffToEmaAlpha(T(1) / (second * sampleRate));
 }
 
 // Exponential moving average filter.
@@ -38,7 +37,7 @@ public:
 
   void setCutoff(Sample sampleRate, Sample cutoffHz)
   {
-    kp = Sample(cutoffToEmaKp<double>(double(sampleRate), double(cutoffHz)));
+    kp = Sample(cutoffToEmaAlpha<double>(double(sampleRate), double(cutoffHz)));
   }
 
   void setP(Sample p) { kp = std::clamp<Sample>(p, Sample(0), Sample(1)); };
@@ -56,7 +55,7 @@ public:
   void setTime(Sample sampleRate, Sample seconds)
   {
     timeInSamples_ = seconds * sampleRate;
-    kp_ = secondToEmaKp(sampleRate, seconds);
+    kp_ = secondToEmaAlpha(sampleRate, seconds);
   }
 
   inline Sample time() const { return timeInSamples_; }

@@ -59,10 +59,14 @@ bool Processor::isBusesLayoutSupported(const BusesLayout &layouts) const
 void Processor::processBlock(
   juce::AudioBuffer<float> &buffer, juce::MidiBuffer & /*midi*/)
 {
-  // I guess mutex shouldn't be used here. However, this is a mitigation of a crash on FL
-  // when refreshing a plugin. It seems like `prepareToPlay` and `processBlock` might be
-  // called at the same time.
-  std::lock_guard<std::mutex> guard(setupMutex);
+  // Mutex shouldn't be used here. However, this is a mitigation of a crash on old version
+  // of FL when refreshing a plugin. It seems like `prepareToPlay` and `processBlock`
+  // might be called at the same time.
+  std::unique_lock<std::mutex> lock(setupMutex, std::try_to_lock);
+  if (!lock.owns_lock()) {
+    buffer.clear(); // Output silence as the plugin is resetting.
+    return;
+  }
 
   juce::ScopedNoDenormals noDenormals;
 

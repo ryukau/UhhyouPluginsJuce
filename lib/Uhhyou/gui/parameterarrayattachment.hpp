@@ -62,20 +62,23 @@ public:
 
   void setValueAsCompleteGesture(int index, float newRawValue)
   {
-    callIfParameterValueChanged(index, newRawValue, [this](int i, float v) {
-      parameter[i]->beginChangeGesture();
-      parameter[i]->setValueNotifyingHost(v);
-      parameter[i]->endChangeGesture();
-    });
+    callIfParameterValueChanged(
+      index, newRawValue,
+      [this](int i, float v)
+      {
+        parameter[i]->beginChangeGesture();
+        parameter[i]->setValueNotifyingHost(v);
+        parameter[i]->endChangeGesture();
+      });
   }
 
   void setValueAsCompleteGesture(const std::array<float, nParameter> &newRawValue)
   {
     beginGesture();
     for (int index = 0; index < nParameter; ++index) {
-      callIfParameterValueChanged(index, newRawValue[index], [this](int i, float v) {
-        parameter[i]->setValueNotifyingHost(v);
-      });
+      callIfParameterValueChanged(
+        index, newRawValue[index],
+        [this](int i, float v) { parameter[i]->setValueNotifyingHost(v); });
     }
     endGesture();
   }
@@ -99,17 +102,17 @@ public:
 
   void setValueAsPartOfGesture(int index, float newRawValue)
   {
-    callIfParameterValueChanged(index, newRawValue, [this](int i, float v) {
-      parameter[i]->setValueNotifyingHost(v);
-    });
+    callIfParameterValueChanged(
+      index, newRawValue,
+      [this](int i, float v) { parameter[i]->setValueNotifyingHost(v); });
   }
 
   void setValueAsPartOfGesture(const std::array<float, nParameter> &newRawValue)
   {
     for (int index = 0; index < nParameter; ++index) {
-      callIfParameterValueChanged(index, newRawValue[index], [this](int i, float v) {
-        parameter[i]->setValueNotifyingHost(v);
-      });
+      callIfParameterValueChanged(
+        index, newRawValue[index],
+        [this](int i, float v) { parameter[i]->setValueNotifyingHost(v); });
     }
   }
 

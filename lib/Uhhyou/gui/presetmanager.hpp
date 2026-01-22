@@ -110,6 +110,8 @@ protected:
       juce::ValueTree::fromXml(*xmlState), undoManager);
 
     text = file.getFileNameWithoutExtension();
+
+    repaint();
   }
 
   void refreshPreset()

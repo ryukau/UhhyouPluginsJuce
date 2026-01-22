@@ -74,7 +74,8 @@ public:
     , numberEditor(numberEditor)
     , attachment(
         *parameter,
-        [&](float newRaw) {
+        [&](float newRaw)
+        {
           int idx = int(std::floor(newRaw) + 0.5f);
           if (itemIndex == idx || idx < 0 || idx > int(items.size())) return;
           itemIndex = idx;
@@ -156,13 +157,16 @@ public:
     if (event.mods.isLeftButtonDown()) {
       menu.clear();
       for (size_t idx = 0; idx < items.size(); ++idx) {
-        menu.addItem(juce::PopupMenu::Item(items[idx])
-                       .setID(int(idx) + 1)
-                       .setTicked(int(idx) == itemIndex));
+        menu.addItem(
+          juce::PopupMenu::Item(items[idx])
+            .setID(int(idx) + 1)
+            .setTicked(int(idx) == itemIndex));
       }
 
       menu.showMenuAsync(
-        juce::PopupMenu::Options().withInitiallySelectedItem(itemIndex + 1), [&](int id) {
+        juce::PopupMenu::Options().withInitiallySelectedItem(itemIndex + 1),
+        [&](int id)
+        {
           int idx = id - 1;
           if (idx < 0 || idx >= int(items.size())) return;
           itemIndex = idx;

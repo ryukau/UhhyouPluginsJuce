@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cassert>
+#include <cwctype>
 #include <functional>
 #include <limits>
 #include <string>
@@ -28,18 +29,34 @@ enum class ParameterTextRepresentation {
   display,
 };
 
+inline std::string formatNumber(float value, int precision)
+{
+  // `std::format` was not avaialble on macOS when this was written.
+  // Use following and delete this method in future.
+  //
+  // ```
+  // return std::format("{:.{}f}", normalized, precision);
+  // ```
+
+  std::ostringstream os;
+  os.precision(precision);
+  os << std::fixed << value;
+  return std::move(os).str();
+}
+
 template<typename Scale> class ScaledParameter : public juce::RangedAudioParameter {
 private:
-  using textConvFn = std::function<float(float)>;
-
   float defaultNormalized{};
   std::atomic<float> raw{};
   Scale &scale; // Scale might output int, uint or double.
   juce::NormalisableRange<float> range;
 
   ParameterTextRepresentation textRep = ParameterTextRepresentation::display;
-  textConvFn toTextFunc;
-  textConvFn fromTextFunc;
+
+  using ToTextFn = std::function<juce::String(float)>;
+  using FromTextFn = std::function<float(const juce::String &)>;
+  ToTextFn toTextFunc;
+  FromTextFn fromTextFunc;
 
 public:
   ScaledParameter(
@@ -50,7 +67,8 @@ public:
     int versionHint,
     const juce::String &unitLabel = "",
     ParameterTextRepresentation textRep = ParameterTextRepresentation::display,
-    std::pair<textConvFn, textConvFn> textConversionFunctions = {nullptr, nullptr})
+    ToTextFn toText = nullptr,
+    FromTextFn fromText = nullptr)
     : RangedAudioParameter(
         juce::ParameterID(name, versionHint),
         name,
@@ -66,8 +84,8 @@ public:
         [&](float, float, float rawValue) { return rawToNormalized(rawValue); },
         [&](float, float, float v) { return v; })
     , textRep(textRep)
-    , toTextFunc(textConversionFunctions.first)
-    , fromTextFunc(textConversionFunctions.second)
+    , toTextFunc(std::move(toText))
+    , fromTextFunc(std::move(fromText))
   {
     assert(
       (toTextFunc == nullptr && fromTextFunc == nullptr)
@@ -106,21 +124,6 @@ private:
 
   static constexpr int decimalDigitsF32 = std::numeric_limits<float>::digits10 + 1;
 
-  std::string formatNumber(float value, int precision) const
-  {
-    // `std::format` was not avaialble on macOS when this was written.
-    // Use following and delete this method in future.
-    //
-    // ```
-    // return std::format("{:.{}f}", normalized, precision);
-    // ```
-
-    std::ostringstream os;
-    os.precision(precision);
-    os << std::fixed << value;
-    return std::move(os).str();
-  }
-
   juce::String getText(float normalized, int precision = decimalDigitsF32) const override
   {
     // Argument `precision` is a hack that might break in future. The original name of
@@ -128,29 +131,32 @@ private:
     // in JUCE 7.
     if (precision >= decimalDigitsF32) precision = decimalDigitsF32;
 
-    // `ParameterTextRepresentation::normalized` case doesn't require conversion.
     if (toTextFunc != nullptr) {
-      return juce::String(this->formatNumber(toTextFunc(normalized), precision));
-    } else if (textRep == ParameterTextRepresentation::display) {
-      return juce::String(
-        this->formatNumber(float(scale.toDisplay(normalized)), precision));
-    } else if (textRep == ParameterTextRepresentation::raw) {
-      return juce::String(this->formatNumber(float(scale.map(normalized)), precision));
+      return toTextFunc(normalized);
     }
-    return juce::String(this->formatNumber(normalized, precision));
+
+    if (textRep == ParameterTextRepresentation::display) {
+      return juce::String(formatNumber(float(scale.toDisplay(normalized)), precision));
+    } else if (textRep == ParameterTextRepresentation::raw) {
+      return juce::String(formatNumber(float(scale.map(normalized)), precision));
+    }
+    // `ParameterTextRepresentation::normalized` case.
+    return juce::String(formatNumber(normalized, precision));
   }
 
   float getValueForText(const juce::String &text) const override
   {
-    auto value = text.getFloatValue();
-    // `ParameterTextRepresentation::normalized` case doesn't require conversion.
     if (fromTextFunc != nullptr) {
-      value = fromTextFunc(value);
-    } else if (textRep == ParameterTextRepresentation::display) {
+      return std::clamp(fromTextFunc(text), float(0), float(1));
+    }
+
+    auto value = text.getFloatValue();
+    if (textRep == ParameterTextRepresentation::display) {
       value = float(scale.fromDisplay(value));
     } else if (textRep == ParameterTextRepresentation::raw) {
       value = rawToNormalized(value);
     }
+    // `ParameterTextRepresentation::normalized` case.
     return std::clamp(value, float(0), float(1));
   }
 };

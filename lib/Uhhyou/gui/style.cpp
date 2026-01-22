@@ -7,11 +7,13 @@
 #include "nlohmann/json.hpp"
 
 #include <algorithm>
+#include <charconv>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <string_view>
 
 namespace Uhhyou {
 
@@ -59,13 +61,10 @@ inline nlohmann::json loadStyleJson()
 {
   nlohmann::json data;
 
-  auto styleJsonPath = getConfigHome() / fs::path("UhhyouPlugins/style/style.json");
+  fs::path home = getConfigHome();
+  if (home.empty()) return data;
 
-  if (!fs::is_regular_file(styleJsonPath)) {
-    std::cerr << styleJsonPath << " is not regular file or doesn't exist.\n";
-    return data;
-  }
-
+  auto styleJsonPath = home / fs::path("UhhyouPlugins/style/style.json");
   std::ifstream ifs(styleJsonPath);
   if (!ifs.is_open()) {
     std::cerr << "Failed to open " << styleJsonPath << "\n";
@@ -76,9 +75,11 @@ inline nlohmann::json loadStyleJson()
   return data;
 }
 
-inline juce::uint8 strHexToUInt8(std::string str)
+inline juce::uint8 strHexToUInt8(std::string_view sv)
 {
-  return juce::uint8(std::clamp(std::stoi(str, nullptr, 16), 0, 255));
+  uint8_t result{};
+  std::from_chars(sv.data(), sv.data() + sv.size(), result, 16);
+  return result;
 }
 
 /**
@@ -89,10 +90,12 @@ First character is ignored. So "!303030", " 0000ff88" are valid.
 inline void loadColor(nlohmann::json &data, std::string key, juce::Colour &color)
 {
   if (!data.contains(key)) return;
-  if (!data[key].is_string()) return;
 
-  std::string hex = data[key];
+  const auto &value = data[key];
+  if (!value.is_string()) return;
 
+  const std::string &hexRef = value.get_ref<const std::string &>();
+  std::string_view hex = hexRef;
   if (hex.size() != 7 && hex.size() != 9) return;
 
   color = juce::Colour(
@@ -117,8 +120,10 @@ void Palette::load()
   auto data = loadStyleJson();
   if (data.is_null()) return;
 
-  loadString(data, "fontFamily", _fontName);
-  loadString(data, "fontFace", _fontFace);
+  loadString(data, "fontUiName", _fontUiName);
+  loadString(data, "fontUiStyle", _fontUiStyle);
+  loadString(data, "fontMonoName", _fontMonoName);
+  loadString(data, "fontMonoStyle", _fontMonoStyle);
   loadColor(data, "foreground", _foreground);
   loadColor(data, "foregroundButtonOn", _foregroundButtonOn);
   loadColor(data, "foregroundInactive", _foregroundInactive);

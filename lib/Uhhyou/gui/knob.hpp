@@ -18,7 +18,9 @@
 
 namespace Uhhyou {
 
-template<typename Scale> class KnobBase : public juce::Component {
+enum class KnobType { clamped, rotary };
+
+template<typename Scale, KnobType knobType> class KnobBase : public juce::Component {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KnobBase)
 
@@ -39,6 +41,10 @@ protected:
   bool isMouseEntered = false;
   bool isMouseDragging = false;
 
+  std::vector<float> snaps;
+  bool isSnapping = false;
+  float snapDistancePixel = 24.0f;
+
   static constexpr float arcOpenPartRatio = float(1) / float(12); // In [0, 0.5].
   juce::PathStrokeType arcStrokeType;
   juce::PathStrokeType handStrokeType;
@@ -46,7 +52,9 @@ protected:
   juce::Point<float> mapValueToHand(float normalized, float length)
   {
     constexpr auto pi = std::numbers::pi_v<float>;
-    auto radian = pi * (2 * normalized - 1) * (1 - 2 * arcOpenPartRatio);
+    auto radian = knobType == KnobType::rotary
+      ? pi * 2 * normalized
+      : pi * (2 * normalized - 1) * (1 - 2 * arcOpenPartRatio);
     return {-std::sin(radian) * length, std::cos(radian) * length};
   }
 
@@ -55,10 +63,54 @@ protected:
     numberEditor.invoke(
       *this, juce::Rectangle<int>{0, 0, getWidth(), getHeight()},
       this->parameter->getText(this->value, std::numeric_limits<float>::digits10 + 1),
-      [&](juce::String text) {
+      [&](juce::String text)
+      {
         const auto value = parameter->getValueForText(text);
         attachment.setValueAsCompleteGesture(float(this->scale.map(value)));
       });
+  }
+
+  void increaseValue(float delta)
+  {
+    value += delta;
+    value = knobType == KnobType::rotary ? (value - std::floor(value))
+                                         : std::clamp(value, 0.0f, 1.0f);
+  }
+
+  void increaseValueWithSnap(
+    const juce::Point<float> &position, float deltaPixel, float deltaNormalized)
+  {
+    if (isSnapping) {
+      if (std::abs(deltaPixel) <= snapDistancePixel) return;
+      isSnapping = false;
+      anchor = position;
+      return;
+    }
+
+    anchor = position;
+
+    if (deltaNormalized > 0) {
+      auto it = std::upper_bound(snaps.begin(), snaps.end(), value);
+      if (it != snaps.end()) {
+        if (value + deltaNormalized >= *it) {
+          value = (knobType == KnobType::rotary && *it == float(1)) ? float(0) : *it;
+          isSnapping = true;
+          return;
+        }
+      }
+    } else if (deltaNormalized < 0) {
+      auto it = std::lower_bound(snaps.begin(), snaps.end(), value);
+      if (it != snaps.begin()) {
+        auto prev_it = std::prev(it);
+        if (value + deltaNormalized <= *prev_it) {
+          value = *prev_it;
+          isSnapping = true;
+          return;
+        }
+      }
+    }
+
+    increaseValue(deltaNormalized);
   }
 
 public:
@@ -83,7 +135,8 @@ public:
     , numberEditor(numberEditor)
     , attachment(
         *parameter,
-        [&](float newRaw) {
+        [&](float newRaw)
+        {
           auto normalized = scale.invmap(newRaw);
           if (value == normalized) return;
           value = normalized;
@@ -108,6 +161,19 @@ public:
   }
 
   virtual ~KnobBase() override {}
+
+  void setSnaps(const std::vector<float> &snaps_)
+  {
+    snaps = snaps_;
+    if (snaps.empty()) return;
+    std::sort(snaps.begin(), snaps.end());
+
+    if constexpr (knobType == KnobType::rotary) {
+      if (snaps[0] == float(0)) snaps.push_back(float(1));
+    }
+  }
+
+  void setSnapDistance(float pixels) { snapDistancePixel = pixels; }
 
   virtual void resized() override
   {
@@ -181,20 +247,25 @@ public:
     if (!event.mods.isLeftButtonDown() || !isMouseDragging) return;
 
     const auto sensi = event.mods.isShiftDown() ? lowSensitivity : sensitivity;
-    value = std::clamp(value + (anchor.y - event.position.y) * sensi, 0.0f, 1.0f);
+    const auto delta = (anchor.y - event.position.y) * sensi;
+    if (snaps.empty()) {
+      increaseValue(delta);
+      anchor = event.position;
+    } else {
+      increaseValueWithSnap(event.position, event.position.y - anchor.y, delta);
+    }
 
     if (liveUpdate) {
       attachment.setValueAsPartOfGesture(float(scale.map(value)));
       statusBar.update(parameter);
     }
     repaint();
-
-    anchor = event.position;
   }
 
   virtual void mouseUp(const juce::MouseEvent &event) override
   {
     isMouseDragging = false;
+    isSnapping = false;
     if (!event.mods.isLeftButtonDown()) return;
 
     event.source.enableUnboundedMouseMovement(false);
@@ -213,7 +284,7 @@ public:
   virtual void
   mouseWheelMove(const juce::MouseEvent &, const juce::MouseWheelDetails &wheel) override
   {
-    value = std::clamp(value + wheel.deltaY * wheelSensitivity, 0.0f, 1.0f);
+    increaseValue(wheel.deltaY * wheelSensitivity);
     attachment.setValueAsCompleteGesture(float(scale.map(value)));
     statusBar.update(parameter);
     repaint();
@@ -221,8 +292,8 @@ public:
 
   bool keyPressed(const juce::KeyPress &key) override
   {
-    constexpr auto isKey = juce::KeyPress::isKeyCurrentlyDown;
     using KP = juce::KeyPress;
+    constexpr auto isKey = KP::isKeyCurrentlyDown;
 
     if (!isFocusContainer() || !key.isValid()) return false;
     if (isKey(KP::returnKey) || isKey(KP::spaceKey)) invokeTextEditor();
@@ -231,7 +302,7 @@ public:
 };
 
 template<typename Scale, Style style = Style::common>
-class Knob : public KnobBase<Scale> {
+class Knob : public KnobBase<Scale, KnobType::clamped> {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Knob)
 
@@ -244,7 +315,7 @@ public:
     Scale &scale,
     StatusBar &statusBar,
     NumberEditor &numberEditor)
-    : KnobBase<Scale>(
+    : KnobBase<Scale, KnobType::clamped>(
         editor, palette, undoManager, parameter, scale, statusBar, numberEditor)
   {
   }
@@ -256,10 +327,7 @@ public:
     const juce::Point<int> center{this->getWidth() / 2, this->getHeight() / 2};
     ctx.setOrigin(center);
 
-    const float arcLineWidth = this->pal.borderThick();
-
     // Arc.
-    const auto radius = center.x > center.y ? center.y : center.x;
     if constexpr (style == Style::accent) {
       ctx.setColour(
         this->isMouseEntered ? this->pal.highlightAccent() : this->pal.unfocused());
@@ -271,16 +339,16 @@ public:
         this->isMouseEntered ? this->pal.highlightMain() : this->pal.unfocused());
     }
     constexpr auto twopi = 2 * std::numbers::pi_v<float>;
+    const auto radius = center.x > center.y ? center.y : center.x;
     juce::Path arc;
     arc.addCentredArc(
-      0, 0, radius - this->arcLineWidth / 2, radius - this->arcLineWidth / 2, 0,
-      twopi * (0.5f + this->arcOpenPartRatio), twopi * (1.5f - this->arcOpenPartRatio),
-      true);
+      0, 0, radius, radius, 0, twopi * (0.5f + this->arcOpenPartRatio),
+      twopi * (1.5f - this->arcOpenPartRatio), true);
     ctx.strokePath(arc, this->arcStrokeType);
 
     // Mark for default value. Sharing color and style with hand.
-    constexpr auto arcHalf = this->arcLineWidth / 2;
-    const auto headLength = arcHalf - radius;
+    const float arcLineWidth = this->pal.borderThick();
+    const auto headLength = arcLineWidth / 2 - radius;
     juce::Path mark;
     mark.startNewSubPath(this->mapValueToHand(this->defaultValue, headLength / 2));
     mark.lineTo(this->mapValueToHand(this->defaultValue, headLength));
@@ -295,16 +363,79 @@ public:
     ctx.strokePath(hand, this->handStrokeType);
 
     // Head.
-    ctx.fillEllipse(
-      headPoint.x - arcHalf, headPoint.y - arcHalf, this->arcLineWidth,
-      this->arcLineWidth);
+    ctx.fillEllipse(headPoint.x, headPoint.y, arcLineWidth, arcLineWidth);
   }
 };
 
-template<typename Scale, Uhhyou::Style style = Uhhyou::Style::common>
-class TextKnob : public KnobBase<Scale> {
+template<typename Scale, Style style = Style::common>
+class RotaryKnob : public KnobBase<Scale, KnobType::rotary> {
 private:
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TextKnob)
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RotaryKnob)
+
+public:
+  RotaryKnob(
+    juce::AudioProcessorEditor &editor,
+    Palette &palette,
+    juce::UndoManager *undoManager,
+    juce::RangedAudioParameter *parameter,
+    Scale &scale,
+    StatusBar &statusBar,
+    NumberEditor &numberEditor)
+    : KnobBase<Scale, KnobType::rotary>(
+        editor, palette, undoManager, parameter, scale, statusBar, numberEditor)
+  {
+  }
+
+  virtual ~RotaryKnob() override {}
+
+  virtual void paint(juce::Graphics &ctx) override
+  {
+    const juce::Point<int> center{this->getWidth() / 2, this->getHeight() / 2};
+    ctx.setOrigin(center);
+
+    // Arc.
+    if constexpr (style == Style::accent) {
+      ctx.setColour(
+        this->isMouseEntered ? this->pal.highlightAccent() : this->pal.unfocused());
+    } else if constexpr (style == Style::warning) {
+      ctx.setColour(
+        this->isMouseEntered ? this->pal.highlightWarning() : this->pal.unfocused());
+    } else {
+      ctx.setColour(
+        this->isMouseEntered ? this->pal.highlightMain() : this->pal.unfocused());
+    }
+    constexpr auto twopi = 2 * std::numbers::pi_v<float>;
+    const auto radius = center.x > center.y ? center.y : center.x;
+    const auto rHalf = radius / 2;
+    juce::Path arc;
+    arc.addEllipse(-rHalf, -rHalf, rHalf, rHalf);
+    ctx.strokePath(arc, this->arcStrokeType);
+
+    // Mark for default value. Sharing color and style with hand.
+    const float arcLineWidth = this->pal.borderThick();
+    const auto headLength = arcLineWidth / 2 - radius;
+    juce::Path mark;
+    mark.startNewSubPath(this->mapValueToHand(this->defaultValue, headLength / 2));
+    mark.lineTo(this->mapValueToHand(this->defaultValue, headLength));
+    ctx.strokePath(mark, this->handStrokeType);
+
+    // Line from center to head.
+    const auto headPoint = this->mapValueToHand(this->value, headLength);
+    juce::Path hand;
+    hand.startNewSubPath({0.0f, 0.0f});
+    hand.lineTo(headPoint);
+    ctx.setColour(this->pal.foreground());
+    ctx.strokePath(hand, this->handStrokeType);
+
+    // Head.
+    ctx.fillEllipse(headPoint.x, headPoint.y, arcLineWidth, arcLineWidth);
+  }
+};
+
+template<typename Scale, Uhhyou::Style style, KnobType knobType>
+class TextKnobPainter : public KnobBase<Scale, knobType> {
+private:
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TextKnobPainter)
 
   juce::Font font;
 
@@ -312,7 +443,7 @@ public:
   int precision = 0;
   int32_t offset = 0;
 
-  TextKnob(
+  TextKnobPainter(
     juce::AudioProcessorEditor &editor,
     Palette &palette,
     juce::UndoManager *undoManager,
@@ -321,7 +452,7 @@ public:
     StatusBar &statusBar,
     NumberEditor &numberEditor,
     int precision = 0)
-    : KnobBase<Scale>(
+    : KnobBase<Scale, knobType>(
         editor, palette, undoManager, parameter, scale, statusBar, numberEditor)
     , font(palette.getFont(palette.textSizeUi()))
     , precision(precision)
@@ -330,13 +461,13 @@ public:
     this->lowSensitivity = this->sensitivity / float(10);
   }
 
-  virtual ~TextKnob() override {}
+  virtual ~TextKnobPainter() override {}
 
   virtual void resized() override
   {
     font = this->pal.getFont(this->pal.textSizeUi());
 
-    KnobBase<Scale>::resized();
+    KnobBase<Scale, knobType>::resized();
   }
 
   virtual void paint(juce::Graphics &ctx) override
@@ -347,24 +478,35 @@ public:
     const float width = float(this->getWidth());
     const float height = float(this->getHeight());
 
+    const juce::Rectangle<float> bounds{lwHalf, lwHalf, width - lw1, height - lw1};
+
     // Background.
     ctx.setColour(this->pal.boxBackground());
-    ctx.fillRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2);
+    ctx.fillRoundedRectangle(bounds, lw2);
 
     // Border.
-    ctx.setColour(this->pal.boxBackground());
-    ctx.drawRect(float(0), float(0), width, height);
-    if constexpr (style == Uhhyou::Style::accent) {
-      ctx.setColour(
-        this->isMouseEntered ? this->pal.highlightAccent() : this->pal.border());
-    } else if constexpr (style == Uhhyou::Style::warning) {
-      ctx.setColour(
-        this->isMouseEntered ? this->pal.highlightWarning() : this->pal.border());
-    } else {
-      ctx.setColour(
-        this->isMouseEntered ? this->pal.highlightMain() : this->pal.border());
+    const auto &colorBorder = [&]()
+    {
+      if constexpr (style == Uhhyou::Style::accent) {
+        return this->isMouseEntered ? this->pal.highlightAccent() : this->pal.border();
+      } else if constexpr (style == Uhhyou::Style::warning) {
+        return this->isMouseEntered ? this->pal.highlightWarning() : this->pal.border();
+      } else {
+        return this->isMouseEntered ? this->pal.highlightMain() : this->pal.border();
+      }
+    }();
+    ctx.setColour(colorBorder);
+    ctx.drawRoundedRectangle(bounds, lw2, lw1);
+
+    // Small bar indicator. It only appears on focus to avoid visual distraction.
+    if (this->isMouseEntered) {
+      ctx.setColour(colorBorder.withAlpha(0.5f));
+      float fillH = (height - lw1) * this->value;
+      auto fillBounds = bounds;
+      fillBounds.removeFromLeft(bounds.getWidth() - 2 * lw2);
+      fillBounds.removeFromTop(bounds.getHeight() - fillH);
+      ctx.fillRoundedRectangle(fillBounds.reduced(1.0f), lw2);
     }
-    ctx.drawRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2, lw1);
 
     // Text.
     ctx.setFont(font);
@@ -375,5 +517,11 @@ public:
       juce::Justification::centred);
   }
 };
+
+template<typename Scale, Uhhyou::Style style = Uhhyou::Style::common>
+using TextKnob = TextKnobPainter<Scale, style, KnobType::clamped>;
+
+template<typename Scale, Uhhyou::Style style = Uhhyou::Style::common>
+using RotaryTextKnob = TextKnobPainter<Scale, style, KnobType::rotary>;
 
 } // namespace Uhhyou

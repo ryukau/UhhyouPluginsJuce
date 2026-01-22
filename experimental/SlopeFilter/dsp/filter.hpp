@@ -99,6 +99,7 @@ private:
   }
 
 public:
+// TODO: pow(10, dB / 20) can be replaced to exp.
 #define SET_SLOPE_FILTER_PARAMETERS(METHOD)                                              \
   if (isHighshelf) {                                                                     \
     Sample gainAmp = std::pow(Sample(10), slopeDecibel / Sample(20));                    \

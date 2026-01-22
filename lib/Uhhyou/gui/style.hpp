@@ -11,48 +11,73 @@
 namespace Uhhyou {
 
 enum class Style { common, accent, warning };
+enum class FontType { ui, monospace };
 
 class Palette {
+private:
+  using FontMap = std::unordered_map<unsigned, juce::Font>;
+
 public:
   Palette() { load(); }
   void load();
 
-  const juce::Font &getFont(float size)
+  const juce::Font &getFont(float size, FontType fontType = FontType::ui)
   {
-    auto key = size_t(fontMapKeyScaling * size);
-    auto found = fontMap.find(key);
-    if (found != fontMap.end()) return found->second;
-    auto inserted = fontMap.emplace(
-      key,
-      juce::Font(juce::FontOptions{
-        fontName(), fontFace(), key * scalingFactor / fontMapKeyScaling}));
-    return inserted.first->second;
+    auto findFont = [&](
+                      FontMap &fmap, const juce::String &name, const juce::String &style,
+                      std::vector<juce::String> fallbacks) -> juce::Font &
+    {
+      auto key = unsigned(fontMapKeyScaling * size);
+      auto found = fmap.find(key);
+      if (found != fmap.end()) return found->second;
+
+      const auto height = key * scalingFactor / fontMapKeyScaling;
+      auto inserted = fmap.emplace(
+        key, juce::Font(juce::FontOptions{name, style, height}.withFallbacks(fallbacks)));
+
+      return inserted.first->second;
+    };
+
+    if (fontType == FontType::monospace) {
+      return findFont(
+        fontMonoMap, fontMonoName(), fontMonoStyle(),
+        {"Consolas", "Menlo", "DejaVu Sans Mono", "mono"});
+    }
+    return findFont(
+      fontUiMap, fontUiName(), fontUiStyle(),
+      {"Segoe UI", ".AppleSystemUIFont", "DejaVu Sans", "Verdana", "sans-serif"});
   }
 
   void resize(float scale)
   {
     scalingFactor = scale;
 
-    fontMap.clear();
-    std::vector<size_t> sizes{
-      size_t(textSizeSmall() * fontMapKeyScaling),
-      size_t(textSizeUi() * fontMapKeyScaling),
-      size_t(textSizeBig() * fontMapKeyScaling),
+    auto reconstruct
+      = [&](FontMap &fontMap, const juce::String &name, const juce::String &style)
+    {
+      fontMap.clear();
+      std::vector<unsigned> sizes{
+        unsigned(textSizeSmall() * fontMapKeyScaling),
+        unsigned(textSizeUi() * fontMapKeyScaling),
+        unsigned(textSizeBig() * fontMapKeyScaling),
+      };
+      for (const auto &key : sizes) {
+        const auto height = key * scalingFactor / fontMapKeyScaling;
+        fontMap.emplace(key, juce::Font(juce::FontOptions{name, style, height}));
+      }
     };
 
-    for (const auto &key : sizes) {
-      fontMap.emplace(
-        key,
-        juce::Font(juce::FontOptions{
-          fontName(), fontFace(), key * scalingFactor / fontMapKeyScaling}));
-    }
+    reconstruct(fontUiMap, fontUiName(), fontUiStyle());
+    reconstruct(fontMonoMap, fontMonoName(), fontMonoStyle());
 
     _borderThinScaled = scalingFactor * _borderThin;
     _borderThickScaled = scalingFactor * _borderThick;
   }
 
-  const juce::String &fontName() { return _fontName; }
-  const juce::String &fontFace() { return _fontFace; }
+  const juce::String &fontUiName() { return _fontUiName; }
+  const juce::String &fontUiStyle() { return _fontUiStyle; }
+  const juce::String &fontMonoName() { return _fontMonoName; }
+  const juce::String &fontMonoStyle() { return _fontMonoStyle; }
   const float textSizeSmall() { return 10; }
   const float textSizeUi() { return 14; }
   const float textSizeBig() { return 20; }
@@ -78,15 +103,18 @@ public:
 private:
   static constexpr unsigned fontMapKeyScaling = 10;
   float scalingFactor = float(1);
-  std::unordered_map<size_t, juce::Font> fontMap;
+  FontMap fontUiMap;
+  FontMap fontMonoMap;
 
   float _borderThin = 1;
   float _borderThick = 8;
   float _borderThinScaled = _borderThin;
   float _borderThickScaled = _borderThick;
 
-  juce::String _fontName{"Tinos"};
-  juce::String _fontFace{"Bold Italic"};
+  juce::String _fontUiName{"Ubuntu"};
+  juce::String _fontUiStyle{"Regular"};
+  juce::String _fontMonoName{"Ubuntu Mono"};
+  juce::String _fontMonoStyle{"Regular"};
   juce::Colour _foreground{juce::uint32{0xff000000}};
   juce::Colour _foregroundButtonOn{juce::uint32{0xff000000}};
   juce::Colour _foregroundInactive{juce::uint32{0xff8a8a8a}};

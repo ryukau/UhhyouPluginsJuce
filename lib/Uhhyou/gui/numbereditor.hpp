@@ -87,6 +87,8 @@ public:
     setVisible(true);
   }
 
+  void update(const juce::String &text) { setText(text); }
+
   void update(const juce::RangedAudioParameter *const parameter)
   {
     // TODO: Use <format>.

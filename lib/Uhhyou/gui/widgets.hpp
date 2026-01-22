@@ -19,6 +19,7 @@
 #include "presetmanager.hpp"
 #include "style.hpp"
 #include "tabview.hpp"
+#include "xypad.hpp"
 
 namespace Uhhyou {
 
@@ -107,7 +108,7 @@ struct GroupLabel {
 
 struct LabeledWidget {
   uint64_t option;
-  const juce::String &label;
+  const juce::String label;
   juce::Component &widget;
 
   enum Layout : decltype(option) { showLabel = 1, expand = 2 };
@@ -119,6 +120,11 @@ struct LabeledWidget {
     : label(label), widget(widget), option(option)
   {
   }
+};
+
+struct LayoutSection {
+  juce::String title;
+  std::vector<LabeledWidget> widgets;
 };
 
 // Return value is the `top` of next section.
@@ -134,7 +140,7 @@ inline int layoutVerticalSection(
   int labelHeight,
   int labelYIncrement,
   const juce::String &groupTitle,
-  std::vector<LabeledWidget> data)
+  std::vector<LabeledWidget> &widgets)
 {
   using Rect = juce::Rectangle<int>;
   using Opt = LabeledWidget::Layout;
@@ -145,15 +151,15 @@ inline int layoutVerticalSection(
   }
 
   const int left1 = left + labelXIncrement;
-  for (auto &line : data) {
-    if (line.option & (Opt::showLabel + Opt::expand)) {
-      labels.emplace_back(line.label, Rect{left, top, labelWidth, labelHeight});
+  for (auto &wd : widgets) {
+    if (wd.option & (Opt::showLabel + Opt::expand)) {
+      labels.emplace_back(wd.label, Rect{left, top, labelWidth, labelHeight});
     }
 
-    if (line.option & Opt::expand) {
-      line.widget.setBounds(Rect{left, top, sectionWidth, labelHeight});
+    if (wd.option & Opt::expand) {
+      wd.widget.setBounds(Rect{left, top, sectionWidth, labelHeight});
     } else {
-      line.widget.setBounds(Rect{left1, top, widgetWidth, labelHeight});
+      wd.widget.setBounds(Rect{left1, top, widgetWidth, labelHeight});
     }
 
     top += labelYIncrement;

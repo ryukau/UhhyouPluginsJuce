@@ -14,7 +14,7 @@ template<typename Sample, typename Sos> class DecimationLowpass {
     Sample s1 = 0;
     Sample s2 = 0;
   };
-  std::array<State, Sos::co.size()> states{};
+  alignas(64) std::array<State, Sos::co.size()> states{};
   Sample last = 0;
 
 public:
@@ -79,7 +79,7 @@ public:
     ap1.reset();
   }
 
-  // For down-sampling. input[0] must be earlier sample.
+  // For down-sampling. input[0] is earlier sample (z^-1).
   inline Sample process(const std::array<Sample, 2> &input)
   {
     auto s0 = ap0.process(input[0]);
