@@ -21,15 +21,21 @@ New-Item -Path "$ARTIFACT_DIR" -ItemType "directory" -Force
 
 function CopyArtifacts {
   param ([string]$SearchRootPath)
-
-  Get-ChildItem -Path $SearchRootPath -Recurse -Filter "*_artefacts" |
+  Get-ChildItem -Path $SearchRootPath -Recurse -Directory -Filter "*_artefacts" |
   ForEach-Object {
-    $PLUGIN_DIR = "$($_.FullName)\Release\VST3"
-    tree /A /F $PLUGIN_DIR # debug
-    Copy-Item -Recurse -Path "$PLUGIN_DIR\*.vst3" -Destination $ARTIFACT_DIR -Force
+    $ArtifactFolder = $_.FullName
+    $ReleaseDir = "$ArtifactFolder\Release"
+    if (Test-Path $ReleaseDir) {
+      Remove-Item "$ReleaseDir\*.lib" -Force -ErrorAction SilentlyContinue
+      $FilesToCopy = Get-ChildItem -Path "$ReleaseDir\*"
+      if ($FilesToCopy) {
+        Copy-Item -Recurse -Path $FilesToCopy.FullName -Destination $ARTIFACT_DIR -Force
+        Write-Output "UhhyouDebug: Copied artifacts from: $ReleaseDir"
+      }
+    }
   }
 }
-CopyArtifacts ".\build\experimental"
+CopyArtifacts ".\build"
 
 Write-Output "UhhyouDebug: Printing $ARTIFACT_DIR"
 tree /A /F $ARTIFACT_DIR # debug
