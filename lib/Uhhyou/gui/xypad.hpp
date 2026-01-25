@@ -174,6 +174,7 @@ public:
     : editor(editor)
     , parameter(parameters)
     , pal(palette)
+    , statusBar(statusBar)
     , attachment(
         parameters,
         [&](int index, float rawValue)
@@ -186,7 +187,6 @@ public:
           }
         },
         undoManager)
-    , statusBar(statusBar)
   {
     editor.addAndMakeVisible(*this, 0);
 

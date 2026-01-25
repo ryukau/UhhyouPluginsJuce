@@ -404,7 +404,6 @@ public:
       ctx.setColour(
         this->isMouseEntered ? this->pal.highlightMain() : this->pal.unfocused());
     }
-    constexpr auto twopi = 2 * std::numbers::pi_v<float>;
     const auto radius = center.x > center.y ? center.y : center.x;
     const auto rHalf = radius / 2;
     juce::Path arc;

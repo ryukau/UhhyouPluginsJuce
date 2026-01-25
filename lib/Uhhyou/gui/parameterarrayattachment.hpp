@@ -28,7 +28,7 @@ Advantage of using APPG is easier parameter ID management. Only a group ID is re
 instead of all parameter IDs in a group. Also template can be omitted. Disadvantage is
 dynamic allocation.
 */
-template<size_t nParameter>
+template<int nParameter>
 class ParameterArrayAttachment : private juce::AudioProcessorParameter::Listener,
                                  private juce::AsyncUpdater {
 public:

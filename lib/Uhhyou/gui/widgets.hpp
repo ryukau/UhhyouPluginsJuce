@@ -100,7 +100,7 @@ struct LabeledWidget {
     const juce::String &label,
     juce::Component &widget,
     uint64_t option = Layout::showLabel)
-    : label(label), widget(widget), option(option)
+    : option(option), label(label), widget(widget)
   {
   }
 };

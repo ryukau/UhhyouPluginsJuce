@@ -78,11 +78,11 @@ public:
   const juce::String &fontUiStyle() { return _fontUiStyle; }
   const juce::String &fontMonoName() { return _fontMonoName; }
   const juce::String &fontMonoStyle() { return _fontMonoStyle; }
-  const float textSizeSmall() { return 10; }
-  const float textSizeUi() { return 14; }
-  const float textSizeBig() { return 20; }
-  const float borderThin() { return _borderThinScaled; }
-  const float borderThick() { return _borderThickScaled; }
+  float textSizeSmall() const { return 10; }
+  float textSizeUi() const { return 14; }
+  float textSizeBig() const { return 20; }
+  float borderThin() const { return _borderThinScaled; }
+  float borderThick() const { return _borderThickScaled; }
   const juce::Colour &foreground() { return _foreground; }
   const juce::Colour &foregroundButtonOn() { return _foregroundButtonOn; }
   const juce::Colour &foregroundInactive() { return _foregroundInactive; }
