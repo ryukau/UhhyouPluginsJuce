@@ -20,6 +20,7 @@ public:
 
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
   void releaseResources() override;
+  void reset() override;
 
   bool isBusesLayoutSupported(const BusesLayout &layouts) const override;
 
@@ -54,7 +55,6 @@ public:
   virtual void zoneLayoutChanged() override;
 
 public:
-  int midiSampleOffset = 0;
   juce::MPEInstrument mpeInstrument;
   juce::UndoManager undoManager{32768, 512};
 

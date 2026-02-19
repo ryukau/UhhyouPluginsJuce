@@ -15,11 +15,10 @@
 namespace Uhhyou {
 
 class DSPCore {
-private:
+public:
   using Real = double;
 
-public:
-  DSPCore(ParameterStore &param) : param(param) {}
+  DSPCore(ParameterStore &param) : param(param) { noteIdStack.reserve(1024); }
 
   ParameterStore &param;
   bool isPlaying = false;
@@ -36,6 +35,11 @@ public:
   void process(
     const size_t length, const float *in0, const float *in1, float *out0, float *out1);
 
+  void noteOn(int noteId, Real pitchSemitone, Real velocity);
+  void noteOff(int noteId);
+  void notePitchBend(int noteId, Real bend);
+  void setPitchBend(Real bend);
+
 private:
   template<typename Func> void applyToParameters(Func apply);
   void updateUpRate();
@@ -46,26 +50,42 @@ private:
   Real sampleRate = 44100;
   Real upRate = upFold * 44100.0;
 
+  bool isResettingLfoPhase = false;
+  bool useFeedbackGate = false;
+  bool noteReceive = false;
+
   static constexpr Real smootherTimeInSecond = Real(0.2);
   SmootherParameter<Real> smoo;
   Real fadeKp = 0;
+  Real noteKp = 0;
 
-  bool useFeedbackGate = false;
   Saturator<Real>::Function saturatorType = Saturator<Real>::Function::hardclip;
 
+  struct NoteData {
+    int noteId{};
+    Real pitch{};
+    Real gain{};
+  };
+  Real notePitchScalar = Real(1);
+  Real noteGainScalar = Real(1);
+  std::vector<NoteData> noteIdStack;
+  ExpSmootherLocal<Real> notePitch;
+  ExpSmootherLocal<Real> noteGain;
+  ExpSmootherLocal<Real> globalPitchBend;
+
   ExpSmoother<Real> saturationGain{smoo};
+  ExpSmoother<Real> inputRatio{smoo};
   ExpSmoother<Real> feedback0{smoo};
   ExpSmoother<Real> feedback1{smoo};
-  RotaryExpSmoother<Real> stereoPhaseOffset{smoo};
-  ExpSmoother<Real> notchMix{smoo};
-  ExpSmoother<Real> notchWidth{smoo};
-  ExpSmoother<Real> notchTracking{smoo};
+  RotaryExpSmoother<Real> lfoPhaseInitial{smoo};
+  RotaryExpSmoother<Real> lfoPhaseStereoOffset{smoo};
   ExpSmoother<Real> delayTimeSample0{smoo};
   ExpSmoother<Real> delayTimeSample1{smoo};
-  ExpSmoother<Real> timeModOctave0{smoo};
-  ExpSmoother<Real> timeModOctave1{smoo};
+  ExpSmoother<Real> crossModMode{smoo};
   ExpSmoother<Real> crossModOctave0{smoo};
   ExpSmoother<Real> crossModOctave1{smoo};
+  ExpSmoother<Real> timeModOctave0{smoo};
+  ExpSmoother<Real> timeModOctave1{smoo};
   ExpSmoother<Real> highpassCutoff{smoo};
   ExpSmootherLocal<Real> highpassFade;
   ExpSmoother<Real> flangeMode{smoo};
@@ -76,6 +96,10 @@ private:
   ExpSmoother<Real> dryGain{smoo};
   ExpSmoother<Real> wetGain{smoo};
 
+  std::array<Real, 2> preSaturationPeak{};
+  std::array<Real, 2> outputPeak{};
+  std::array<Real, 2> modPhase{};
+  std::array<Fdn2<Real>::DisplayTime, 2> displayTime;
   TempoSyncedLfo<Real> lfo;
   std::array<Fdn2<Real>, 2> fdn;
   std::array<std::array<Real, 2>, 2> halfbandInput{};

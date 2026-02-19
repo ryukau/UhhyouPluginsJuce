@@ -45,10 +45,27 @@ protected:
   bool isMouseEntered = false;
   juce::Font font;
 
+  void selectPreviousTab()
+  {
+    activeTabIndex -= 1;
+    if (activeTabIndex >= tabs.size()) activeTabIndex = tabs.size() - 1;
+    refreshTab();
+  }
+
+  void selectNextTab()
+  {
+    activeTabIndex += 1;
+    if (activeTabIndex >= tabs.size()) activeTabIndex = 0;
+    refreshTab();
+  }
+
 public:
   TabView(Palette &palette, std::vector<juce::String> tabNames)
     : pal(palette), font(juce::FontOptions{})
   {
+    setWantsKeyboardFocus(true);
+    setMouseClickGrabsKeyboardFocus(true);
+
     tabs.reserve(tabNames.size());
     for (size_t idx = 0; idx < tabNames.size(); ++idx) {
       tabs.push_back(Tab(tabNames[idx]));
@@ -95,7 +112,6 @@ public:
   virtual void paint(juce::Graphics &ctx) override
   {
     const float lw1 = pal.borderThin(); // Border width.
-    // const float lw2 = 2 * lw1;
     const float lwHalf = std::ceil(lw1 / 2);
     const float width = float(getWidth());
     const float height = float(getHeight());
@@ -161,11 +177,12 @@ public:
     ctx.drawText(activeTab.label, activeTab.rect, juce::Justification::centred);
 
     tabs[activeTabIndex].paint(ctx);
-  }
 
-  virtual void mouseDrag(const juce::MouseEvent &) override {}
-  virtual void mouseUp(const juce::MouseEvent &) override {}
-  virtual void mouseDoubleClick(const juce::MouseEvent &) override {}
+    if (hasKeyboardFocus(false)) {
+      auto focusBounds = tabs[activeTabIndex].rect.reduced(float(3));
+      ctx.drawRect(focusBounds, pal.borderThin() * float(2));
+    }
+  }
 
   virtual void mouseEnter(const juce::MouseEvent &) override
   {
@@ -176,14 +193,20 @@ public:
   virtual void mouseExit(const juce::MouseEvent &) override
   {
     isMouseEntered = false;
+    setMouseCursor(juce::MouseCursor::NormalCursor);
     repaint();
   }
 
   virtual void mouseMove(const juce::MouseEvent &event) override
   {
-    for (auto &tab : tabs) {
-      tab.isMouseEntered = tab.rect.contains(event.position);
+    bool cursorOnTab = false;
+    for (size_t idx = 0; idx < tabs.size(); ++idx) {
+      tabs[idx].isMouseEntered = tabs[idx].rect.contains(event.position);
+      cursorOnTab = cursorOnTab || (idx != activeTabIndex && tabs[idx].isMouseEntered);
     }
+    setMouseCursor(
+      cursorOnTab ? juce::MouseCursor::PointingHandCursor
+                  : juce::MouseCursor::NormalCursor);
     repaint();
   }
 
@@ -192,6 +215,7 @@ public:
     for (size_t idx = 0; idx < tabs.size(); ++idx) {
       if (tabs[idx].rect.contains(event.position)) {
         activeTabIndex = idx;
+        setMouseCursor(juce::MouseCursor::NormalCursor);
         break;
       }
     }
@@ -204,15 +228,33 @@ public:
   {
     if (wheel.deltaY == float(0) || event.position.getY() > float(tabHeight)) return;
     if (wheel.deltaY > float(0)) {
-      activeTabIndex -= 1;
-      if (activeTabIndex >= tabs.size()) activeTabIndex = tabs.size() - 1;
+      selectPreviousTab();
     } else {
-      activeTabIndex += 1;
-      if (activeTabIndex >= tabs.size()) activeTabIndex = 0;
+      selectNextTab();
     }
-    refreshTab();
     repaint();
   }
+
+  bool keyPressed(const juce::KeyPress &key) override
+  {
+    using KP = juce::KeyPress;
+
+    if (key.isKeyCode(KP::leftKey)) {
+      selectPreviousTab();
+      repaint();
+      return true;
+    }
+    if (key.isKeyCode(KP::rightKey)) {
+      selectNextTab();
+      repaint();
+      return true;
+    }
+
+    return false;
+  }
+
+  void focusGained(juce::Component::FocusChangeType) override { repaint(); }
+  void focusLost(juce::Component::FocusChangeType) override { repaint(); }
 };
 
 } // namespace Uhhyou

@@ -48,21 +48,21 @@ public:
     grabKeyboardFocus();
   }
 
-  virtual void resized() override
+  void resized() override
   {
     applyFontToAllText(pal.getFont(pal.textSizeUi()));
     juce::TextEditor::resized();
   }
 
-  virtual void parentSizeChanged() override
+  void parentSizeChanged() override
   {
     setBounds({0, 0, getParentWidth(), getParentHeight()});
     juce::TextEditor::parentSizeChanged();
   }
 
-  virtual void focusLost(FocusChangeType) override { exitWithUpdate(); }
-  virtual void escapePressed() override { setVisible(false); }
-  virtual void returnPressed() override { exitWithUpdate(); }
+  void focusLost(FocusChangeType) override { exitWithUpdate(); }
+  void escapePressed() override { setVisible(false); }
+  void returnPressed() override { exitWithUpdate(); }
 };
 
 class StatusBar : public juce::TextEditor {
@@ -76,15 +76,18 @@ public:
   {
     parent.addChildComponent(this);
 
-    setColour(outlineColourId, pal.background());
+    // Component settings.
+    setVisible(true);
+    setWantsKeyboardFocus(true);
 
+    // TextEditor settings.
     setCaretVisible(false);
+    setColour(outlineColourId, pal.background());
     setEscapeAndReturnKeysConsumed(false);
     setJustification(juce::Justification::centredLeft);
     setReadOnly(true);
-    setSelectAllWhenFocused(true);
     setScrollbarsShown(false);
-    setVisible(true);
+    setSelectAllWhenFocused(true);
   }
 
   void update(const juce::String &text) { setText(text); }

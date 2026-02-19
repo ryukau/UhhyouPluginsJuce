@@ -1,3 +1,6 @@
+// Copyright Takamitsu Endo (ryukau@gmail.com).
+// SPDX-License-Identifier: AGPL-3.0-only
+
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -6,20 +9,24 @@
 
 #include "numbereditor.hpp"
 #include "parameterarrayattachment.hpp"
+#include "parameterlock.hpp"
 #include "style.hpp"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <optional>
+#include <ranges>
 #include <vector>
 
 namespace Uhhyou {
 
 class XYPad : public juce::Component {
 private:
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(XYPad)
+
   constexpr static int8_t nGrid = 8;
-  constexpr static float borderWidth = 2.0f;
-  constexpr static float wheelSensitivity = 0.0001f;
+  constexpr static float wheelSensitivity = float(0.0001);
 
   juce::AudioProcessorEditor &editor;
   std::array<juce::RangedAudioParameter *, 2> parameter;
@@ -27,16 +34,17 @@ private:
   StatusBar &statusBar;
   ParameterArrayAttachment<2> attachment;
 
-  std::array<float, 2> value{0.0f, 0.0f}; // Internal normalized values (0.0 - 1.0)
-  juce::Point<float> mousePosition{-1.0f, -1.0f};
+  std::array<float, 2> value{float(0), float(0)};
+  juce::Point<float> mousePosition{float(-1), float(-1)};
   bool isMouseEntered = false;
   bool isEditing = false;
 
   std::array<std::vector<float>, 2> snaps;
   std::array<bool, 2> isSnapping{false, false};
-  std::array<float, 2> snapDiffAccumulator{0.0f, 0.0f};
+  std::array<float, 2> snapDiffAccumulator{float(0), float(0)};
   juce::Point<float> lastMousePos;
-  float snapDistancePixel = 24.0f;
+  float snapDistancePixel = float(24);
+  bool snappingEnabled = true;
 
   enum class AxisLock { none, x, y };
 
@@ -70,7 +78,7 @@ private:
     bool isUpdated{false};
 
     if (lock != AxisLock::x) {
-      float normX = std::clamp(pos.x, 0.0f, w) / w;
+      float normX = std::clamp(pos.x, float(0), w) / w;
       if (value[0] != normX) {
         value[0] = normX;
         attachment.setValueAsPartOfGesture(0, parameter[0]->convertFrom0to1(value[0]));
@@ -79,7 +87,7 @@ private:
     }
 
     if (lock != AxisLock::y) {
-      float normY = std::clamp(h - pos.y, 0.0f, h) / h;
+      float normY = std::clamp(h - pos.y, float(0), h) / h;
       if (value[1] != normY) {
         value[1] = normY;
         attachment.setValueAsPartOfGesture(1, parameter[1]->convertFrom0to1(value[1]));
@@ -94,59 +102,47 @@ private:
   {
     if (rangePixels <= 0) return;
 
-    // 1. If currently snapped, handle hysteresis (stickiness)
-    if (isSnapping[axis]) {
+    if (snappingEnabled && isSnapping[axis]) {
       snapDiffAccumulator[axis] += deltaPixel;
-
-      // If we pulled far enough, break the snap
       if (std::abs(snapDiffAccumulator[axis]) > snapDistancePixel) {
         isSnapping[axis] = false;
-        snapDiffAccumulator[axis] = 0.0f;
-        // We do NOT apply the delta this frame.
-        // This effectively "resets" the relative motion anchor to the current mouse
-        // position, preventing the value from jumping to catch up with the mouse cursor.
+        snapDiffAccumulator[axis] = float(0);
       }
       return;
     }
 
-    // 2. Normal movement
     float currentVal = value[axis];
     float deltaNorm = deltaPixel / rangePixels;
     float nextVal = currentVal + deltaNorm;
 
-    // 3. Check for new snaps
-    const auto &axisSnaps = snaps[axis];
-    if (!axisSnaps.empty()) {
-      if (deltaNorm > 0) {
+    auto findSnapPoint = [&]() -> std::optional<float>
+    {
+      if (!snappingEnabled || snaps[axis].empty() || deltaNorm == float(0)) {
+        return std::nullopt;
+      }
+
+      const auto &axisSnaps = snaps[axis];
+      if (deltaNorm > float(0)) {
         // Moving Positive
-        auto it = std::upper_bound(axisSnaps.begin(), axisSnaps.end(), currentVal);
-        if (it != axisSnaps.end()) {
-          // If we crossed or hit a snap point
-          if (nextVal >= *it) {
-            value[axis] = *it;
-            isSnapping[axis] = true;
-            snapDiffAccumulator[axis] = 0.0f;
-            return;
-          }
-        }
-      } else if (deltaNorm < 0) {
+        auto it = std::ranges::upper_bound(axisSnaps, currentVal);
+        if (it != axisSnaps.end() && nextVal >= *it) return *it;
+      } else {
         // Moving Negative
-        auto it = std::lower_bound(axisSnaps.begin(), axisSnaps.end(), currentVal);
+        auto it = std::ranges::lower_bound(axisSnaps, currentVal);
         if (it != axisSnaps.begin()) {
-          auto prev = std::prev(it);
-          // If we crossed or hit a snap point
-          if (nextVal <= *prev) {
-            value[axis] = *prev;
-            isSnapping[axis] = true;
-            snapDiffAccumulator[axis] = 0.0f;
-            return;
-          }
+          if (float prev = *std::prev(it); nextVal <= prev) return prev;
         }
       }
-    }
+      return std::nullopt;
+    };
 
-    // Apply value if no snap occurred
-    value[axis] = std::clamp(nextVal, 0.0f, 1.0f);
+    if (auto snapTarget = findSnapPoint()) {
+      value[axis] = *snapTarget;
+      isSnapping[axis] = true;
+      snapDiffAccumulator[axis] = float(0);
+    } else {
+      value[axis] = std::clamp(nextVal, float(0), float(1));
+    }
   }
 
   void resetValue(AxisLock lock = AxisLock::none)
@@ -162,6 +158,34 @@ private:
     }
     updateStatusBar();
     repaint();
+  }
+
+  void cycleUpValue(size_t index)
+  {
+    auto &v = value[index];
+
+    if (v >= float(1)) {
+      v = float(0);
+      return;
+    }
+
+    const auto &snp = snaps[index];
+    auto it = std::ranges::upper_bound(snp, v);
+    v = (it != snp.end()) ? *it : float(1);
+  }
+
+  void cycleDownValue(size_t index)
+  {
+    auto &v = value[index];
+
+    if (v <= 0) {
+      v = float(1);
+      return;
+    }
+
+    const auto &snp = snaps[index];
+    auto it = std::ranges::lower_bound(snp, v);
+    v = (it != snp.begin()) ? *std::prev(it) : float(0);
   }
 
 public:
@@ -189,6 +213,8 @@ public:
         undoManager)
   {
     editor.addAndMakeVisible(*this, 0);
+    setMouseCursor(juce::MouseCursor::DraggingHandCursor);
+    setWantsKeyboardFocus(true);
 
     for (size_t i = 0; i < 2; ++i) {
       if (!parameter[i]) continue;
@@ -197,7 +223,7 @@ public:
     attachment.sendInitialUpdate();
   }
 
-  virtual ~XYPad() override {}
+  void setSnappingEnabled(bool shouldSnap) { snappingEnabled = shouldSnap; }
 
   void setSnaps(const std::vector<float> &snapsX_, const std::vector<float> &snapsY_)
   {
@@ -210,48 +236,47 @@ public:
 
   void setSnapDistance(float pixels) { snapDistancePixel = pixels; }
 
-  void paint(juce::Graphics &g) override
+  void paint(juce::Graphics &ctx) override
   {
-    const float width = (float)getWidth();
-    const float height = (float)getHeight();
+    const float width = static_cast<float>(getWidth());
+    const float height = static_cast<float>(getHeight());
 
     // Background.
-    g.setColour(pal.boxBackground());
-    g.fillAll();
+    ctx.setColour(pal.boxBackground());
+    ctx.fillAll();
 
     // Grid.
-    constexpr float dotRadius = 2.0f;
-    g.setColour(pal.foregroundInactive());
-
+    const float dotRadius = 2 * pal.borderThin();
+    ctx.setColour(pal.foregroundInactive());
     for (size_t ix = 1; ix < nGrid; ++ix) {
       for (size_t iy = 1; iy < nGrid; ++iy) {
         auto cx = std::floor(ix * width / nGrid);
         auto cy = std::floor(iy * height / nGrid);
-        g.fillEllipse(cx - dotRadius, cy - dotRadius, dotRadius * 2, dotRadius * 2);
+        ctx.fillEllipse(cx - dotRadius, cy - dotRadius, dotRadius * 2, dotRadius * 2);
       }
     }
 
     // Mouse Cursor Crosshair.
     if (isMouseEntered) {
-      g.setColour(pal.highlightMain());
-      g.drawLine(0, mousePosition.y, width, mousePosition.y, 1.0f);
-      g.drawLine(mousePosition.x, 0, mousePosition.x, height, 1.0f);
+      ctx.setColour(pal.highlightMain());
+      ctx.drawLine(float(0), mousePosition.y, width, mousePosition.y, pal.borderThin());
+      ctx.drawLine(mousePosition.x, float(0), mousePosition.x, height, pal.borderThin());
     }
 
     // Value Indicator.
     auto valueX = std::floor(value[0] * width);
-    auto valueY = std::floor((1.0f - value[1]) * height);
-    constexpr float valR = 8.0f;
+    auto valueY = std::floor((float(1) - value[1]) * height);
+    const float valR = 8 * pal.borderThin();
+    ctx.setColour(pal.foreground());
 
-    g.setColour(pal.foreground());
-    g.drawEllipse(valueX - valR, valueY - valR, valR * 2, valR * 2, 2.0f);
+    ctx.drawEllipse(valueX - valR, valueY - valR, valR * 2, valR * 2, float(2));
 
-    g.drawLine(0, valueY, width, valueY, 1.0f);
-    g.drawLine(valueX, 0, valueX, height, 1.0f);
+    ctx.drawLine(float(0), valueY, width, valueY, pal.borderThin());
+    ctx.drawLine(valueX, float(0), valueX, height, pal.borderThin());
 
     // Border.
-    g.setColour((isMouseEntered || isEditing) ? pal.highlightMain() : pal.border());
-    g.drawRect(0.0f, 0.0f, width, height, borderWidth);
+    ctx.setColour((isMouseEntered || isEditing) ? pal.highlightMain() : pal.border());
+    ctx.drawRect(float(0), float(0), width, height, pal.borderThin());
   }
 
   void mouseEnter(const juce::MouseEvent &event) override
@@ -283,7 +308,6 @@ public:
       auto hostContext = editor.getHostContext();
       if (hostContext == nullptr) return;
 
-      // Left half = X Parameter. Right half = Y Parameter.
       size_t index = event.position.x < getWidth() / float(2) ? 0 : 1;
 
       auto hostContextMenu = hostContext->getContextMenuForParameter(parameter[index]);
@@ -298,7 +322,7 @@ public:
     } else {
       isEditing = true;
       isSnapping = {false, false};
-      snapDiffAccumulator = {0.0f, 0.0f};
+      snapDiffAccumulator = {float(0), float(0)};
       updateValueFromPos(mousePosition, getLockState(event.mods));
       event.source.enableUnboundedMouseMovement(true);
       lastMousePos = event.position;
@@ -337,7 +361,7 @@ public:
         }
       }
 
-      mousePosition = {value[0] * getWidth(), (1.0f - value[1]) * getHeight()};
+      mousePosition = {value[0] * getWidth(), (float(1) - value[1]) * getHeight()};
 
       if (changed) updateStatusBar();
       repaint();
@@ -378,7 +402,207 @@ public:
     repaint();
   }
 
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(XYPad)
+  bool keyPressed(const juce::KeyPress &key) override
+  {
+    using KP = juce::KeyPress;
+    const auto &mods = key.getModifiers();
+
+    auto updateValue = [&](int index)
+    {
+      attachment.setValueAsCompleteGesture(
+        index, parameter[index]->convertFrom0to1(value[index]));
+      updateStatusBar();
+      repaint();
+      return true;
+    };
+
+    auto increaseValue = [&](int index, float delta)
+    { value[index] = std::clamp(value[index] + delta, float(0), float(1)); };
+
+    auto handleMove = [&](
+                        int index, const int increamentKey, const int decrementKey,
+                        const int cycleUpKey, const int cycleDownKey)
+    {
+      constexpr float sensitivity = float(0.0078125);
+
+      if (
+        key.isKeyCode(cycleUpKey)
+        || (key.isKeyCode(increamentKey) && mods.isCommandDown()))
+      {
+        cycleUpValue(index);
+        return updateValue(index);
+      }
+      if (
+        key.isKeyCode(cycleDownKey)
+        || (key.isKeyCode(decrementKey) && mods.isCommandDown()))
+      {
+        cycleDownValue(index);
+        return updateValue(index);
+      }
+      if (key.isKeyCode(increamentKey)) {
+        increaseValue(index, sensitivity);
+        return updateValue(index);
+      }
+      if (key.isKeyCode(decrementKey)) {
+        increaseValue(index, -sensitivity);
+        return updateValue(index);
+      }
+
+      return false;
+    };
+
+    // X.
+    if (handleMove(0, KP::rightKey, KP::leftKey, KP::pageUpKey, KP::pageDownKey)) {
+      return true;
+    }
+
+    // Y
+    if (handleMove(1, KP::upKey, KP::downKey, KP::homeKey, KP::endKey)) {
+      return true;
+    }
+
+    return false;
+  }
+};
+
+class LabeledXYPad : public juce::Component {
+private:
+  class SnapToggle : public juce::Component {
+  private:
+    Palette &pal;
+    StatusBar &statusBar;
+    bool state = true;
+    std::function<void(bool)> onStateChange = nullptr;
+
+  public:
+    SnapToggle(
+      Palette &palette, StatusBar &s, bool initialState, decltype(onStateChange) onChange)
+      : pal(palette), statusBar(s), state(initialState), onStateChange(onChange)
+    {
+      setWantsKeyboardFocus(true);
+    }
+
+    void paint(juce::Graphics &ctx) override
+    {
+      auto bounds = getLocalBounds().toFloat();
+      ctx.setColour(pal.border());
+      ctx.drawRect(bounds, pal.borderThin());
+
+      if (state) {
+        ctx.setColour(pal.highlightButton());
+        ctx.fillRect(bounds.reduced(4 * pal.borderThin()));
+      }
+
+      if (hasKeyboardFocus(false)) {
+        ctx.setColour(pal.highlightMain().withAlpha(0.5f));
+        ctx.drawRect(bounds, 2.0f);
+      }
+    }
+
+    void mouseEnter(const juce::MouseEvent &) override
+    {
+      setMouseCursor(juce::MouseCursor::PointingHandCursor);
+    }
+
+    void mouseExit(const juce::MouseEvent &) override
+    {
+      setMouseCursor(juce::MouseCursor::NormalCursor);
+    }
+
+    void mouseDown(const juce::MouseEvent &) override { toggle(); }
+
+    bool keyPressed(const juce::KeyPress &key) override
+    {
+      using KP = juce::KeyPress;
+      if (key.isKeyCode(KP::returnKey) || key.isKeyCode(KP::spaceKey)) {
+        toggle();
+        return true;
+      }
+      return false;
+    }
+
+    void focusGained(juce::Component::FocusChangeType) override { repaint(); }
+    void focusLost(juce::Component::FocusChangeType) override { repaint(); }
+
+    void toggle()
+    {
+      state = !state;
+      if (onStateChange) {
+        onStateChange(state);
+        statusBar.update(state ? "XYPad Snap: ON" : "XYPad Snap OFF");
+      }
+      repaint();
+    }
+  };
+
+  Palette &pal;
+  XYPad &pad;
+  SnapToggle toggle;
+
+  LockableLabel labelXComp;
+  LockableLabel labelYComp;
+
+public:
+  LabeledXYPad(
+    ParameterLockRegistry &locks,
+    Palette &palette,
+    StatusBar &statusBar,
+    XYPad &pad,
+    const juce::String &labelX,
+    const juce::String &labelY,
+    const juce::AudioProcessorParameter *const parameterX,
+    const juce::AudioProcessorParameter *const parameterY,
+    bool initialSnapState = true,
+    std::function<void(bool)> onSnapChange = nullptr)
+    : pal(palette)
+    , pad(pad)
+    , toggle(
+        palette,
+        statusBar,
+        initialSnapState,
+        [this, onSnapChange](bool state)
+        {
+          this->pad.setSnappingEnabled(state);
+          if (onSnapChange) onSnapChange(state);
+        })
+    , labelXComp(
+        locks,
+        palette,
+        labelX,
+        parameterX,
+        juce::Justification::centred,
+        LockableLabel::Orientation::horizontal)
+    , labelYComp(
+        locks,
+        palette,
+        labelY,
+        parameterY,
+        juce::Justification::centred,
+        LockableLabel::Orientation::vertical)
+  {
+    pad.setSnappingEnabled(initialSnapState);
+
+    addAndMakeVisible(pad);
+    addAndMakeVisible(toggle);
+    addAndMakeVisible(labelXComp);
+    addAndMakeVisible(labelYComp);
+  }
+
+  void resized() override
+  {
+    int stripSize
+      = static_cast<int>(pal.getFont(pal.textSizeUi()).getHeight() * float(1.5));
+    auto r = getLocalBounds();
+    toggle.setBounds(0, 0, stripSize, stripSize);
+    labelXComp.setBounds(stripSize, 0, r.getWidth() - stripSize, stripSize);
+    labelYComp.setBounds(0, stripSize, stripSize, r.getHeight() - stripSize);
+    pad.setBounds(
+      stripSize, stripSize, r.getWidth() - stripSize, r.getHeight() - stripSize);
+  }
+
+  juce::Component &getToggle() { return toggle; }
+  juce::Component &getLabelX() { return labelXComp; }
+  juce::Component &getLabelY() { return labelYComp; }
 };
 
 } // namespace Uhhyou

@@ -29,6 +29,5 @@ elseif((CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     $<$<CONFIG:Release>:
     -ffast-math
     -Wno-nan-infinity-disabled
-    -Wno-nontrivial-memcall
     -Wno-deprecated-literal-operator>)
 endif()

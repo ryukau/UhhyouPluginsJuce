@@ -8,7 +8,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 
 #include "../scaledparameter.hpp"
-#include "./numbereditor.hpp"
+#include "numbereditor.hpp"
 #include "style.hpp"
 
 #include <algorithm>
@@ -70,11 +70,31 @@ protected:
       });
   }
 
+  void cycleUpValue()
+  {
+    if (value >= float(1)) {
+      value = float(0);
+      return;
+    }
+    auto it = std::ranges::upper_bound(snaps, value);
+    value = (it != snaps.end()) ? *it : float(1);
+  }
+
+  void cycleDownValue()
+  {
+    if (value <= 0) {
+      value = float(1);
+      return;
+    }
+    auto it = std::ranges::lower_bound(snaps, value);
+    value = (it != snaps.begin()) ? *std::prev(it) : float(0);
+  }
+
   void increaseValue(float delta)
   {
     value += delta;
     value = knobType == KnobType::rotary ? (value - std::floor(value))
-                                         : std::clamp(value, 0.0f, 1.0f);
+                                         : std::clamp(value, float(0), float(1));
   }
 
   void increaseValueWithSnap(
@@ -156,8 +176,9 @@ public:
     editor.addAndMakeVisible(*this, 0);
     attachment.sendInitialUpdate();
 
-    setFocusContainerType(juce::Component::FocusContainerType::keyboardFocusContainer);
+    setMouseCursor(juce::MouseCursor::UpDownResizeCursor);
     setWantsKeyboardFocus(true);
+    setMouseClickGrabsKeyboardFocus(true);
   }
 
   virtual ~KnobBase() override {}
@@ -214,8 +235,7 @@ public:
       if (event.mods.isShiftDown()) {
         value = this->scale.fromDisplay(std::floor(this->scale.toDisplay(value)));
       } else {
-        const auto &mid = defaultValue;
-        value = value < mid ? mid : value < float(1) ? float(1) : float(0);
+        cycleUpValue();
       }
 
       if (value != oldValue) {
@@ -270,16 +290,21 @@ public:
 
     event.source.enableUnboundedMouseMovement(false);
 
-    if (liveUpdate)
+    if (liveUpdate) {
       attachment.endGesture();
-    else
+    } else {
       attachment.setValueAsCompleteGesture(float(scale.map(value)));
+    }
 
     statusBar.update(parameter);
     repaint();
   }
 
-  virtual void mouseDoubleClick(const juce::MouseEvent &) override { invokeTextEditor(); }
+  virtual void mouseDoubleClick(const juce::MouseEvent &event) override
+  {
+    if (!event.mods.isLeftButtonDown()) return;
+    invokeTextEditor();
+  }
 
   virtual void
   mouseWheelMove(const juce::MouseEvent &, const juce::MouseWheelDetails &wheel) override
@@ -293,11 +318,42 @@ public:
   bool keyPressed(const juce::KeyPress &key) override
   {
     using KP = juce::KeyPress;
-    constexpr auto isKey = KP::isKeyCurrentlyDown;
+    const auto &mods = key.getModifiers();
 
-    if (!isFocusContainer() || !key.isValid()) return false;
-    if (isKey(KP::returnKey) || isKey(KP::spaceKey)) invokeTextEditor();
-    return true;
+    if (key.isKeyCode(KP::returnKey) || key.isKeyCode(KP::spaceKey)) {
+      invokeTextEditor();
+      return true;
+    }
+
+    auto updateValue = [&]()
+    {
+      attachment.setValueAsCompleteGesture(float(scale.map(value)));
+      statusBar.update(parameter);
+      repaint();
+      return true;
+    };
+
+    if (key.isKeyCode(KP::homeKey) || (key.isKeyCode(KP::upKey) && mods.isCommandDown()))
+    {
+      cycleUpValue();
+      return updateValue();
+    }
+    if (key.isKeyCode(KP::endKey) || (key.isKeyCode(KP::downKey) && mods.isCommandDown()))
+    {
+      cycleDownValue();
+      return updateValue();
+    }
+
+    if (key.isKeyCode(KP::upKey)) {
+      increaseValue(sensitivity);
+      return updateValue();
+    }
+    if (key.isKeyCode(KP::downKey)) {
+      increaseValue(-sensitivity);
+      return updateValue();
+    }
+
+    return false;
   }
 };
 

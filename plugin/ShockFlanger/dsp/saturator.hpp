@@ -521,7 +521,7 @@ public:
     T t_fall, t_rise;
 
     if (std::abs(d0) < std::numeric_limits<T>::epsilon()) {
-      const T mid = f0(T(0.5) * (x0 + x1));
+      const T mid = T(0.5) * f0(T(0.5) * (x0 + x1));
       t_fall = mid;
       t_rise = mid;
     } else {
@@ -607,7 +607,7 @@ template<typename Real> struct Softsign {
 template<typename Real> struct Softsign3 {
   static inline Real f0(Real x)
   {
-    // `a` is scaling factor to avoid blow up when put in feedback path.
+    // `a` is scaling factor to avoid blowing up feedback.
     constexpr Real a = Real(1.88988157484230967e+00);
     x *= a;
     Real x3 = x * x * x;

@@ -56,6 +56,31 @@ protected:
     statusBar.setText(text);
   }
 
+  void invokeMenu()
+  {
+    menu.clear();
+    menu.addSectionHeader(parameter->getName(2048));
+
+    for (size_t idx = 0; idx < items.size(); ++idx) {
+      menu.addItem(
+        juce::PopupMenu::Item(items[idx])
+          .setID(int(idx) + 1)
+          .setTicked(int(idx) == itemIndex));
+    }
+
+    menu.showMenuAsync(
+      juce::PopupMenu::Options().withInitiallySelectedItem(itemIndex + 1),
+      [&](int id)
+      {
+        int idx = id - 1;
+        if (idx < 0 || idx >= int(items.size())) return;
+        itemIndex = idx;
+        attachment.setValueAsCompleteGesture(float(itemIndex));
+        updateStatusBar();
+        repaint();
+      });
+  }
+
 public:
   ComboBox(
     juce::AudioProcessorEditor &editor,
@@ -88,9 +113,10 @@ public:
   {
     attachment.sendInitialUpdate();
     editor.addAndMakeVisible(*this, 0);
+    setMouseCursor(juce::MouseCursor::PointingHandCursor);
+    setWantsKeyboardFocus(true);
+    setMouseClickGrabsKeyboardFocus(false);
   }
-
-  virtual ~ComboBox() override {}
 
   virtual void resized() override { font = pal.getFont(pal.textSizeUi()); }
 
@@ -127,8 +153,6 @@ public:
     }
   }
 
-  virtual void mouseMove(const juce::MouseEvent &) override {}
-
   virtual void mouseEnter(const juce::MouseEvent &) override
   {
     isMouseEntered = true;
@@ -154,32 +178,8 @@ public:
       return;
     }
 
-    if (event.mods.isLeftButtonDown()) {
-      menu.clear();
-      for (size_t idx = 0; idx < items.size(); ++idx) {
-        menu.addItem(
-          juce::PopupMenu::Item(items[idx])
-            .setID(int(idx) + 1)
-            .setTicked(int(idx) == itemIndex));
-      }
-
-      menu.showMenuAsync(
-        juce::PopupMenu::Options().withInitiallySelectedItem(itemIndex + 1),
-        [&](int id)
-        {
-          int idx = id - 1;
-          if (idx < 0 || idx >= int(items.size())) return;
-          itemIndex = idx;
-          attachment.setValueAsCompleteGesture(float(itemIndex));
-          updateStatusBar();
-          repaint();
-        });
-    }
+    if (event.mods.isLeftButtonDown()) invokeMenu();
   }
-
-  virtual void mouseDrag(const juce::MouseEvent &) override {}
-  virtual void mouseUp(const juce::MouseEvent &) override {}
-  virtual void mouseDoubleClick(const juce::MouseEvent &) override {}
 
   virtual void
   mouseWheelMove(const juce::MouseEvent &, const juce::MouseWheelDetails &wheel) override
@@ -191,6 +191,16 @@ public:
     attachment.setValueAsCompleteGesture(float(itemIndex));
     updateStatusBar();
     repaint();
+  }
+
+  virtual bool keyPressed(const juce::KeyPress &key) override
+  {
+    using KP = juce::KeyPress;
+    if (key.isKeyCode(KP::returnKey) || key.isKeyCode(KP::spaceKey)) {
+      invokeMenu();
+      return true;
+    }
+    return false;
   }
 };
 

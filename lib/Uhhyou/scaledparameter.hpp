@@ -62,7 +62,8 @@ public:
   ScaledParameter(
     float defaultNormalized,
     Scale &scale,
-    const juce::String &name,
+    const juce::String &parameterId,
+    const juce::String &parameterName,
     juce::AudioProcessorParameter::Category category,
     int versionHint,
     const juce::String &unitLabel = "",
@@ -70,8 +71,8 @@ public:
     ToTextFn toText = nullptr,
     FromTextFn fromText = nullptr)
     : RangedAudioParameter(
-        juce::ParameterID(name, versionHint),
-        name,
+        juce::ParameterID(parameterId, versionHint),
+        parameterName,
         juce::AudioProcessorParameterWithIDAttributes().withCategory(category).withLabel(
           unitLabel))
     , defaultNormalized(defaultNormalized)

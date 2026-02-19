@@ -72,6 +72,7 @@ public:
   explicit ExpSmoother(const SmootherParameter<Sample> &param) : param_(param) {}
 
   inline Sample value() { return value_; }
+  inline Sample target() { return target_; }
 
   void reset(Sample value = 0)
   {

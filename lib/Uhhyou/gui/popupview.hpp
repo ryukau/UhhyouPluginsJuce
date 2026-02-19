@@ -7,36 +7,62 @@
 #include <juce_graphics/juce_graphics.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 
+#include "navigation.hpp"
 #include "style.hpp"
 #include "tabview.hpp"
 
+#include <algorithm>
 #include <functional>
+#include <iterator>
 #include <vector>
 
 namespace Uhhyou {
 
-class FullScreenButton : public juce::Component {
+class CloseInfoButton : public juce::Component {
 private:
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FullScreenButton)
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CloseInfoButton)
 
   Palette &pal;
   bool isMouseEntered = false;
+  float padding{20.0f};
 
   std::function<void(void)> mouseDownCallback = nullptr;
 
 public:
-  FullScreenButton(Palette &palette, std::function<void(void)> mouseDownCallback)
-    : pal(palette), mouseDownCallback(mouseDownCallback)
+  CloseInfoButton(
+    Palette &palette, int popupInset, std::function<void(void)> mouseDownCallback)
+    : pal(palette), mouseDownCallback(mouseDownCallback), padding(float(popupInset))
   {
+    setMouseCursor(juce::MouseCursor::PointingHandCursor);
+    setWantsKeyboardFocus(true);
   }
 
-  virtual ~FullScreenButton() override {}
+  virtual ~CloseInfoButton() override {}
 
   virtual void paint(juce::Graphics &ctx) override
   {
+    auto bounds = getLocalBounds().toFloat();
+
+    bool highlight = isMouseEntered || hasKeyboardFocus(false);
+
     // Background.
-    ctx.setColour(isMouseEntered ? pal.highlightMain() : pal.overlayFaint());
-    ctx.fillRect(getBounds().toFloat());
+    const auto &bgColor = highlight ? pal.highlightButton() : pal.background();
+    ctx.setColour(bgColor.withAlpha(float(0.875)));
+    ctx.fillRect(bounds);
+
+    // Hint text.
+    //
+    // Dispalying texts on top and bottom because the available region is narrow.
+    // Information density took the priority. A better visual design removes the top text
+    // and increases the bottom margin, so that "click to close" text on bottom can be
+    // decorated as a clickable button.
+    //
+    ctx.setColour(highlight ? pal.foreground() : pal.foreground().withAlpha(0.5f));
+    ctx.setFont(pal.getFont(pal.textSizeUi()));
+    juce::String hintText = "Click margin to close (Esc)";
+    const auto &justification = juce::Justification::centred;
+    ctx.drawText(hintText, bounds.withBottom(padding), justification);
+    ctx.drawText(hintText, bounds.removeFromBottom(padding), justification);
   }
 
   virtual void mouseDown(const juce::MouseEvent &) override
@@ -56,17 +82,29 @@ public:
     isMouseEntered = false;
     repaint();
   }
+
+  bool keyPressed(const juce::KeyPress &key) override
+  {
+    using KP = juce::KeyPress;
+    if (key.isKeyCode(KP::spaceKey) || key.isKeyCode(KP::returnKey)) {
+      mouseDownCallback();
+      return true;
+    }
+    return false;
+  }
+
+  void focusGained(juce::Component::FocusChangeType) override { repaint(); }
+  void focusLost(juce::Component::FocusChangeType) override { repaint(); }
 };
 
-class PopUpButton : public juce::Component {
+class PluginInfoButton : public juce::Component {
 private:
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PopUpButton)
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginInfoButton)
 
-protected:
-  static constexpr int popUpInset = 20;
+  int popupInset{20};
 
-  FullScreenButton dismissButton;
-  TabView popUp;
+  CloseInfoButton closeButton;
+  TabView popup;
   juce::CodeDocument infoDocument{};
   juce::CodeEditorComponent infoDisplay{infoDocument, nullptr};
   juce::CodeDocument licenseDocument{};
@@ -77,40 +115,71 @@ protected:
   juce::Font font;
   juce::String label;
 
+  NavigationManager &navManager;
+  FocusScope popupScope;
+
   enum TabIndex { information, license };
 
+  juce::Component *getActiveContent()
+  {
+    if (infoDisplay.isVisible()) return &infoDisplay;
+    if (licenseDisplay.isVisible()) return &licenseDisplay;
+    return nullptr;
+  }
+
+  void dismissPopup()
+  {
+    navManager.popScope(this);
+    closeButton.setVisible(false);
+    popup.setVisible(false);
+    this->grabKeyboardFocus();
+  }
+
+  void displayPopup()
+  {
+    closeButton.setVisible(true);
+    popup.setVisible(true);
+
+    closeButton.toFront(true);
+    popup.toFront(true);
+
+    navManager.pushScope(this, &popupScope);
+    popup.grabKeyboardFocus();
+  }
+
 public:
-  PopUpButton(
+  PluginInfoButton(
     Component &parent,
     Palette &palette,
+    NavigationManager &navigationManager,
     const juce::String &label,
     const juce::String &infoText,
     const juce::String &licenseText)
-    : dismissButton(
-        palette,
-        [&]()
-        {
-          dismissButton.setVisible(false);
-          popUp.setVisible(false);
-        })
-    , popUp(palette, {"Information", "License"})
+    : popupInset(std::min(int(20 * palette.borderThin()), 20))
+    , closeButton(palette, popupInset, [&]() { this->dismissPopup(); })
+    , popup(palette, {"Information", "License"})
     , pal(palette)
     , font(juce::FontOptions{})
     , label(label)
+    , navManager(navigationManager)
   {
+    setMouseCursor(juce::MouseCursor::PointingHandCursor);
+    setWantsKeyboardFocus(true);
+    setMouseClickGrabsKeyboardFocus(false);
+
     parent.addAndMakeVisible(*this, 0);
 
-    parent.addChildComponent(dismissButton, 0);
-    dismissButton.setBoundsInset(juce::BorderSize<int>{0});
+    parent.addChildComponent(closeButton, 0);
+    closeButton.setBoundsInset(juce::BorderSize<int>{0});
 
-    parent.addChildComponent(popUp, -1);
-    popUp.setBoundsInset(juce::BorderSize<int>{popUpInset});
+    parent.addChildComponent(popup, -1);
+    popup.setBoundsInset(juce::BorderSize<int>{popupInset});
 
-    auto popUpAddWidget =
+    auto popupAddWidget =
       [&](
         TabIndex tabIndex, juce::CodeEditorComponent &display, const juce::String &source)
     {
-      popUp.addWidget(tabIndex, &display);
+      popup.addWidget(tabIndex, &display);
 
       using ColorId = juce::CodeEditorComponent::ColourIds;
       display.setColour(ColorId::backgroundColourId, pal.background());
@@ -122,21 +191,28 @@ public:
       display.setReadOnly(true);
       display.loadContent(source);
       display.setLineNumbersShown(false);
+      display.setWantsKeyboardFocus(true);
     };
-    popUpAddWidget(TabIndex::information, infoDisplay, infoText);
-    popUpAddWidget(TabIndex::license, licenseDisplay, licenseText);
+    popupAddWidget(TabIndex::information, infoDisplay, infoText);
+    popupAddWidget(TabIndex::license, licenseDisplay, licenseText);
+
+    // Setup traversal order.
+    popupScope.add(closeButton);
+    popupScope.add(popup);
+    popupScope.add(infoDisplay);
+    popupScope.add(licenseDisplay);
   }
 
-  virtual ~PopUpButton() override {}
+  ~PluginInfoButton() override { navManager.popScope(this); }
 
   virtual void resized() override
   {
     font = pal.getFont(pal.textSizeBig(), FontType::ui);
 
-    dismissButton.setBoundsInset(juce::BorderSize<int>{0});
-    popUp.setBoundsInset(juce::BorderSize<int>{popUpInset});
+    closeButton.setBoundsInset(juce::BorderSize<int>{0});
+    popup.setBoundsInset(juce::BorderSize<int>{popupInset});
 
-    auto innerBounds = popUp.getInnerBounds();
+    auto innerBounds = popup.getInnerBounds();
 
     infoDisplay.setBounds(innerBounds);
     infoDisplay.setFont(pal.getFont(pal.textSizeUi(), FontType::monospace));
@@ -144,12 +220,12 @@ public:
     licenseDisplay.setBounds(innerBounds);
     licenseDisplay.setFont(pal.getFont(pal.textSizeUi(), FontType::monospace));
 
-    popUp.refreshTab();
+    popup.refreshTab();
   }
 
   void scale(float scalingFactor)
   {
-    popUp.setBoundsInset(juce::BorderSize<int>{int(scalingFactor * popUpInset)});
+    popup.setBoundsInset(juce::BorderSize<int>{int(scalingFactor * popupInset)});
   }
 
   virtual void paint(juce::Graphics &ctx) override
@@ -176,20 +252,9 @@ public:
       juce::Justification::centred);
   }
 
-  virtual void mouseMove(const juce::MouseEvent &) override {}
-  virtual void mouseDrag(const juce::MouseEvent &) override {}
-  virtual void mouseUp(const juce::MouseEvent &) override {}
-  virtual void mouseDoubleClick(const juce::MouseEvent &) override {}
-
-  virtual void
-  mouseWheelMove(const juce::MouseEvent &, const juce::MouseWheelDetails &) override
-  {
-  }
-
   virtual void mouseDown(const juce::MouseEvent &) override
   {
-    dismissButton.setVisible(true);
-    popUp.setVisible(true);
+    displayPopup();
     repaint();
   }
 
@@ -203,6 +268,21 @@ public:
   {
     isMouseEntered = false;
     repaint();
+  }
+
+  bool keyPressed(const juce::KeyPress &key) override
+  {
+    using KP = juce::KeyPress;
+    if (key.isKeyCode(KP::returnKey) || key.isKeyCode(KP::spaceKey)) {
+      if (hasKeyboardFocus(false)) giveAwayKeyboardFocus();
+      displayPopup();
+      return true;
+    }
+    if (key.isKeyCode(KP::escapeKey)) {
+      dismissPopup();
+      return true;
+    }
+    return false;
   }
 };
 

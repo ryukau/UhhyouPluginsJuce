@@ -8,13 +8,19 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 
 #include <cinttypes>
+#include <functional>
+#include <memory>
 #include <vector>
+
+#include "parameterlock.hpp"
 
 #include "barbox.hpp"
 #include "button.hpp"
 #include "buttonarray.hpp"
 #include "combobox.hpp"
 #include "knob.hpp"
+#include "lookandfeel.hpp"
+#include "navigation.hpp"
 #include "popupview.hpp"
 #include "presetmanager.hpp"
 #include "style.hpp"
@@ -22,38 +28,6 @@
 #include "xypad.hpp"
 
 namespace Uhhyou {
-
-struct Line {
-  juce::Point<float> start{};
-  juce::Point<float> end{};
-  float thickness{};
-
-  Line(juce::Point<float> start, juce::Point<float> end, float thickness)
-    : start(start), end(end), thickness(thickness)
-  {
-  }
-
-  void paint(juce::Graphics &ctx) const
-  {
-    ctx.drawLine(start.x, start.y, end.x, end.y, thickness);
-  }
-};
-
-struct TextLabel {
-  juce::String text;
-  juce::Rectangle<int> rect;
-  juce::Justification justification;
-
-  TextLabel(
-    const juce::String &text,
-    const juce::Rectangle<int> &rect,
-    juce::Justification justification = juce::Justification::centred)
-    : text(text), rect(rect), justification(justification)
-  {
-  }
-
-  void paint(juce::Graphics &ctx) const { ctx.drawText(text, rect, justification); }
-};
 
 struct GroupLabel {
   juce::String text;
@@ -73,78 +47,131 @@ struct GroupLabel {
   void
   paint(juce::Graphics &ctx, juce::Font &font, float lineWidth, float marginWidth) const
   {
-    ctx.drawText(text, rect, justification);
+    juce::Graphics::ScopedSaveState saveState(ctx);
+    ctx.addTransform(
+      juce::AffineTransform::translation(float(rect.getX()), float(rect.getY())));
+    auto localBounds = rect.withZeroOrigin().toFloat();
 
+    // Text.
+    ctx.drawText(text, localBounds, justification);
+
+    // Decoration.
     auto textWidth = juce::GlyphArrangement::getStringWidth(font, text);
+    auto centerY = localBounds.getCentreY();
+    auto centerX = localBounds.getCentreX();
+    auto offsetFromCenter = marginWidth + float(0.5) * textWidth;
+    auto lineLength = centerX - offsetFromCenter;
 
-    auto lineY = rect.getY() + float(0.5) * (rect.getHeight() - lineWidth);
-    auto centerX = float(0.5) * rect.getWidth();
-    auto offsetFronCenter = marginWidth + float(0.5) * textWidth;
-    auto rectWidth = centerX - offsetFronCenter;
-    ctx.fillRoundedRectangle(
-      float(rect.getX()), lineY, rectWidth, lineWidth, lineWidth / 2);
-    ctx.fillRoundedRectangle(
-      rect.getX() + centerX + offsetFronCenter, lineY, rectWidth, lineWidth,
-      lineWidth / 2);
+    juce::Path p;
+    p.startNewSubPath(6 * lineWidth, centerY);
+    p.lineTo(lineLength, centerY);
+
+    auto diamondSize = lineWidth;
+    p.startNewSubPath(0, centerY);
+    p.lineTo(diamondSize, centerY + diamondSize);
+    p.lineTo(2 * diamondSize, centerY);
+    p.lineTo(diamondSize, centerY - diamondSize);
+    p.closeSubPath();
+
+    p.addPath(p, juce::AffineTransform::scale(float(-1), float(1), centerX, centerY));
+    juce::PathStrokeType stroke(
+      lineWidth, juce::PathStrokeType::mitered, juce::PathStrokeType::rounded);
+    ctx.strokePath(p, stroke);
+    ctx.fillPath(p);
   }
 };
 
-struct LabeledWidget {
-  uint64_t option;
-  const juce::String label;
+class LabeledWidget : public juce::Component {
+public:
+  enum Layout { showLabel = 0, expand = 1 };
+
+private:
+  Palette &pal;
+  Layout option;
   juce::Component &widget;
+  LockableLabel lockLabel;
 
-  enum Layout : decltype(option) { hideLabel = 0, showLabel = 1, expand = 2 };
-
+public:
   LabeledWidget(
+    ParameterLockRegistry &locks,
+    Palette &palette,
     const juce::String &label,
     juce::Component &widget,
-    uint64_t option = Layout::showLabel)
-    : option(option), label(label), widget(widget)
+    const juce::AudioProcessorParameter *const parameter,
+    Layout option = Layout::showLabel)
+    : pal(palette)
+    , option(option)
+    , widget(widget)
+    , lockLabel(
+        locks,
+        palette,
+        label,
+        parameter,
+        juce::Justification::centredLeft,
+        LockableLabel::Orientation::horizontal)
   {
+    addAndMakeVisible(widget);
+
+    if (option == Layout::showLabel) {
+      addAndMakeVisible(lockLabel);
+    } else {
+      locks.lock(parameter);
+    }
+  }
+
+  LockableLabel &lockableLabel() { return lockLabel; }
+
+  void resized() override
+  {
+    auto r = getLocalBounds();
+    if (option == expand) {
+      widget.setBounds(r);
+    } else {
+      // Left: `lockLabel`, Right: `widget`.
+      auto labelBounds = r.removeFromLeft(r.getWidth() / 2);
+      lockLabel.setBounds(labelBounds);
+      widget.setBounds(r);
+    }
+  }
+
+  void paint(juce::Graphics &ctx) override
+  {
+    if (option == showLabel) {
+      auto r = getLocalBounds();
+      r.removeFromRight(r.getWidth() / 2);
+      r.removeFromLeft(int(pal.textSizeUi()));
+
+      ctx.setColour(pal.border().withAlpha(float(0.25)));
+      ctx.drawLine(
+        {r.getBottomLeft().toFloat(), r.getBottomRight().toFloat()}, pal.borderThin());
+    }
   }
 };
 
 struct LayoutSection {
   juce::String title;
-  std::vector<LabeledWidget> widgets;
+  std::vector<std::shared_ptr<LabeledWidget>> widgets;
 };
 
-// Return value is the `top` of next section.
 inline int layoutVerticalSection(
-  std::vector<TextLabel> &labels,
   std::vector<GroupLabel> &groupLabels,
   int left,
   int top,
   int sectionWidth,
-  int labelWidth,
-  int widgetWidth,
-  int labelXIncrement,
   int labelHeight,
   int labelYIncrement,
   const juce::String &groupTitle,
-  std::vector<LabeledWidget> &widgets)
+  std::vector<std::shared_ptr<juce::Component>> &widgets)
 {
   using Rect = juce::Rectangle<int>;
-  using Opt = LabeledWidget::Layout;
 
   if (groupTitle.isNotEmpty()) {
     groupLabels.emplace_back(groupTitle, Rect{left, top, sectionWidth, labelHeight});
     top += labelYIncrement;
   }
 
-  const int left1 = left + labelXIncrement;
   for (auto &wd : widgets) {
-    if (wd.option & (Opt::showLabel + Opt::expand)) {
-      labels.emplace_back(wd.label, Rect{left, top, labelWidth, labelHeight});
-    }
-
-    if (wd.option & Opt::expand) {
-      wd.widget.setBounds(Rect{left, top, sectionWidth, labelHeight});
-    } else {
-      wd.widget.setBounds(Rect{left1, top, widgetWidth, labelHeight});
-    }
-
+    wd->setBounds(Rect{left, top, sectionWidth, labelHeight});
     top += labelYIncrement;
   }
 
@@ -157,7 +184,6 @@ inline int layoutActionSection(
   int top,
   int sectionWidth,
   int labelWidth,
-  int widgetWidth,
   int labelXIncrement,
   int labelHeight,
   int labelYIncrement,
@@ -172,7 +198,9 @@ inline int layoutActionSection(
 
   top += labelYIncrement;
   undoButton.setBounds(Rect{left, top, labelWidth, labelHeight});
-  redoButton.setBounds(Rect{left + labelXIncrement, top, widgetWidth, labelHeight});
+
+  const int remainingWidth = sectionWidth - labelXIncrement;
+  redoButton.setBounds(Rect{left + labelXIncrement, top, remainingWidth, labelHeight});
 
   top += labelYIncrement;
   randomizeButton.setBounds(Rect{left, top, sectionWidth, labelHeight});
@@ -184,20 +212,6 @@ inline int layoutActionSection(
   presetManager.setBounds(Rect{left, top, sectionWidth, labelHeight});
 
   return top + labelYIncrement;
-}
-
-inline void setDefaultColor(juce::LookAndFeel_V4 &laf, Palette &pal)
-{
-  laf.setColour(juce::CaretComponent::caretColourId, pal.foreground());
-
-  laf.setColour(juce::TextEditor::backgroundColourId, pal.background());
-  laf.setColour(juce::TextEditor::textColourId, pal.foreground());
-  laf.setColour(juce::TextEditor::highlightColourId, pal.overlayHighlight());
-  laf.setColour(juce::TextEditor::highlightedTextColourId, pal.foreground());
-  laf.setColour(juce::TextEditor::outlineColourId, pal.border());
-  laf.setColour(juce::TextEditor::focusedOutlineColourId, pal.highlightMain());
-
-  juce::LookAndFeel::setDefaultLookAndFeel(&laf);
 }
 
 } // namespace Uhhyou

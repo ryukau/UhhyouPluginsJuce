@@ -47,15 +47,16 @@ public:
     , label(label)
   {
     editor.addAndMakeVisible(*this, 0);
+    setMouseCursor(juce::MouseCursor::PointingHandCursor);
+    setWantsKeyboardFocus(true);
+    setMouseClickGrabsKeyboardFocus(true);
   }
-
-  virtual ~ButtonBase() override {}
 
   virtual void resized() override { font = pal.getFont(pal.textSizeUi()); }
 
   virtual void paint(juce::Graphics &ctx) override
   {
-    const float lw1 = pal.borderThin(); // Border width.
+    const float lw1 = pal.borderThin();
     const float lw2 = 2 * lw1;
     const float lwHalf = lw1 / 2;
     const float width = float(getWidth());
@@ -87,17 +88,6 @@ public:
     ctx.drawText(
       label, juce::Rectangle<float>(float(0), float(0), width, height),
       juce::Justification::centred);
-  }
-
-  virtual void mouseMove(const juce::MouseEvent &) override {}
-  virtual void mouseDrag(const juce::MouseEvent &) override {}
-  virtual void mouseDown(const juce::MouseEvent &) override {}
-  virtual void mouseUp(const juce::MouseEvent &) override {}
-  virtual void mouseDoubleClick(const juce::MouseEvent &) override {}
-
-  virtual void
-  mouseWheelMove(const juce::MouseEvent &, const juce::MouseWheelDetails &) override
-  {
   }
 
   virtual void mouseEnter(const juce::MouseEvent &) override
@@ -145,6 +135,26 @@ public:
     this->value = 0;
     this->repaint();
   }
+
+  virtual bool keyPressed(const juce::KeyPress &key) override
+  {
+    if (
+      key.isKeyCode(juce::KeyPress::returnKey) || key.isKeyCode(juce::KeyPress::spaceKey))
+    {
+      this->value = 1;
+      this->repaint();
+      onClick();
+      juce::Timer::callAfterDelay(
+        100,
+        [this]()
+        {
+          this->value = 0;
+          this->repaint();
+        });
+      return true;
+    }
+    return false;
+  }
 };
 
 template<typename Scale, Style style = Style::common>
@@ -158,8 +168,6 @@ protected:
 
   Scale &scale;
   juce::ParameterAttachment attachment;
-
-  float defaultValue{};
 
   void toggleValue()
   {
@@ -200,12 +208,9 @@ public:
           this->repaint();
         },
         undoManager)
-    , defaultValue(parameter->getDefaultValue())
   {
     attachment.sendInitialUpdate();
   }
-
-  virtual ~ToggleButton() override {}
 
   virtual void mouseDown(const juce::MouseEvent &event) override
   {
@@ -229,6 +234,124 @@ public:
   {
     if (std::abs(wheel.deltaY) <= std::numeric_limits<float>::epsilon()) toggleValue();
     this->repaint();
+  }
+
+  virtual bool keyPressed(const juce::KeyPress &key) override
+  {
+    using KP = juce::KeyPress;
+    if (key.isKeyCode(KP::returnKey) || key.isKeyCode(KP::spaceKey)) {
+      toggleValue();
+      this->repaint();
+      return true;
+    }
+    return false;
+  }
+};
+
+template<typename Scale, Style style = Style::common>
+class MomentaryButton : public ButtonBase<style> {
+private:
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MomentaryButton)
+
+protected:
+  juce::AudioProcessorEditor &editor;
+  const juce::RangedAudioParameter *const parameter;
+
+  Scale &scale;
+  juce::ParameterAttachment attachment;
+
+  void updateStatusBar()
+  {
+    auto text = parameter->getName(256);
+    text += ": ";
+    text += juce::String(int(this->value) ? "ON" : "OFF");
+    text += " ";
+    text += parameter->getLabel();
+    this->statusBar.setText(text);
+  }
+
+  void setValue(bool isPressed)
+  {
+    if (isPressed) {
+      this->value = float(1);
+      attachment.setValueAsCompleteGesture(float(scale.getMax()));
+    } else {
+      this->value = float(0);
+      attachment.setValueAsCompleteGesture(float(scale.getMin()));
+    }
+    updateStatusBar();
+    this->repaint();
+  }
+
+public:
+  MomentaryButton(
+    juce::AudioProcessorEditor &editor,
+    Palette &palette,
+    juce::UndoManager *undoManager,
+    juce::RangedAudioParameter *parameter,
+    Scale &scale,
+    StatusBar &statusBar,
+    NumberEditor &numberEditor,
+    const juce::String &label)
+    : ButtonBase<style>(editor, palette, statusBar, numberEditor, label)
+    , editor(editor)
+    , parameter(parameter)
+    , scale(scale)
+    , attachment(
+        *parameter,
+        [&](float newRaw)
+        {
+          auto normalized = newRaw >= scale.getMax() ? float(1) : float(0);
+          if (this->value == normalized) return;
+          this->value = normalized;
+          this->repaint();
+        },
+        undoManager)
+  {
+    attachment.sendInitialUpdate();
+  }
+
+  virtual void mouseDown(const juce::MouseEvent &event) override
+  {
+    if (event.mods.isRightButtonDown()) {
+      auto hostContext = editor.getHostContext();
+      if (hostContext == nullptr) return;
+
+      auto hostContextMenu = hostContext->getContextMenuForParameter(parameter);
+      if (hostContextMenu == nullptr) return;
+
+      hostContextMenu->showNativeMenu(editor.getMouseXYRelative());
+      return;
+    }
+
+    setValue(true);
+  }
+
+  virtual void mouseUp(const juce::MouseEvent &) override
+  {
+    if (this->value) setValue(false);
+  }
+
+  bool keyStateChanged(bool) override
+  {
+    using KP = juce::KeyPress;
+    if (KP::isKeyCurrentlyDown(KP::returnKey) || KP::isKeyCurrentlyDown(KP::spaceKey)) {
+      if (this->value < float(1)) setValue(true);
+      return true;
+    }
+    if (this->value > float(0)) {
+      setValue(false);
+      return true;
+    }
+    return false;
+  }
+
+  void focusLost(juce::Component::FocusChangeType cause) override
+  {
+    using FCT = juce::Component::FocusChangeType;
+    if (cause == FCT::focusChangedByTabKey || cause == FCT::focusChangedByMouseClick) {
+      setValue(false);
+    }
   }
 };
 

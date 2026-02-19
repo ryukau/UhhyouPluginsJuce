@@ -1,8 +1,8 @@
 // Copyright Takamitsu Endo (ryukau@gmail.com).
 // SPDX-License-Identifier: AGPL-3.0-only
 
-#include "PluginProcessor.h"
-#include "PluginEditor.h"
+#include "PluginProcessor.hpp"
+#include "PluginEditor.hpp"
 
 Processor::Processor()
   : AudioProcessor(
@@ -44,6 +44,8 @@ void Processor::prepareToPlay(double sampleRate, int)
 
 void Processor::releaseResources() {}
 
+void Processor::reset() { dsp.reset(); }
+
 bool Processor::isBusesLayoutSupported(const BusesLayout &layouts) const
 {
   if (
@@ -71,13 +73,6 @@ void Processor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiBuffer 
 
   juce::ScopedNoDenormals noDenormals;
 
-  for (const juce::MidiMessageMetadata &metadata : midi) {
-    if (metadata.data == nullptr) continue;
-    if (metadata.numBytes <= 0) continue;
-    midiSampleOffset = metadata.samplePosition; // Sad hack to propagate message timing.
-    mpeInstrument.processNextMidiEvent(metadata.getMessage());
-  }
-
   auto audioPlayHead = getPlayHead();
   if (audioPlayHead != nullptr) {
     auto positionInfo = audioPlayHead->getPosition();
@@ -98,17 +93,42 @@ void Processor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiBuffer 
     }
   }
 
+  dsp.setParameters();
+
   for (auto i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i) {
     buffer.clear(i, 0, buffer.getNumSamples());
   }
-
-  dsp.setParameters();
-
   auto in0 = buffer.getReadPointer(0);
   auto in1 = buffer.getReadPointer(1);
   auto out0 = buffer.getWritePointer(0);
   auto out1 = buffer.getWritePointer(1);
-  dsp.process((size_t)buffer.getNumSamples(), in0, in1, out0, out1);
+
+  int offset = 0;
+  const int fullLength = buffer.getNumSamples();
+
+  auto processAudioUntil = [&](int target_pos)
+  {
+    const int count = target_pos - offset;
+    if (count <= 0) return;
+    dsp.process(count, in0 + offset, in1 + offset, out0 + offset, out1 + offset);
+    offset = target_pos;
+  };
+
+  using Real = Uhhyou::DSPCore::Real;
+  for (const auto &data : midi) {
+    if (data.samplePosition < offset || data.samplePosition >= fullLength) continue;
+    processAudioUntil(data.samplePosition);
+
+    auto msg = data.getMessage();
+    processAudioUntil(data.samplePosition);
+
+    if (msg.isPitchWheel()) {
+      dsp.setPitchBend(Real(1) - Real(msg.getPitchWheelValue()) / Real(0x2000));
+    }
+
+    mpeInstrument.processNextMidiEvent(msg);
+  }
+  processAudioUntil(fullLength);
 }
 
 bool Processor::hasEditor() const { return true; }
@@ -136,8 +156,15 @@ void Processor::setStateInformation(const void *data, int sizeInBytes)
   }
 }
 
-void Processor::noteAdded(juce::MPENote) {}
-void Processor::noteReleased(juce::MPENote) {}
+void Processor::noteAdded(juce::MPENote note)
+{
+  using Real = Uhhyou::DSPCore::Real;
+  dsp.noteOn(
+    note.noteID, Real(note.initialNote + note.pitchbend.asSignedFloat()),
+    Real(note.noteOnVelocity.asSignedFloat()));
+}
+
+void Processor::noteReleased(juce::MPENote note) { dsp.noteOff(note.noteID); }
 void Processor::notePressureChanged(juce::MPENote) {}
 void Processor::notePitchbendChanged(juce::MPENote) {}
 void Processor::noteTimbreChanged(juce::MPENote) {}

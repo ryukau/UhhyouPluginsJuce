@@ -1,8 +1,8 @@
 // Copyright Takamitsu Endo (ryukau@gmail.com).
 // SPDX-License-Identifier: AGPL-3.0-only
 
-#include "PluginEditor.h"
-#include "PluginProcessor.h"
+#include "PluginEditor.hpp"
+#include "PluginProcessor.hpp"
 
 #include "./gui/popupinformationtext.hpp"
 #include "Uhhyou/librarylicense.hpp"
@@ -50,17 +50,17 @@ struct Metrics {
     labelY = int(f_labelY);
     sectionWidth = int(f_sectionWidth);
     xypadWidth = int(f_xypadWidth);
-    totalWidth = int(f_xypadWidth + 3 * f_sectionWidth + 3 * f_uiMargin);
+    totalWidth = int(2 * f_xypadWidth + 3 * f_sectionWidth + 3 * f_uiMargin);
     totalHeight = int(26 * (f_labelH + 2 * f_margin));
   }
 };
 
-const juce::String sXY{"XY"};
+const juce::String sXY0{"XY-0"};
+const juce::String sXY1{"XY-1"};
 const juce::String sMix{"Mix"};
 const juce::String sSat{"Saturation"};
 const juce::String sDelay{"Delay"};
 const juce::String sMod{"Modulation"};
-const juce::String sNotch{"Adaptive Notch"};
 
 Editor::Editor(Processor &processor)
   : EditorBase(
@@ -75,6 +75,7 @@ Editor::Editor(Processor &processor)
 
         auto params = processor.getParameters();
         for (auto &prm : params) {
+          if (this->paramLocks.isLocked(prm)) continue;
           prm->beginChangeGesture();
           prm->setValueNotifyingHost(dist(rng));
           prm->endChangeGesture();
@@ -93,24 +94,29 @@ Editor::Editor(Processor &processor)
     return keys;
   };
 
-  addXYPad(sXY, "delayTimeMs", "delayTimeRatio", {}, {});
+  addXYPad(sXY0, "delayTimeMs", "delayTimeRatio", {}, {});
   addXYPad(
-    sXY, "feedback0", "feedback1", {s_.feedback.invmap(0)}, {s_.feedback.invmap(0)});
+    sXY0, "feedback0", "feedback1", {s_.feedback.invmap(0)}, {s_.feedback.invmap(0)});
   addXYPad(
-    sXY, "crossModulationOctave0", "crossModulationOctave1", {s_.timeModOctave.invmap(0)},
-    {s_.timeModOctave.invmap(0)});
-  addXYPad(sXY, "flangeMode", "saturationGain", {}, {s_.saturationGain.invmap(1.0f)});
+    sXY0, "crossModulationOctave0", "crossModulationOctave1",
+    {s_.timeModOctave.invmap(0)}, {s_.timeModOctave.invmap(0)});
+
+  addXYPad(sXY1, "flangeMode", "saturationGain", {}, {s_.saturationGain.invmap(1.0f)});
   addXYPad(
-    sXY, "rotationToDelayTimeOctave0", "rotationToDelayTimeOctave1",
-    {s_.timeModOctave.invmap(0)}, {s_.bipolar.invmap(0)});
+    sXY1, "lfoToDelayTimeOctave0", "lfoToDelayTimeOctave1",
+    {s_.lfoToDelayTimeOctave.invmap(0)}, {s_.lfoToDelayTimeOctave.invmap(0)});
+  addXYPad(
+    sXY1, "inputRatio", "modulationTracking", {s_.unipolar.invmap(0.5f)},
+    {s_.unipolar.invmap(0.5f)});
 
   addTextKnob(
     sMix, "dryGain", s_.gain,
-    {s_.gain.invmap(-1.0f), s_.gain.invmap(0), s_.gain.invmap(1.0f)}, 5, "Dry");
+    {s_.gain.invmap(-1.0f), s_.gain.invmap(0), s_.gain.invmap(1.0f)}, 5);
   addTextKnob(
     sMix, "wetGain", s_.gain,
-    {s_.gain.invmap(-1.0f), s_.gain.invmap(0), s_.gain.invmap(1.0f)}, 5, "Wet");
-  addToggleButton(sMix, "oversampling", s_.boolean, "2x Sampling");
+    {s_.gain.invmap(-1.0f), s_.gain.invmap(0), s_.gain.invmap(1.0f)}, 5);
+  addToggleButton(sMix, "wetInvert", s_.boolean);
+  addToggleButton(sMix, "oversampling", s_.boolean);
 
   addComboBox(
     sSat, "saturationType", s_.saturationType,
@@ -141,58 +147,65 @@ Editor::Editor(Processor &processor)
     "Type");
   addTextKnob(
     sSat, "saturationGain", s_.saturationGain, {s_.saturationGain.invmapDB(0)}, 5,
-    "Gain [dB]");
+    "Gain");
 
-  addTextKnob(
-    sDelay, "delayTimeMs", s_.delayTimeMs, {s_.delayTimeMs.invmap(1.0f)}, 5, "Time [ms]");
+  addTextKnob(sDelay, "inputRatio", s_.unipolar, {s_.unipolar.invmap(0.5f)}, 5);
+  addTextKnob(sDelay, "delayTimeMs", s_.delayTimeMs, {s_.delayTimeMs.invmap(1.0f)}, 5);
   addTextKnob(
     sDelay, "delayTimeRatio", s_.unipolar,
     {s_.unipolar.invmap(1.0f / 2), s_.unipolar.invmap(1.0f / 3),
      s_.unipolar.invmap(1.0f / 4), s_.unipolar.invmap(1.0f / 5),
      s_.unipolar.invmap(1.0f / 6), s_.unipolar.invmap(1.0f / 7),
      s_.unipolar.invmap(1.0f / 8)},
-    5, "Time Ratio");
-  addTextKnob(sDelay, "flangeMode", s_.unipolar, {}, 5, "Mode");
-  addToggleButton(sDelay, "safeFlange", s_.boolean, "Safe Flange");
-  addToggleButton(sDelay, "safeFeedback", s_.boolean, "Safe Feedback");
-  addToggleButton(sDelay, "feedbackGate", s_.boolean, "Feedback Gate");
-  addTextKnob(sDelay, "feedback0", s_.feedback, {s_.feedback.invmap(0)}, 5, "Feedback 0");
-  addTextKnob(sDelay, "feedback1", s_.feedback, {s_.feedback.invmap(0)}, 5, "Feedback 1");
+    5);
+  addTextKnob(sDelay, "flangeMode", s_.unipolar, {}, 5);
+  addToggleButton(sDelay, "safeFlange", s_.boolean);
+  addToggleButton(sDelay, "safeFeedback", s_.boolean);
+  addToggleButton(sDelay, "feedbackGate", s_.boolean);
+  addTextKnob(sDelay, "feedback0", s_.feedback, {s_.feedback.invmap(0)}, 5);
+  addTextKnob(sDelay, "feedback1", s_.feedback, {s_.feedback.invmap(0)}, 5);
   addTextKnob(
     sDelay, "lfoBeat", s_.lfoBeat,
-    snapsToNormalized(s_.lfoBeatSnaps, [&](auto v) { return s_.lfoBeat.invmap(v); }), 5,
-    "Rotation Rate");
-  addRotaryTextKnob(
-    sDelay, "stereoPhaseOffset", s_.unipolar,
-    {s_.unipolar.invmap(0.0f / 8), s_.unipolar.invmap(1.0f / 8),
-     s_.unipolar.invmap(2.0f / 8), s_.unipolar.invmap(3.0f / 8),
-     s_.unipolar.invmap(4.0f / 8), s_.unipolar.invmap(5.0f / 8),
-     s_.unipolar.invmap(6.0f / 8), s_.unipolar.invmap(7.0f / 8)},
-    5, "Stereo Phase");
-  addTextKnob(
-    sDelay, "lowpassCutoffHz", s_.cutoffHz, {s_.cutoffHz.invmap(10000.0f)}, 5, "Lowpass");
+    snapsToNormalized(s_.lfoBeatSnaps, [&](auto v) { return s_.lfoBeat.invmap(v); }), 5);
+
+  std::vector<float> phaseSnaps{
+    s_.unipolar.invmap(0.0f / 8), s_.unipolar.invmap(1.0f / 8),
+    s_.unipolar.invmap(2.0f / 8), s_.unipolar.invmap(3.0f / 8),
+    s_.unipolar.invmap(4.0f / 8), s_.unipolar.invmap(5.0f / 8),
+    s_.unipolar.invmap(6.0f / 8), s_.unipolar.invmap(7.0f / 8)};
+  addRotaryTextKnob(sDelay, "lfoPhaseInitial", s_.unipolar, phaseSnaps, 5);
+  addRotaryTextKnob(sDelay, "lfoPhaseStereoOffset", s_.unipolar, phaseSnaps, 5);
+  addMomentaryButton(sDelay, "lfoPhaseReset", s_.boolean);
+
+  addTextKnob(sDelay, "lowpassCutoffHz", s_.cutoffHz, {s_.cutoffHz.invmap(10000.0f)}, 5);
   addTextKnob(
     sDelay, "highpassCutoffHz", s_.cutoffHz,
     {s_.cutoffHz.invmap(1.0f), s_.cutoffHz.invmap(5.0f), s_.cutoffHz.invmap(12.0f),
      s_.cutoffHz.invmap(20.0f)},
-    5, "Highpass");
+    5);
 
+  addToggleButton(sDelay, "noteReceive", s_.boolean);
   addTextKnob(
-    sMod, "rotationToDelayTimeOctave0", s_.timeModOctave, {s_.timeModOctave.invmap(0)}, 5,
-    "Rot. Mod. 0");
+    sDelay, "notePitchRange", s_.notePitchRange, {s_.notePitchRange.invmap(float(0))}, 5);
   addTextKnob(
-    sMod, "rotationToDelayTimeOctave1", s_.bipolar, {s_.bipolar.invmap(0)}, 5,
-    "Rot. Mod. 1");
-  addTextKnob(
-    sMod, "crossModulationOctave0", s_.timeModOctave, {s_.timeModOctave.invmap(0)}, 5,
-    "In -> Mod 0");
-  addTextKnob(
-    sMod, "crossModulationOctave1", s_.timeModOctave, {s_.timeModOctave.invmap(0)}, 5,
-    "In -> Mod 1");
+    sDelay, "noteGainRange", s_.noteGainRange,
+    {s_.noteGainRange.invmap(float(10)), s_.noteGainRange.invmap(float(20)),
+     s_.noteGainRange.invmap(float(30)), s_.noteGainRange.invmap(float(40)),
+     s_.noteGainRange.invmap(float(50))},
+    5);
 
-  addTextKnob(sNotch, "notchMix", s_.unipolar, {}, 5, "Mix");
-  addTextKnob(sNotch, "notchWidthHz", s_.notchWidthHz, {}, 5, "Width [Hz]");
-  addTextKnob(sNotch, "notchTrackingHz", s_.notchTrackingHz, {}, 5, "Tracking [Hz]");
+  addTextKnob(sMod, "modulationTracking", s_.unipolar, {s_.unipolar.invmap(1.0f)}, 5);
+  addTextKnob(sMod, "crossModMode", s_.unipolar, {s_.unipolar.invmap(0.5f)}, 5);
+  addTextKnob(
+    sMod, "crossModulationOctave0", s_.timeModOctave, {s_.timeModOctave.invmap(0)}, 5);
+  addTextKnob(
+    sMod, "crossModulationOctave1", s_.timeModOctave, {s_.timeModOctave.invmap(0)}, 5);
+  addTextKnob(
+    sMod, "lfoToDelayTimeOctave0", s_.lfoToDelayTimeOctave,
+    {s_.lfoToDelayTimeOctave.invmap(0)}, 5);
+  addTextKnob(
+    sMod, "lfoToDelayTimeOctave1", s_.lfoToDelayTimeOctave,
+    {s_.lfoToDelayTimeOctave.invmap(0)}, 5);
 
   // `setSize` must be called at last.
   const float scale = getStateTree().getProperty("windowScale", 1.0f);
@@ -213,14 +226,13 @@ void Editor::resized()
   palette.resize(scale);
   Metrics mt{scale};
 
-  lines.clear();
-  labels.clear();
   groupLabels.clear();
 
   const int bottom = int(scale * defaultHeight);
   const int top0 = mt.uiMargin;
-  const int left0 = mt.uiMargin;
-  const int left1 = left0 + mt.xypadWidth + 2 * mt.margin;
+  const int leftXy0 = mt.uiMargin;
+  const int leftXy1 = leftXy0 + mt.xypadWidth;
+  const int left1 = leftXy1 + mt.xypadWidth + 2 * mt.margin;
   const int left2 = left1 + 2 * mt.labelX;
   const int left3 = left2 + 2 * mt.labelX;
 
@@ -228,32 +240,49 @@ void Editor::resized()
   {
     if (auto sc = sections.find(sectionTitle); sc != sections.end()) {
       top = layoutVerticalSection(
-        labels, groupLabels, left, top, mt.sectionWidth, mt.labelW, mt.labelW, mt.labelX,
-        mt.labelH, mt.labelY, sc->first, sc->second);
+        groupLabels, left, top, mt.sectionWidth, mt.labelH, mt.labelY, sc->first,
+        sc->second);
     }
   };
 
   int currentTop = top0;
-  if (auto sc = sections.find(sXY); sc != sections.end()) {
+  if (auto sc = sections.find(sXY0); sc != sections.end()) {
     currentTop = layoutVerticalSection(
-      labels, groupLabels, left0, currentTop, mt.xypadWidth, mt.labelW, mt.labelW,
-      mt.labelX, mt.xypadWidth, mt.xypadWidth + 2 * mt.margin, "", sc->second);
+      groupLabels, leftXy0, currentTop, mt.xypadWidth, mt.xypadWidth,
+      mt.xypadWidth + 2 * mt.margin, "", sc->second);
+  }
+
+  currentTop = top0;
+  if (auto sc = sections.find(sXY1); sc != sections.end()) {
+    currentTop = layoutVerticalSection(
+      groupLabels, leftXy1, currentTop, mt.xypadWidth, mt.xypadWidth,
+      mt.xypadWidth + 2 * mt.margin, "", sc->second);
   }
 
   currentTop = top0;
   addSection(currentTop, left1, sMix);
   addSection(currentTop, left1, sSat);
   addSection(currentTop, left1, sMod);
-  addSection(currentTop, left1, sNotch);
 
   currentTop = top0;
   addSection(currentTop, left2, sDelay);
 
   const int nameTop0 = layoutActionSection(
-    groupLabels, left3, top0, mt.sectionWidth, mt.labelW, mt.labelW, mt.labelX, mt.labelH,
-    mt.labelY, undoButton, redoButton, randomizeButton, presetManager);
-  pluginNameButton.setBounds(Rect{left3, nameTop0, mt.sectionWidth, mt.labelH});
-  pluginNameButton.scale(scale);
+    groupLabels, left3, top0, mt.sectionWidth, mt.labelW, mt.labelX, mt.labelH, mt.labelY,
+    undoButton, redoButton, randomizeButton, presetManager);
+  pluginInfoButton.setBounds(Rect{left3, nameTop0, mt.sectionWidth, mt.labelH});
+  pluginInfoButton.scale(scale);
+
+  lfoPhaseDisplay.setBounds(Rect{left3, nameTop0 + mt.labelY, mt.labelW, mt.labelW});
+
+  const int delayTimeTop = nameTop0 + mt.labelY + mt.labelW + 2 * mt.margin;
+  delayTimeDisplay.setBounds(
+    Rect{left3, delayTimeTop, mt.sectionWidth, 4 * mt.labelY - 2 * mt.margin});
+
+  const int meterTop0 = delayTimeTop + 4 * mt.labelY;
+  const int meterH = 6 * mt.labelY - 2 * mt.margin;
+  meterPreSaturationPeak.setBounds(Rect{left3, meterTop0, mt.labelW, meterH});
+  meterOutputPeak.setBounds(Rect{left3 + mt.labelX, meterTop0, mt.labelW, meterH});
 
   statusBar.setBounds(
     Rect{left1, bottom - mt.labelH - mt.uiMargin, 2 * mt.sectionWidth, mt.labelH});
