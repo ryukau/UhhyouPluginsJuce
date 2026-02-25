@@ -9,6 +9,7 @@
 
 #include "style.hpp"
 
+#include <format>
 #include <functional>
 #include <limits>
 
@@ -18,25 +19,20 @@ class NumberEditor : public juce::TextEditor {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NumberEditor)
 
-  Uhhyou::Palette &pal;
+  Uhhyou::Palette& pal;
 
   std::function<void(juce::String)> updateFn;
 
-  void exitWithUpdate()
-  {
+  void exitWithUpdate() {
     setVisible(false);
     updateFn(getText());
   }
 
 public:
-  NumberEditor(Palette &palette) : pal(palette), updateFn([](juce::String) {}) {}
+  NumberEditor(Palette& palette) : pal(palette), updateFn([](juce::String) {}) {}
 
-  void invoke(
-    juce::Component &newParent,
-    juce::Rectangle<int> bounds,
-    juce::String numberText,
-    std::function<void(juce::String)> updateFunction)
-  {
+  void invoke(juce::Component& newParent, juce::Rectangle<int> bounds, juce::String numberText,
+              std::function<void(juce::String)> updateFunction) {
     newParent.addChildComponent(this, -2);
     updateFn = updateFunction;
 
@@ -48,14 +44,12 @@ public:
     grabKeyboardFocus();
   }
 
-  void resized() override
-  {
+  void resized() override {
     applyFontToAllText(pal.getFont(pal.textSizeUi()));
     juce::TextEditor::resized();
   }
 
-  void parentSizeChanged() override
-  {
+  void parentSizeChanged() override {
     setBounds({0, 0, getParentWidth(), getParentHeight()});
     juce::TextEditor::parentSizeChanged();
   }
@@ -69,11 +63,10 @@ class StatusBar : public juce::TextEditor {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StatusBar)
 
-  Uhhyou::Palette &pal;
+  Uhhyou::Palette& pal;
 
 public:
-  StatusBar(juce::Component &parent, Palette &palette) : pal(palette)
-  {
+  StatusBar(juce::Component& parent, Palette& palette) : pal(palette) {
     parent.addChildComponent(this);
 
     // Component settings.
@@ -90,22 +83,16 @@ public:
     setSelectAllWhenFocused(true);
   }
 
-  void update(const juce::String &text) { setText(text); }
+  void update(const juce::String& text) { setText(text); }
 
-  void update(const juce::RangedAudioParameter *const parameter)
-  {
-    // TODO: Use <format>.
-    auto text = parameter->getName(256);
-    text += ": ";
-    text
-      += parameter->getText(parameter->getValue(), std::numeric_limits<float>::digits10);
-    text += " ";
-    text += parameter->getLabel();
-    setText(text);
+  void update(const juce::RangedAudioParameter* const parameter) {
+    setText(std::format(
+      "{}: {} {}", parameter->getName(256).toRawUTF8(),
+      parameter->getText(parameter->getValue(), std::numeric_limits<float>::digits10).toRawUTF8(),
+      parameter->getLabel().toRawUTF8()));
   }
 
-  virtual void resized() override
-  {
+  virtual void resized() override {
     applyFontToAllText(pal.getFont(pal.textSizeUi()));
     juce::TextEditor::resized();
   }

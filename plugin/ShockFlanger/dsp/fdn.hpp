@@ -21,12 +21,10 @@
 namespace Uhhyou {
 
 // Pade [7/8]. `x` should be in [0, 0.499*pi].
-template<typename T> inline T tanForButterworth(T x)
-{
+template<typename T> inline T tanForButterworth(T x) {
   const T x2 = x * x;
-  return -(
-    (x * (((T(36) * x2 - T(6930)) * x2 + T(270270)) * x2 - T(2027025))
-     / ((((x2 - T(630)) * x2 + T(51975)) * x2 - T(945945)) * x2 + T(2027025))));
+  return -((x * (((T(36) * x2 - T(6930)) * x2 + T(270270)) * x2 - T(2027025))
+            / ((((x2 - T(630)) * x2 + T(51975)) * x2 - T(945945)) * x2 + T(2027025))));
 }
 
 template<typename Real, int order = 2> class ButterworthLowpass {
@@ -35,12 +33,10 @@ template<typename Real, int order = 2> class ButterworthLowpass {
 private:
   static constexpr int nSections = order / 2;
 
-  static inline const std::array<Real, nSections> damping = []()
-  {
+  static inline const std::array<Real, nSections> damping = []() {
     std::array<Real, nSections> d{};
     for (int i = 0; i < nSections; ++i) {
-      const Real theta
-        = (std::numbers::pi_v<Real> * (Real(2) * i + Real(1))) / (Real(2) * order);
+      const Real theta = (std::numbers::pi_v<Real> * (Real(2) * i + Real(1))) / (Real(2) * order);
       d[i] = Real(2) * std::sin(theta);
     }
     return d;
@@ -55,15 +51,13 @@ private:
 public:
   void reset() { states_.fill({}); }
 
-  Real process(Real input, Real cutoffNormalized)
-  {
-    const Real c
-      = std::clamp(cutoffNormalized, std::numeric_limits<Real>::epsilon(), Real(0.499));
+  Real process(Real input, Real cutoffNormalized) {
+    const Real c = std::clamp(cutoffNormalized, std::numeric_limits<Real>::epsilon(), Real(0.499));
     const Real w = std::numbers::pi_v<Real> * c;
     const Real g = tanForButterworth(w);
     const Real g2 = g * g;
     for (size_t idx = 0; idx < nSections; ++idx) {
-      SectionState &s = states_[idx];
+      SectionState& s = states_[idx];
       const Real d = damping[idx];
       const Real y_hp = (input - (s.s1 * (g + d) + s.s2)) / (Real(1) + d * g + g2);
       const Real y_bp = y_hp * g + s.s1;
@@ -83,12 +77,10 @@ template<typename Real, int order = 2> class ButterworthHighpass {
 private:
   static constexpr int nSections = order / 2;
 
-  static inline const std::array<Real, nSections> damping = []()
-  {
+  static inline const std::array<Real, nSections> damping = []() {
     std::array<Real, nSections> d{};
     for (int i = 0; i < nSections; ++i) {
-      const Real theta
-        = (std::numbers::pi_v<Real> * (Real(2) * i + Real(1))) / (Real(2) * order);
+      const Real theta = (std::numbers::pi_v<Real> * (Real(2) * i + Real(1))) / (Real(2) * order);
       d[i] = Real(2) * std::sin(theta);
     }
     return d;
@@ -103,14 +95,13 @@ private:
 public:
   void reset() { states_.fill({}); }
 
-  Real process(Real input, Real cutoffNormalized)
-  {
+  Real process(Real input, Real cutoffNormalized) {
     const Real w = std::numbers::pi_v<Real>
       * std::clamp(cutoffNormalized, std::numeric_limits<Real>::epsilon(), Real(0.499));
     const Real g = tanForButterworth(w);
     const Real g2 = g * g;
     for (int idx = 0; idx < nSections; ++idx) {
-      SectionState &s = states_[idx];
+      SectionState& s = states_[idx];
       const Real d = damping[idx];
       const Real y_hp = (input - s.s1 * (g + d) - s.s2) / (Real(1) + d * g + g2);
       const Real y_bp = g * y_hp + s.s1;
@@ -135,25 +126,22 @@ private:
   std::vector<Real> buf{std::vector<Real>(maxTap, Real(0))};
 
 public:
-  void setup(Real maxTimeSample)
-  {
+  void setup(Real maxTimeSample) {
     maxTime = maxTimeSample;
     buf.resize(std::max(size_t(maxTap), size_t(maxTime) + maxTap / 2 + 1));
   }
 
-  void reset()
-  {
+  void reset() {
     prevTime = 0;
     wptr = 0;
     std::fill(buf.begin(), buf.end(), Real(0));
   }
 
-  Real process(Real input, Real timeInSample)
-  {
+  Real process(Real input, Real timeInSample) {
     const int size = int(buf.size());
 
     // Write to buffer.
-    if (++wptr >= size) wptr = 0;
+    if (++wptr >= size) { wptr = 0; }
     buf[wptr] = input;
 
     // Start reading from buffer. Setup convolution filter parameters.
@@ -165,7 +153,7 @@ public:
     prevTime = clamped;
     const Real cutoff = timeDiff <= Real(1) ? Real(0.5) : std::exp2(-timeDiff);
 
-    if (timeInSample <= 0) return input * Real(2) * cutoff;
+    if (timeInSample <= 0) { return input * Real(2) * cutoff; }
 
     const int timeInt = int(clamped);
     const Real fraction = clamped - Real(timeInt);
@@ -187,7 +175,7 @@ public:
 
     // Convolution.
     int rptr = wptr - timeInt - halfTap;
-    if (rptr < 0) rptr += size;
+    if (rptr < 0) { rptr += size; }
 
     Real sum = 0;
     const Real theta_scale = Real(2) * cutoff * pi;
@@ -221,7 +209,7 @@ public:
         sinc = o1_u0 / (pi * x);
       }
       sum += sinc * window * buf[rptr];
-      if (++rptr >= size) rptr = 0;
+      if (++rptr >= size) { rptr = 0; }
     }
     return sum;
   }
@@ -235,20 +223,17 @@ private:
   Real fallAlpha{};
 
 public:
-  void setup(Real sampleRate)
-  {
+  void setup(Real sampleRate) {
     riseAlpha = secondToEmaAlpha(sampleRate, Real(0.001));
     fallAlpha = secondToEmaAlpha(sampleRate, Real(0.02));
   }
 
-  void reset()
-  {
+  void reset() {
     envelope = Real(0);
     smoothed = Real(0);
   }
 
-  Real process(Real input, Real thresholdOpen, Real thresholdClose)
-  {
+  Real process(Real input, Real thresholdOpen, Real thresholdClose) {
     const Real x0 = std::abs(input);
 
     if (x0 >= thresholdOpen) {
@@ -275,27 +260,19 @@ public:
   inline Real getPhase() { return phase; }
   void setSyncRate(Real emaAlpha) { syncAlpha = emaAlpha; }
 
-  void reset()
-  {
+  void reset() {
     frameIndex = Real(-1);
     phase = 0;
     lfoFreq = 0;
   }
 
-  void update(Real tempo, Real lfoRate, Real upper, Real lower, Real upRate)
-  {
+  void update(Real tempo, Real lfoRate, Real upper, Real lower, Real upRate) {
     frameIndex = Real(-1);
     targetFreq = (tempo * lower * lfoRate) / (Real(60) * upper * upRate);
   }
 
-  Real process(
-    bool isPlaying,
-    bool isResetting,
-    Real initialPhase,
-    Real upRate,
-    Real beatsElapsed,
-    Real tempo)
-  {
+  Real process(bool isPlaying, bool isResetting, Real initialPhase, Real upRate, Real beatsElapsed,
+               Real tempo) {
     frameIndex += Real(1);
 
     auto output = phase + initialPhase;
@@ -329,15 +306,14 @@ public:
   }
 };
 
-template<typename T> inline std::complex<T> boxToCircle(const std::complex<T> &z)
-{
+template<typename T> inline std::complex<T> boxToCircle(const std::complex<T>& z) {
   T ax = std::abs(z.real());
   T ay = std::abs(z.imag());
 
   T scale = (ax > ay) ? ax : ay;
   T r = std::hypot(ax, ay);
 
-  if (r <= std::numeric_limits<T>::epsilon()) return {T(0), T(0)};
+  if (r <= std::numeric_limits<T>::epsilon()) { return {T(0), T(0)}; }
   return z * (scale / r);
 }
 
@@ -354,27 +330,24 @@ private:
   std::array<ButterworthLowpass<Real, 4>, fdnSize> feedbackLowpass;
 
 public:
-  void setup(Real maxTimeSamples)
-  {
-    for (auto &x : delay) x.setup(maxTimeSamples);
+  void setup(Real maxTimeSamples) {
+    for (auto& x : delay) { x.setup(maxTimeSamples); }
   }
 
   void updateSamplingRate(Real sampleRate) { feedbackGate.setup(sampleRate); }
 
-  void softReset()
-  {
+  void softReset() {
     buffer.fill({});
     feedbackGate.reset();
-    for (auto &x : saturator) x.reset();
+    for (auto& x : saturator) { x.reset(); }
     inputSaturator.reset();
-    for (auto &x : safetyHighpass) x.reset();
-    for (auto &x : feedbackLowpass) x.reset();
+    for (auto& x : safetyHighpass) { x.reset(); }
+    for (auto& x : feedbackLowpass) { x.reset(); }
   }
 
-  void reset()
-  {
+  void reset() {
     softReset();
-    for (auto &x : delay) x.reset();
+    for (auto& x : delay) { x.reset(); }
   }
 
   struct DisplayTime {
@@ -404,8 +377,7 @@ public:
     Real lowpassFade;
   };
 
-  Real process(Real input, Real lfoPhase, DisplayTime &displayTime, const Parameters &p_)
-  {
+  Real process(Real input, Real lfoPhase, DisplayTime& displayTime, const Parameters& p_) {
     constexpr auto pi = std::numbers::pi_v<Real>;
     constexpr auto twopi = Real(2) * pi;
     const auto omega = twopi * lfoPhase;
@@ -420,8 +392,8 @@ public:
     auto sig0 = cs * buffer[0] - sn * buffer[1];
     auto sig1 = sn * buffer[0] + cs * buffer[1];
 
-    const auto fbGate = feedbackGate.process(
-      input, p_.feedbackGateThreshold, p_.feedbackGateThreshold * Real(0.5));
+    const auto fbGate
+      = feedbackGate.process(input, p_.feedbackGateThreshold, p_.feedbackGateThreshold * Real(0.5));
     sig0 *= fb0 * fbGate;
     sig1 *= fb1 * fbGate;
 

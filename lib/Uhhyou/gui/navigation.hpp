@@ -1,3 +1,6 @@
+// Copyright Takamitsu Endo (ryukau@gmail.com).
+// SPDX-License-Identifier: AGPL-3.0-only
+
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
@@ -11,72 +14,74 @@ namespace Uhhyou {
 
 struct FocusScope {
   std::vector<juce::Component::SafePointer<juce::Component>> components;
-  std::unordered_set<juce::Component *> componentSet;
+  std::unordered_set<juce::Component*> componentSet;
 
-  bool add(juce::Component &c)
-  {
-    if (componentSet.contains(&c)) return false;
-
+  bool add(juce::Component& c) {
+    if (componentSet.contains(&c)) { return false; }
     componentSet.insert(&c);
     components.emplace_back(&c);
     return true;
   }
 
-  void clear()
-  {
+  void clear() {
     componentSet.clear();
     components.clear();
   }
 
-  bool contains(juce::Component *c) const { return componentSet.contains(c); }
+  bool contains(juce::Component* c) const { return componentSet.contains(c); }
+
+private:
+  JUCE_DECLARE_WEAK_REFERENCEABLE(FocusScope)
 };
 
-class NavigationManager {
+class NavigationManager : private juce::FocusChangeListener {
 private:
   struct ScopeEntry {
     juce::Component::SafePointer<juce::Component> owner;
-    FocusScope *scope;
+    juce::WeakReference<FocusScope> scope;
   };
 
   std::vector<ScopeEntry> stack;
+  juce::Component::SafePointer<juce::Component> lastFocusedComponent;
+  bool isFocusInside = false;
 
 public:
-  void pushScope(juce::Component *owner, FocusScope *scope)
-  {
-    if (owner && scope) stack.push_back({owner, scope});
+  NavigationManager() { juce::Desktop::getInstance().addFocusChangeListener(this); }
+
+  ~NavigationManager() override { juce::Desktop::getInstance().removeFocusChangeListener(this); }
+
+  void pushScope(juce::Component* owner, FocusScope* scope) {
+    if (owner && scope) { stack.push_back({owner, scope}); }
   }
 
-  void popScope(juce::Component *owner)
-  {
-    auto it = std::remove_if(
-      stack.begin(), stack.end(),
-      [&](const ScopeEntry &entry) { return entry.owner == owner; });
+  void popScope(juce::Component* owner) {
+    auto it = std::remove_if(stack.begin(), stack.end(),
+                             [&](const ScopeEntry& entry) { return entry.owner == owner; });
 
     stack.erase(it, stack.end());
   }
 
-  bool handleTab(bool isShiftDown)
-  {
+  bool handleTab(bool isShiftDown) {
     cleanupStack();
-    if (stack.empty()) return false;
+    if (stack.empty()) { return false; }
 
-    auto *scope = stack.back().scope;
-    if (!scope || scope->components.empty()) return false;
+    FocusScope* scope = stack.back().scope;
+    if (scope == nullptr || scope->components.empty()) { return false; }
 
-    std::vector<juce::Component *> focusable;
+    std::vector<juce::Component*> focusable;
     focusable.reserve(scope->components.size());
-    for (auto &safePtr : scope->components) {
-      if (auto *c = safePtr.getComponent()) {
-        if (isValidTarget(c)) focusable.push_back(c);
+    for (auto& safePtr : scope->components) {
+      if (auto* c = safePtr.getComponent()) {
+        if (isValidTarget(c)) { focusable.push_back(c); }
       }
     }
-    if (focusable.empty()) return false;
+    if (focusable.empty()) { return false; }
 
     const std::ptrdiff_t count = std::ssize(focusable);
-    juce::Component *focused = juce::Component::getCurrentlyFocusedComponent();
+    juce::Component* focused = juce::Component::getCurrentlyFocusedComponent();
 
-    const auto it = std::ranges::find_if(
-      focusable | std::views::reverse, [focused](auto *c) { return c == focused; });
+    const auto it = std::ranges::find_if(focusable | std::views::reverse,
+                                         [focused](auto* c) { return c == focused; });
     const std::ptrdiff_t currentIndex = std::distance(focusable.begin(), it.base()) - 1;
 
     std::ptrdiff_t nextIndex = 0;
@@ -95,19 +100,135 @@ public:
     return false;
   }
 
+  bool handleEscape() {
+    cleanupStack();
+
+    if (stack.size() <= 1) { return false; }
+
+    if (auto* owner = stack.back().owner.getComponent()) {
+      bool handled = owner->keyPressed(juce::KeyPress(juce::KeyPress::escapeKey));
+      if (!handled) { owner->grabKeyboardFocus(); }
+      return true;
+    }
+
+    return false;
+  }
+
 private:
-  void cleanupStack()
-  {
+  void cleanupStack() {
     while (!stack.empty()) {
-      if (stack.back().owner != nullptr) break;
+      if (stack.back().owner != nullptr && stack.back().scope != nullptr) { break; }
       stack.pop_back();
     }
   }
 
-  bool isValidTarget(juce::Component *c)
-  {
+  bool isValidTarget(juce::Component* c) {
     return c != nullptr && c->getWantsKeyboardFocus() && c->isEnabled() && c->isShowing();
   }
+
+  void globalFocusChanged(juce::Component* focusedComponent) override {
+    bool currentlyInside = isComponentInside(focusedComponent);
+
+    if (currentlyInside) {
+      if (!isFocusInside) {
+        isFocusInside = true;
+
+        bool isSpecificTarget = false;
+        for (const auto& entry : stack) {
+          FocusScope* scope = entry.scope;
+          if (scope != nullptr && scope->contains(focusedComponent)) {
+            isSpecificTarget = true;
+            break;
+          }
+        }
+
+        if (!isSpecificTarget) {
+          if (auto* target = findResumeTarget()) {
+            if (target != focusedComponent) {
+              juce::Component::SafePointer<juce::Component> safeTarget(target);
+              juce::MessageManager::callAsync([safeTarget]() {
+                if (auto* c = safeTarget.getComponent()) { c->grabKeyboardFocus(); }
+              });
+            }
+          }
+        }
+      }
+
+      if (isValidTarget(focusedComponent)) {
+        for (const auto& entry : stack) {
+          FocusScope* scope = entry.scope;
+          if (scope != nullptr && scope->contains(focusedComponent)) {
+            lastFocusedComponent = focusedComponent;
+            break;
+          }
+        }
+      }
+    } else {
+      isFocusInside = false;
+    }
+  }
+
+  bool isComponentInside(juce::Component* c) {
+    if (!c) { return false; }
+    if (stack.empty()) { return false; }
+
+    auto* root = stack.front().owner.getComponent();
+    if (!root) { return false; }
+    return c == root || root->isParentOf(c);
+  }
+
+  juce::Component* findResumeTarget() {
+    cleanupStack();
+    if (stack.empty()) { return nullptr; }
+
+    FocusScope* currentScope = stack.back().scope;
+    if (currentScope == nullptr) { return nullptr; }
+
+    auto* last = lastFocusedComponent.getComponent();
+    if (isValidTarget(last) && currentScope->contains(last)) { return last; }
+
+    for (auto& safePtr : currentScope->components) {
+      if (auto* c = safePtr.getComponent()) {
+        if (isValidTarget(c)) { return c; }
+      }
+    }
+
+    return nullptr;
+  }
+};
+
+class FocusRingOverlay : public juce::Component, private juce::FocusChangeListener {
+public:
+  FocusRingOverlay(Palette& palette) : pal(palette) {
+    setInterceptsMouseClicks(false, false);
+    juce::Desktop::getInstance().addFocusChangeListener(this);
+  }
+
+  ~FocusRingOverlay() override { juce::Desktop::getInstance().removeFocusChangeListener(this); }
+
+  void globalFocusChanged(juce::Component*) override {
+    if (auto* p = getParentComponent()) { toFront(false); }
+    repaint();
+  }
+
+  void paint(juce::Graphics& ctx) override {
+    auto* focused = juce::Component::getCurrentlyFocusedComponent();
+    if (!focused) { return; }
+
+    auto* parent = getParentComponent();
+    if (!parent) { return; }
+
+    if (focused != parent && parent->isParentOf(focused)) {
+      auto bounds = getLocalArea(focused, focused->getLocalBounds()).toFloat();
+      float thickness = pal.borderThin() * float(3);
+      auto ringBounds = bounds.expanded(thickness);
+      ctx.setColour(pal.foreground().withAlpha(float(0.5)));
+      ctx.drawRect(ringBounds, thickness);
+    }
+  }
+
+private:
+  Palette& pal;
 };
 
 } // namespace Uhhyou

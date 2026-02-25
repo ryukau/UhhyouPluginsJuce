@@ -18,16 +18,14 @@ template<typename Sample, typename Sos> class DecimationLowpass {
   Sample last = 0;
 
 public:
-  void reset()
-  {
+  void reset() {
     states.fill({});
     last = 0;
   }
 
-  inline void push(Sample x)
-  {
+  inline void push(Sample x) {
     for (size_t i = 0; i < Sos::co.size(); ++i) {
-      const auto &c = Sos::co[i];
+      const auto& c = Sos::co[i];
       Sample y = c[0] * x + states[i].s1;
       states[i].s1 = states[i].s2 + c[1] * x - c[3] * y;
       states[i].s2 = c[2] * x - c[4] * y;
@@ -39,19 +37,16 @@ public:
   inline Sample output() const { return last; }
 };
 
-template<typename Sample, const auto &Coefficients> class AllpassCascade {
+template<typename Sample, const auto& Coefficients> class AllpassCascade {
 private:
   std::array<Sample, Coefficients.size()> s{};
 
-  template<std::size_t... I>
-  inline Sample process_impl(Sample input, std::index_sequence<I...>)
-  {
+  template<std::size_t... I> inline Sample process_impl(Sample input, std::index_sequence<I...>) {
     ((input = process_section<I>(input)), ...);
     return input;
   }
 
-  template<std::size_t Index> inline Sample process_section(Sample input)
-  {
+  template<std::size_t Index> inline Sample process_section(Sample input) {
     constexpr auto coeff = Coefficients[Index];
     Sample y = coeff * input + s[Index];
     s[Index] = input - coeff * y;
@@ -61,8 +56,7 @@ private:
 public:
   void reset() { s.fill(Sample(0)); }
 
-  inline Sample process(Sample input)
-  {
+  inline Sample process(Sample input) {
     return process_impl(input, std::make_index_sequence<Coefficients.size()>{});
   }
 };
@@ -73,25 +67,20 @@ private:
   AllpassCascade<Sample, Coefficient::h1_a> ap1;
 
 public:
-  void reset()
-  {
+  void reset() {
     ap0.reset();
     ap1.reset();
   }
 
   // For down-sampling. input[0] is earlier sample (z^-1).
-  inline Sample process(const std::array<Sample, 2> &input)
-  {
+  inline Sample process(const std::array<Sample, 2>& input) {
     auto s0 = ap0.process(input[0]);
     auto s1 = ap1.process(input[1]);
     return Sample(0.5) * (s0 + s1);
   }
 
   // For up-sampling.
-  std::array<Sample, 2> processUp(Sample input)
-  {
-    return {ap1.process(input), ap0.process(input)};
-  }
+  std::array<Sample, 2> processUp(Sample input) { return {ap1.process(input), ap0.process(input)}; }
 };
 
 template<typename Sample, typename FractionalDelayFIR> class FirUpSampler {
@@ -102,15 +91,14 @@ public:
 
   void reset() { buf.fill(Sample(0)); }
 
-  void process(Sample input)
-  {
+  void process(Sample input) {
     std::rotate(buf.rbegin(), buf.rbegin() + 1, buf.rend());
     buf[0] = input;
 
     std::fill(output.begin(), output.end(), Sample(0));
     for (size_t i = 0; i < FractionalDelayFIR::coefficient.size(); ++i) {
-      auto &&phase = FractionalDelayFIR::coefficient[i];
-      for (size_t n = 0; n < phase.size(); ++n) output[i] += buf[n] * phase[n];
+      auto&& phase = FractionalDelayFIR::coefficient[i];
+      for (size_t n = 0; n < phase.size(); ++n) { output[i] += buf[n] * phase[n]; }
     }
   }
 };
@@ -123,16 +111,15 @@ public:
 
   void reset() { buf.fill(Sample(0)); }
 
-  void process(Sample input)
-  {
+  void process(Sample input) {
     std::rotate(buf.rbegin(), buf.rbegin() + 1, buf.rend());
     buf[0] = input;
 
     std::fill(output.begin(), output.end() - 1, Sample(0));
     output.back() = buf[FractionalDelayFIR::intDelay];
     for (size_t i = 0; i < FractionalDelayFIR::coefficient.size(); ++i) {
-      auto &&phase = FractionalDelayFIR::coefficient[i];
-      for (size_t n = 0; n < phase.size(); ++n) output[i] += buf[n] * phase[n];
+      auto&& phase = FractionalDelayFIR::coefficient[i];
+      for (size_t n = 0; n < phase.size(); ++n) { output[i] += buf[n] * phase[n]; }
     }
   }
 };
@@ -147,8 +134,7 @@ public:
 
   // 3rd order Lagrange Interpolation.
   // Range of t is in [0, 1]. Interpolates between y1 and y2.
-  inline Sample cubicInterp(const std::array<Sample, 4> &y, Sample t)
-  {
+  inline Sample cubicInterp(const std::array<Sample, 4>& y, Sample t) {
     auto u = 1 + t;
     auto d0 = y[0] - y[1];
     auto d1 = d0 - (y[1] - y[2]);
@@ -156,8 +142,7 @@ public:
     return y[0] - ((d2 * (2 - u) / 3 + d1) * (1 - u) / 2 + d0) * u;
   }
 
-  void process(Sample input)
-  {
+  void process(Sample input) {
     std::rotate(buf.begin(), buf.begin() + 1, buf.end());
     buf.back() = input;
 
@@ -177,8 +162,7 @@ public:
 
   void reset() { buf = 0; }
 
-  void process(Sample input)
-  {
+  void process(Sample input) {
     Sample diff = input - buf;
     for (size_t i = 0; i < output.size(); ++i) {
       output[i] = buf + diff * Sample(i) / Sample(upSample);
@@ -195,8 +179,7 @@ template<typename Sample> struct OverSampler16 {
   DecimationLowpass<Sample, Sos16FoldFirstStage<Sample>> lowpass;
   HalfBandIIR<Sample, HalfBandCoefficient<Sample>> halfbandIir;
 
-  void reset()
-  {
+  void reset() {
     upSampler.reset();
     inputBuffer.fill({});
     lowpass.reset();
@@ -206,12 +189,11 @@ template<typename Sample> struct OverSampler16 {
   void push(Sample x0) { upSampler.process(x0); }
   Sample at(size_t index) { return upSampler.output[index]; }
 
-  Sample process()
-  {
+  Sample process() {
     std::array<Sample, 2> halfBandInput;
-    for (size_t i = 0; i < 8; ++i) lowpass.push(inputBuffer[i]);
+    for (size_t i = 0; i < 8; ++i) { lowpass.push(inputBuffer[i]); }
     halfBandInput[0] = lowpass.output();
-    for (size_t i = 8; i < 16; ++i) lowpass.push(inputBuffer[i]);
+    for (size_t i = 8; i < 16; ++i) { lowpass.push(inputBuffer[i]); }
     halfBandInput[1] = lowpass.output();
     return halfbandIir.process(halfBandInput);
   }
@@ -224,19 +206,17 @@ template<typename Sample, typename FirstStageSosCoefficient> struct DownSampler 
   DecimationLowpass<Sample, FirstStageSosCoefficient> lowpass;
   HalfBandIIR<Sample, HalfBandCoefficient<Sample>> halfbandIir;
 
-  void reset()
-  {
+  void reset() {
     inputBuffer.fill({});
     lowpass.reset();
     halfbandIir.reset();
   }
 
-  Sample process()
-  {
+  Sample process() {
     std::array<Sample, 2> halfBandInput{};
-    for (size_t i = 0; i < fold / 2; ++i) lowpass.push(inputBuffer[i]);
+    for (size_t i = 0; i < fold / 2; ++i) { lowpass.push(inputBuffer[i]); }
     halfBandInput[0] = lowpass.output();
-    for (size_t i = fold / 2; i < fold; ++i) lowpass.push(inputBuffer[i]);
+    for (size_t i = fold / 2; i < fold; ++i) { lowpass.push(inputBuffer[i]); }
     halfBandInput[1] = lowpass.output();
     return halfbandIir.process(halfBandInput);
   }

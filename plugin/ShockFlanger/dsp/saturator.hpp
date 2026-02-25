@@ -33,43 +33,32 @@ References:
 
 namespace Uhhyou {
 
-template<typename Real> inline Real sum_of_sqrt(uint64_t N)
-{
+template<typename Real> inline Real sum_of_sqrt(uint64_t N) {
   alignas(64) static constexpr std::array<Real, 64> table{
-    Real(0.00000000000000000e00), Real(1.00000000000000000e00),
-    Real(2.41421356237309492e00), Real(4.14626436994197256e00),
-    Real(6.14626436994197256e00), Real(8.38233234744176237e00),
-    Real(1.08318220902249394e01), Real(1.34775734012895310e01),
-    Real(1.63060005260357208e01), Real(1.93060005260357208e01),
-    Real(2.24682781862040990e01), Real(2.57849029765595006e01),
-    Real(2.92490045916972541e01), Real(3.28545558671612454e01),
-    Real(3.65962132539351828e01), Real(4.04691966001426024e01),
-    Real(4.44691966001426024e01), Real(4.85923022257602639e01),
-    Real(5.28349429128795478e01), Real(5.71938418564202209e01),
-    Real(6.16659778114198005e01), Real(6.62485535063756430e01),
-    Real(7.09389692661990665e01), Real(7.57348007895117945e01),
-    Real(8.06337802750781520e01), Real(8.56337802750781520e01),
-    Real(9.07327997886709312e01), Real(9.59289522113775632e01),
-    Real(1.01220454833506750e02), Real(1.06605619640641251e02),
-    Real(1.12082845215692913e02), Real(1.17650609578522932e02),
-    Real(1.23307463828015315e02), Real(1.29052026474553344e02),
-    Real(1.34882978369398643e02), Real(1.40799058152498247e02),
-    Real(1.46799058152498247e02), Real(1.52881820682796473e02),
-    Real(1.59046234685765455e02), Real(1.65291232684163845e02),
-    Real(1.71615788004500615e02), Real(1.78018912241933464e02),
-    Real(1.84499652940341321e02), Real(1.91057091464643321e02),
-    Real(1.97690341045354131e02), Real(2.04398544977853476e02),
-    Real(2.11180874960978770e02), Real(2.18036529561379808e02),
-    Real(2.24964732791655308e02), Real(2.31964732791655308e02),
-    Real(2.39035800603520784e02), Real(2.46177229032063622e02),
-    Real(2.53388331582991611e02), Real(2.60668441472272150e02),
-    Real(2.68016910700621679e02), Real(2.75433109187717321e02),
-    Real(2.82916423961265195e02), Real(2.90466258396535977e02),
-    Real(2.98082031502399843e02), Real(3.05763177250268484e02),
-    Real(3.13509143942683295e02), Real(3.21319393618589970e02),
-    Real(3.29193401492601765e02), Real(3.37130655425795567e02),
+    Real(0.00000000000000000e00), Real(1.00000000000000000e00), Real(2.41421356237309492e00),
+    Real(4.14626436994197256e00), Real(6.14626436994197256e00), Real(8.38233234744176237e00),
+    Real(1.08318220902249394e01), Real(1.34775734012895310e01), Real(1.63060005260357208e01),
+    Real(1.93060005260357208e01), Real(2.24682781862040990e01), Real(2.57849029765595006e01),
+    Real(2.92490045916972541e01), Real(3.28545558671612454e01), Real(3.65962132539351828e01),
+    Real(4.04691966001426024e01), Real(4.44691966001426024e01), Real(4.85923022257602639e01),
+    Real(5.28349429128795478e01), Real(5.71938418564202209e01), Real(6.16659778114198005e01),
+    Real(6.62485535063756430e01), Real(7.09389692661990665e01), Real(7.57348007895117945e01),
+    Real(8.06337802750781520e01), Real(8.56337802750781520e01), Real(9.07327997886709312e01),
+    Real(9.59289522113775632e01), Real(1.01220454833506750e02), Real(1.06605619640641251e02),
+    Real(1.12082845215692913e02), Real(1.17650609578522932e02), Real(1.23307463828015315e02),
+    Real(1.29052026474553344e02), Real(1.34882978369398643e02), Real(1.40799058152498247e02),
+    Real(1.46799058152498247e02), Real(1.52881820682796473e02), Real(1.59046234685765455e02),
+    Real(1.65291232684163845e02), Real(1.71615788004500615e02), Real(1.78018912241933464e02),
+    Real(1.84499652940341321e02), Real(1.91057091464643321e02), Real(1.97690341045354131e02),
+    Real(2.04398544977853476e02), Real(2.11180874960978770e02), Real(2.18036529561379808e02),
+    Real(2.24964732791655308e02), Real(2.31964732791655308e02), Real(2.39035800603520784e02),
+    Real(2.46177229032063622e02), Real(2.53388331582991611e02), Real(2.60668441472272150e02),
+    Real(2.68016910700621679e02), Real(2.75433109187717321e02), Real(2.82916423961265195e02),
+    Real(2.90466258396535977e02), Real(2.98082031502399843e02), Real(3.05763177250268484e02),
+    Real(3.13509143942683295e02), Real(3.21319393618589970e02), Real(3.29193401492601765e02),
+    Real(3.37130655425795567e02),
   };
-  if (N < static_cast<uint64_t>(table.size())) return table[N];
+  if (N < static_cast<uint64_t>(table.size())) { return table[N]; }
 
   Real n = static_cast<Real>(N);
   Real sqrt_n = std::sqrt(n);
@@ -97,10 +86,10 @@ private:
   static constexpr int nSegment = 4;
 
   // 3-point Gauss-Legendre nodes and weights for [-1, 1]
-  static constexpr std::array<T, nPoints> nodes = {
-    T(-7.74596669241483404e-01), T(0.00000000000000000e+00), T(7.74596669241483404e-01)};
-  static constexpr std::array<T, nPoints> weights = {
-    T(5.55555555555555691e-01), T(8.88888888888888840e-01), T(5.55555555555555691e-01)};
+  static constexpr std::array<T, nPoints> nodes
+    = {T(-7.74596669241483404e-01), T(0.00000000000000000e+00), T(7.74596669241483404e-01)};
+  static constexpr std::array<T, nPoints> weights
+    = {T(5.55555555555555691e-01), T(8.88888888888888840e-01), T(5.55555555555555691e-01)};
 
   // Exact B-Spline Areas (M0) and First Moments (M1)
   // M0 = Integral B(t) dt
@@ -115,8 +104,7 @@ private:
 
   enum class Region { Linear, SatPos, SatNeg };
 
-  template<int seg_idx> static inline T b_spline(T u)
-  {
+  template<int seg_idx> static inline T b_spline(T u) {
     constexpr T sixth = T(1) / T(6);
     if constexpr (seg_idx == 0) {
       return sixth * u * u * u;
@@ -131,10 +119,9 @@ private:
     }
   }
 
-  template<int seg_idx, Region region> inline T integrate(T t0, T t1, T x_a, T diff)
-  {
+  template<int seg_idx, Region region> inline T integrate(T t0, T t1, T x_a, T diff) {
     const T width = t1 - t0;
-    if (width < tolerance) return T(0);
+    if (width < tolerance) { return T(0); }
 
     const T half_width = T(0.5) * width;
     const T center = t0 + half_width;
@@ -157,8 +144,7 @@ private:
     return half_width * sum;
   }
 
-  template<int seg_idx> inline void process_segment(T x_a, T x_b, T &value)
-  {
+  template<int seg_idx> inline void process_segment(T x_a, T x_b, T& value) {
     // `process_segment` computes a definite integral from `x_a` to `x_b` on hardcilp
     // function. Gauss-Legendre quadrature is used.
     //
@@ -214,9 +200,7 @@ private:
         t_curr = t_next;
       }
 
-      if (t_curr < T(1)) {
-        value += integrate<seg_idx, Region::SatPos>(t_curr, T(1), x_a, diff);
-      }
+      if (t_curr < T(1)) { value += integrate<seg_idx, Region::SatPos>(t_curr, T(1), x_a, diff); }
     } else {
       if (x_a > T(1)) {
         const T t_next = (t_pos > T(0) && t_pos < T(1)) ? t_pos : T(1);
@@ -230,17 +214,14 @@ private:
         t_curr = t_next;
       }
 
-      if (t_curr < T(1)) {
-        value += integrate<seg_idx, Region::SatNeg>(t_curr, T(1), x_a, diff);
-      }
+      if (t_curr < T(1)) { value += integrate<seg_idx, Region::SatNeg>(t_curr, T(1), x_a, diff); }
     }
   }
 
 public:
   void reset() { buffer.fill(T(0)); }
 
-  T process(T input)
-  {
+  T process(T input) {
     std::copy_backward(buffer.begin(), buffer.end() - 1, buffer.end());
     buffer[0] = input;
 
@@ -270,16 +251,14 @@ private:
   T h3_rise{};
   T x1{};
 
-  T f0(T x) const
-  {
+  T f0(T x) const {
     T z = x * x;
     return std::copysign(z - std::floor(z), x);
   }
 
-  T f1(T n, T sqrt_n) const
-  {
+  T f1(T n, T sqrt_n) const {
     uint64_t n_int = static_cast<uint64_t>(n);
-    if (n_int < 64) return sum_of_sqrt<T>(n_int) - (T(2) / T(3) * n * sqrt_n);
+    if (n_int < 64) { return sum_of_sqrt<T>(n_int) - (T(2) / T(3) * n * sqrt_n); }
 
     constexpr T zeta_term = T(-0.207886224977354566);
     T y = T(0.5) * sqrt_n + zeta_term;
@@ -297,8 +276,7 @@ private:
     return y;
   }
 
-  std::pair<T, T> integrate_positive(T a, T b) const
-  {
+  std::pair<T, T> integrate_positive(T a, T b) const {
     T diff = b - a;
     if (diff < epsilon) {
       const T mid = T(0.5) * (a + b);
@@ -310,8 +288,7 @@ private:
     const T k0 = std::floor(a * a);
     const T k1 = std::floor(b * b);
 
-    auto integrate_gl2 = [&](T u, T v, T k) -> std::pair<T, T>
-    {
+    auto integrate_gl2 = [&](T u, T v, T k) -> std::pair<T, T> {
       T h = T(0.5) * (v - u);
       T m = T(0.5) * (u + v);
       T offset = h * offset_factor;
@@ -322,7 +299,7 @@ private:
       return {h * (y1 + y2), h * (y1 * p1 + y2 * p2)};
     };
 
-    if (k0 == k1) return integrate_gl2(a, b, k0);
+    if (k0 == k1) { return integrate_gl2(a, b, k0); }
 
     const T s0 = std::sqrt(k0 + T(1));
     auto [A_total, M_total] = integrate_gl2(a, s0, k0);
@@ -344,8 +321,7 @@ private:
     return {A_total, M_total};
   }
 
-  std::pair<T, T> integrate(T a, T b) const
-  {
+  std::pair<T, T> integrate(T a, T b) const {
     T sign = 1;
     if (a > b) {
       std::swap(a, b);
@@ -371,8 +347,7 @@ private:
   }
 
 public:
-  void reset()
-  {
+  void reset() {
     h1_fall = 0;
     h1_rise = 0;
     h2_fall = 0;
@@ -382,8 +357,7 @@ public:
     x1 = 0;
   }
 
-  T process(T x0)
-  {
+  T process(T x0) {
     const T d0 = x0 - x1;
 
     T t_fall, t_rise;
@@ -434,15 +408,13 @@ private:
     T m1;
   };
 
-  inline T f0(T x) const
-  {
+  inline T f0(T x) const {
     const T t = T(0.25) * x - T(0.25);
     const T u = T(2) * (t - std::floor(t)) - T(1);
     return T(1) - T(2) * std::abs(u);
   }
 
-  inline Moments integrate_segment(T u, T v) const
-  {
+  inline Moments integrate_segment(T u, T v) const {
     const T h = T(0.5) * (v - u);
     const T m = T(0.5) * (u + v);
     const T offset = h * offset_factor;
@@ -456,15 +428,13 @@ private:
     return {h * (y1 + y2), h * (y1 * p1 + y2 * p2)};
   }
 
-  inline T compute_mid_integrals(T a, T b) const
-  {
+  inline T compute_mid_integrals(T a, T b) const {
     return static_cast<int64_t>((b - a) * T(0.5)) & 1
       ? (static_cast<int64_t>(a) & 2) == 0 ? T(+2) / T(3) : T(-2) / T(3)
       : T(0);
   }
 
-  inline Moments integrate(T a, T b) const
-  {
+  inline Moments integrate(T a, T b) const {
     T sign = T(1);
     if (a > b) {
       std::swap(a, b);
@@ -504,8 +474,7 @@ private:
   }
 
 public:
-  void reset()
-  {
+  void reset() {
     h1_fall = 0;
     h1_rise = 0;
     h2_fall = 0;
@@ -515,8 +484,7 @@ public:
     x1 = 0;
   }
 
-  T process(T x0)
-  {
+  T process(T x0) {
     const T d0 = x0 - x1;
     T t_fall, t_rise;
 
@@ -555,8 +523,7 @@ namespace Adaa1 {
 template<typename Real> struct Hardclip {
   static inline Real f0(Real x) { return std::clamp(x, Real(-1), Real(1)); }
 
-  static inline Real f1(Real x)
-  {
+  static inline Real f1(Real x) {
     Real z = std::abs(x);
     return z < 1 ? x * x / Real(2) : z - Real(0.5);
   }
@@ -565,8 +532,7 @@ template<typename Real> struct Hardclip {
 template<typename Real> struct Softsign {
   static inline Real f0(Real x) { return x / (Real(1) + std::abs(x)); }
 
-  static inline Real f1(Real x)
-  {
+  static inline Real f1(Real x) {
     // Basically `log1pmx`.
     Real z = std::abs(x);
     if (z < Real(0.15)) {
@@ -605,8 +571,7 @@ template<typename Real> struct Softsign {
 };
 
 template<typename Real> struct Softsign3 {
-  static inline Real f0(Real x)
-  {
+  static inline Real f0(Real x) {
     // `a` is scaling factor to avoid blowing up feedback.
     constexpr Real a = Real(1.88988157484230967e+00);
     x *= a;
@@ -614,8 +579,7 @@ template<typename Real> struct Softsign3 {
     return x3 / (Real(1) + std::abs(x3));
   }
 
-  static inline Real f1(Real x)
-  {
+  static inline Real f1(Real x) {
     constexpr Real a = Real(1.88988157484230967e+00);
     constexpr Real inv_sqrt3 = Real(5.77350269189625731e-01);
     constexpr Real sixth = Real(1) / Real(6);
@@ -630,10 +594,9 @@ template<typename Real> struct Softsign3 {
 template<typename Real> struct Tanh {
   static inline Real f0(Real x) { return std::tanh(x); }
 
-  static inline Real f1(Real x)
-  {
+  static inline Real f1(Real x) {
     const Real ax = std::abs(x);
-    if (ax > Real(20)) return ax - std::numbers::ln2_v<Real>;
+    if (ax > Real(20)) { return ax - std::numbers::ln2_v<Real>; }
     const Real s = std::sinh(Real(0.5) * ax);
     return std::log1p(Real(2) * s * s);
   }
@@ -642,8 +605,7 @@ template<typename Real> struct Tanh {
 template<typename Real> struct Atan {
   static inline Real f0(Real x) { return std::atan(x); }
 
-  static inline Real f1(Real x)
-  {
+  static inline Real f1(Real x) {
     Real z = std::abs(x);
     if (z < Real(0.25)) {
       Real w = z * z;
@@ -678,8 +640,7 @@ template<typename Real> struct Atan {
 template<typename Real> struct Expm1 {
   static inline Real f0(Real x) { return std::copysign(-std::expm1(-std::abs(x)), x); }
 
-  static inline Real f1(Real x)
-  {
+  static inline Real f1(Real x) {
     Real z = std::abs(x);
     if (z < Real(0.25)) {
       if constexpr (std::is_same_v<Real, float>) {
@@ -712,8 +673,7 @@ template<typename Real> struct Expm1 {
 template<typename Real> struct Log1p {
   static inline Real f0(Real x) { return std::copysign(std::log1p(std::abs(x)), x); }
 
-  static inline Real f1(Real x)
-  {
+  static inline Real f1(Real x) {
     const Real z = std::abs(x);
     if (z < Real(1e-4)) {
       return z * z * (Real(0.5) + z * (Real(-1) / Real(6) + z * (Real(1) / Real(12))));
@@ -723,15 +683,13 @@ template<typename Real> struct Log1p {
 };
 
 template<typename Real> struct Triangle {
-  static inline Real f0(Real x)
-  {
+  static inline Real f0(Real x) {
     Real t = Real(0.25) * x - Real(0.25);
     Real u = Real(2) * (t - std::floor(t)) - Real(1);
     return Real(1) - Real(2) * std::abs(u);
   }
 
-  static inline Real f1(Real x)
-  {
+  static inline Real f1(Real x) {
     Real t = Real(0.25) * x - Real(0.25);
     Real u = Real(2) * (t - std::floor(t)) - Real(1);
     return Real(2) * u * (Real(1) - std::abs(u));
@@ -739,15 +697,13 @@ template<typename Real> struct Triangle {
 };
 
 template<typename Real> struct ModuloSqrt {
-  static inline Real f0(Real x)
-  {
+  static inline Real f0(Real x) {
     Real root = std::sqrt(std::abs(x));
     Real u = root - std::floor(root);
     return std::copysign(u * u, x);
   }
 
-  static inline Real f1(Real x)
-  {
+  static inline Real f1(Real x) {
     Real root = std::sqrt(std::abs(x));
     Real n = std::floor(root);
     Real u = root - n;
@@ -761,15 +717,13 @@ template<typename Real> struct ModuloSqrt {
 };
 
 template<typename Real> struct ModuloLinear {
-  static inline Real f0(Real x)
-  {
+  static inline Real f0(Real x) {
     Real z = std::abs(x);
     Real r = z - std::floor(z);
     return std::copysign(r, x);
   }
 
-  static inline Real f1(Real x)
-  {
+  static inline Real f1(Real x) {
     Real z = std::abs(x);
     Real n = std::floor(z);
     Real r = z - n;
@@ -778,16 +732,14 @@ template<typename Real> struct ModuloLinear {
 };
 
 template<typename Real> struct ModuloLinear2 {
-  static inline Real f0(Real x)
-  {
+  static inline Real f0(Real x) {
     Real z = std::abs(x);
     Real n = std::floor(z);
     Real r = z - n;
     return std::copysign(r * r, x);
   }
 
-  static inline Real f1(Real x)
-  {
+  static inline Real f1(Real x) {
     Real z = std::abs(x);
     Real n = std::floor(z);
     Real r = z - n;
@@ -796,14 +748,12 @@ template<typename Real> struct ModuloLinear2 {
 };
 
 template<typename Real> struct ModuloQuad {
-  static inline Real f0(Real x)
-  {
+  static inline Real f0(Real x) {
     Real z = x * x;
     return std::copysign(z - std::floor(z), x);
   }
 
-  static inline Real f1(Real x)
-  {
+  static inline Real f1(Real x) {
     Real z1 = std::abs(x);
     Real z2 = z1 * z1;
     Real n = std::floor(z2);
@@ -814,18 +764,16 @@ template<typename Real> struct ModuloQuad {
 template<typename Real> struct SinExpm1 {
   static constexpr Real upperBound = Real(36.7000000000852253);
 
-  static inline Real f0(Real x)
-  {
+  static inline Real f0(Real x) {
     // The upper bound of `x` is set to be close to `f0(x) ~= 1`.
     x = std::min(x, upperBound);
     return std::sin(std::expm1(x));
   }
 
-  static inline Real f1(Real x)
-  {
+  static inline Real f1(Real x) {
     constexpr Real cs1 = Real(0.5403023058681398); // cos(1)
     constexpr Real sn1 = Real(0.8414709848078965); // sin(1)
-    if (x > upperBound) return x - Real(35.85129512266874);
+    if (x > upperBound) { return x - Real(35.85129512266874); }
     if (x < Real(-6.0)) {
       Real ex = std::exp(x);
       Real ex2 = ex * ex;
@@ -845,8 +793,7 @@ template<typename Real> struct SinGrowing {
 
   static inline Real f0(Real x) { return scale * x * std::sin(x); }
 
-  static inline Real f1(Real x)
-  {
+  static inline Real f1(Real x) {
     if (std::abs(x) < Real(0.1)) {
       const Real z = x * x;
       Real p = Real(1) / Real(3991680);
@@ -865,8 +812,7 @@ template<typename Real> struct SinGrowing2 {
 
   static inline Real f0(Real x) { return scale * (x + x * std::sin(x)); }
 
-  static inline Real f1(Real x)
-  {
+  static inline Real f1(Real x) {
     if (std::abs(x) < Real(0.1)) {
       const Real z = x * x;
       Real p = Real(1) / Real(45360);
@@ -887,15 +833,13 @@ template<typename Real> struct SinStairs {
 };
 
 template<typename Real> struct Versinc {
-  static inline Real f0(Real x)
-  {
-    if (std::abs(x) <= std::numeric_limits<Real>::epsilon()) return Real(0);
+  static inline Real f0(Real x) {
+    if (std::abs(x) <= std::numeric_limits<Real>::epsilon()) { return Real(0); }
     auto sn = std::sin(x / Real(2));
     return Real(2) * sn * sn / x;
   }
 
-  static inline Real f1(Real x)
-  {
+  static inline Real f1(Real x) {
     Real z = std::abs(x);
     constexpr Real threshold = std::is_same_v<Real, float> ? 0.1f : Real(1.0e-4);
     if (z < threshold) {
@@ -911,19 +855,17 @@ template<typename Real> struct ChebyshevTrig {
   static constexpr Real A = Real(9);
   static constexpr Real scl = A; /* `A * A` for stable feedback. */
 
-  static inline Real f0(Real x)
-  {
+  static inline Real f0(Real x) {
     if constexpr (A == Real(0)) {
       return Real(1);
     } else {
       Real u = x / scl;
-      if (std::abs(u) > 1) return (u > 0) ? Real(1) : std::cos(A * pi);
+      if (std::abs(u) > 1) { return (u > 0) ? Real(1) : std::cos(A * pi); }
       return std::cos(A * std::acos(u));
     }
   }
 
-  static inline Real f1(Real x)
-  {
+  static inline Real f1(Real x) {
     if constexpr (A == Real(0)) {
       return x;
     } else if constexpr (A == Real(1)) {
@@ -935,7 +877,7 @@ template<typename Real> struct ChebyshevTrig {
         Real s = (u > 0) ? Real(1) : Real(-1);
         Real d = (u > 0) ? Real(1) : std::cos(A * pi);
         Real v = -scl / (A * A - 1);
-        if (u < 0) v *= -d;
+        if (u < 0) { v *= -d; }
         return v + d * (x - s * scl);
       }
       constexpr Real c1 = Real(+0.5) / (A + 1);
@@ -949,8 +891,7 @@ template<typename Real> struct ChebyshevTrig {
 template<typename Real> struct ChebyshevClenshaw {
   static constexpr int order = 9;
 
-  static inline Real f0(Real x)
-  {
+  static inline Real f0(Real x) {
     constexpr int N = order < 0 ? -order : order;
     if constexpr (N == 0) {
       return Real(1);
@@ -958,8 +899,8 @@ template<typename Real> struct ChebyshevClenshaw {
       return std::clamp(x, Real(-1), Real(1));
     } else {
       x /= Real(N); // Scaling to not blow up the feedback.
-      if (x >= Real(1)) return Real(1);
-      if (x <= Real(-1)) return N % 2 == 0 ? Real(1) : Real(-1);
+      if (x >= Real(1)) { return Real(1); }
+      if (x <= Real(-1)) { return N % 2 == 0 ? Real(1) : Real(-1); }
       const Real k = Real(2) * x;
       Real t2 = Real(1);
       Real t1 = x;
@@ -973,8 +914,7 @@ template<typename Real> struct ChebyshevClenshaw {
     }
   }
 
-  static inline Real f1(Real x)
-  {
+  static inline Real f1(Real x) {
     constexpr int N = order < 0 ? -order : order;
     if constexpr (N == 0) {
       return x;
@@ -984,8 +924,7 @@ template<typename Real> struct ChebyshevClenshaw {
     } else {
       x /= Real(N); // Scaling to not blow up the feedback.
       constexpr Real at_boundary = Real(1) / Real(N * N - 1);
-      constexpr Real offset = []()
-      {
+      constexpr Real offset = []() {
         if constexpr (N % 2 != 0) {
           Real sign = N % 4 == 3 ? Real(1) : Real(-1);
           return sign * Real(N) * at_boundary;
@@ -1010,8 +949,7 @@ template<typename Real> struct ChebyshevClenshaw {
         t2 = t1;
         t1 = t0;
       }
-      return Real(N)
-        * (Real(0.5) * ((k * t1 - t2) / Real(N + 1) - t2 / Real(N - 1)) - offset);
+      return Real(N) * (Real(0.5) * ((k * t1 - t2) / Real(N + 1) - t2 / Real(N - 1)) - offset);
     }
   }
 };
@@ -1029,12 +967,10 @@ private:
   Real x1 = 0;
   Real s1 = 0;
 
-  template<typename Fn> inline Real processInternal(Real input)
-  {
+  template<typename Fn> inline Real processInternal(Real input) {
     const auto d0 = input - x1;
     const auto s0 = Fn::f1(input);
-    const auto output
-      = std::abs(d0) < eps ? Fn::f0(Real(0.5) * (input + x1)) : (s0 - s1) / d0;
+    const auto output = std::abs(d0) < eps ? Fn::f0(Real(0.5) * (input + x1)) : (s0 - s1) / d0;
     s1 = s0;
     x1 = input;
     return output;
@@ -1042,11 +978,11 @@ private:
 
 public:
   enum class Function : unsigned {
-    hardclip_cleaner, // Hardclip. 4th order ADAA. Default.
-    hardclip,         // Hardclip. 1st order ADAA.
-    softsign,         // Softsign.
-    softsign3,        // Softsign modified. x^3 / (1 + |x^3|).
-    chebyshev_trig, // Chebyshev polynomial using trig functions. accepts fractional `A`.
+    hardclip_cleaner,    // Hardclip. 4th order ADAA. Default.
+    hardclip,            // Hardclip. 1st order ADAA.
+    softsign,            // Softsign.
+    softsign3,           // Softsign modified. x^3 / (1 + |x^3|).
+    chebyshev_trig,      // Chebyshev polynomial using trig functions. accepts fractional `A`.
     chebyshev_clenshaw,  // Chebyshev polynomial using Clenshaw algorithm.
     tanh,                // tanh.
     atan,                // atan.
@@ -1066,8 +1002,7 @@ public:
     versinc,             // versinc.
   };
 
-  void reset()
-  {
+  void reset() {
     hardclip4.reset();
     modulo_quad4.reset();
     triangle4.reset();
@@ -1076,32 +1011,52 @@ public:
     s1 = 0;
   }
 
-  Real process(Real input, Function fn = Function::hardclip_cleaner)
-  {
+  Real process(Real input, Function fn = Function::hardclip_cleaner) {
     using namespace Adaa1;
     switch (fn) {
       default:
-      case Function::hardclip_cleaner: return hardclip4.process(input);
-      case Function::hardclip: return processInternal<Hardclip<Real>>(input);
-      case Function::softsign: return processInternal<Softsign<Real>>(input);
-      case Function::softsign3: return processInternal<Softsign3<Real>>(input);
-      case Function::tanh: return processInternal<Tanh<Real>>(input);
-      case Function::atan: return processInternal<Atan<Real>>(input);
-      case Function::expm1: return processInternal<Expm1<Real>>(input);
-      case Function::log1p: return processInternal<Log1p<Real>>(input);
-      case Function::triangle_cleaner: return triangle4.process(input);
-      case Function::triangle: return processInternal<Triangle<Real>>(input);
-      case Function::modulo_sqrt: return processInternal<ModuloSqrt<Real>>(input);
-      case Function::modulo_linear: return processInternal<ModuloLinear<Real>>(input);
-      case Function::modulo_linear2: return processInternal<ModuloLinear2<Real>>(input);
-      case Function::modulo_quad_cleaner: return modulo_quad4.process(input);
-      case Function::modulo_quad: return processInternal<ModuloQuad<Real>>(input);
-      case Function::sin_expm1: return processInternal<SinExpm1<Real>>(input);
-      case Function::sin_growing: return processInternal<SinGrowing<Real>>(input);
-      case Function::sin_growing2: return processInternal<SinGrowing2<Real>>(input);
-      case Function::sin_stairs: return processInternal<SinStairs<Real>>(input);
-      case Function::versinc: return processInternal<Versinc<Real>>(input);
-      case Function::chebyshev_trig: return processInternal<ChebyshevTrig<Real>>(input);
+      case Function::hardclip_cleaner:
+        return hardclip4.process(input);
+      case Function::hardclip:
+        return processInternal<Hardclip<Real>>(input);
+      case Function::softsign:
+        return processInternal<Softsign<Real>>(input);
+      case Function::softsign3:
+        return processInternal<Softsign3<Real>>(input);
+      case Function::tanh:
+        return processInternal<Tanh<Real>>(input);
+      case Function::atan:
+        return processInternal<Atan<Real>>(input);
+      case Function::expm1:
+        return processInternal<Expm1<Real>>(input);
+      case Function::log1p:
+        return processInternal<Log1p<Real>>(input);
+      case Function::triangle_cleaner:
+        return triangle4.process(input);
+      case Function::triangle:
+        return processInternal<Triangle<Real>>(input);
+      case Function::modulo_sqrt:
+        return processInternal<ModuloSqrt<Real>>(input);
+      case Function::modulo_linear:
+        return processInternal<ModuloLinear<Real>>(input);
+      case Function::modulo_linear2:
+        return processInternal<ModuloLinear2<Real>>(input);
+      case Function::modulo_quad_cleaner:
+        return modulo_quad4.process(input);
+      case Function::modulo_quad:
+        return processInternal<ModuloQuad<Real>>(input);
+      case Function::sin_expm1:
+        return processInternal<SinExpm1<Real>>(input);
+      case Function::sin_growing:
+        return processInternal<SinGrowing<Real>>(input);
+      case Function::sin_growing2:
+        return processInternal<SinGrowing2<Real>>(input);
+      case Function::sin_stairs:
+        return processInternal<SinStairs<Real>>(input);
+      case Function::versinc:
+        return processInternal<Versinc<Real>>(input);
+      case Function::chebyshev_trig:
+        return processInternal<ChebyshevTrig<Real>>(input);
       case Function::chebyshev_clenshaw:
         return processInternal<ChebyshevClenshaw<Real>>(input);
     }

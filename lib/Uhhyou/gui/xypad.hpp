@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <format>
 #include <optional>
 #include <ranges>
 #include <vector>
@@ -25,19 +26,71 @@ class XYPad : public juce::Component {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(XYPad)
 
+  class XYPadValueInterface : public juce::AccessibilityValueInterface {
+  public:
+    explicit XYPadValueInterface(XYPad& padToWrap) : pad(padToWrap) {}
+
+    bool isReadOnly() const override { return false; }
+
+    double getCurrentValue() const override {
+      double offset = pad.lastActiveAxis == 1 ? 0.000001 : 0.0;
+      return double(pad.value[pad.lastActiveAxis]) + offset;
+    }
+
+    void setValue(double newValue) override {
+      pad.attachment.setValueAsCompleteGesture(
+        pad.lastActiveAxis, pad.parameter[pad.lastActiveAxis]->convertFrom0to1(float(newValue)));
+    }
+
+    juce::String getCurrentValueAsString() const override {
+      return std::format("X: {} %, Y: {} %",
+                         std::format("{:.{}f}", 100.0f * pad.parameter[0]->getValue(), 1),
+                         std::format("{:.{}f}", 100.0f * pad.parameter[1]->getValue(), 1));
+    }
+
+    void setValueAsString(const juce::String&) override {}
+
+    AccessibleValueRange getRange() const override { return {{0.0, 1.0}, 0.0}; }
+
+  private:
+    XYPad& pad;
+  };
+
+  class XYPadAccessibilityHandler : public juce::AccessibilityHandler {
+  public:
+    explicit XYPadAccessibilityHandler(XYPad& padToWrap, juce::AccessibilityActions actions)
+        : juce::AccessibilityHandler(padToWrap, juce::AccessibilityRole::slider, std::move(actions),
+                                     Interfaces{std::make_unique<XYPadValueInterface>(padToWrap)}),
+          pad(padToWrap) {}
+
+    juce::String getTitle() const override {
+      return std::format("XY Pad, {} versus {}", pad.parameter[0]->getName(64).toRawUTF8(),
+                         pad.parameter[1]->getName(64).toRawUTF8());
+    }
+
+    juce::String getHelp() const override {
+      return "Use Left and Right arrow keys to adjust the X axis. Use Up and Down arrow keys to "
+             "adjust the Y axis.";
+    }
+
+  private:
+    XYPad& pad;
+  };
+
   constexpr static int8_t nGrid = 8;
   constexpr static float wheelSensitivity = float(0.0001);
 
-  juce::AudioProcessorEditor &editor;
-  std::array<juce::RangedAudioParameter *, 2> parameter;
-  Palette &pal;
-  StatusBar &statusBar;
+  juce::AudioProcessorEditor& editor;
+  std::array<juce::RangedAudioParameter*, 2> parameter;
+  Palette& pal;
+  StatusBar& statusBar;
   ParameterArrayAttachment<2> attachment;
 
   std::array<float, 2> value{float(0), float(0)};
   juce::Point<float> mousePosition{float(-1), float(-1)};
   bool isMouseEntered = false;
   bool isEditing = false;
+  int lastActiveAxis = 0; // Tracks whether X (0) or Y (1) was last updated
 
   std::array<std::vector<float>, 2> snaps;
   std::array<bool, 2> isSnapping{false, false};
@@ -48,39 +101,58 @@ private:
 
   enum class AxisLock { none, x, y };
 
-  AxisLock getLockState(const juce::ModifierKeys &mods)
-  {
-    if (mods.isMiddleButtonDown()) return mods.isShiftDown() ? AxisLock::x : AxisLock::y;
+  AxisLock getLockState(const juce::ModifierKeys& mods) {
+    if (mods.isMiddleButtonDown()) { return mods.isShiftDown() ? AxisLock::x : AxisLock::y; }
     return AxisLock::none;
   }
 
-  void updateStatusBar()
-  {
-    juce::String text{"("};
-    text += parameter[0]->getName(64);
-    text += ", ";
-    text += parameter[1]->getName(64);
-    text += ") = (";
-    text += parameter[0]->getText(parameter[0]->getValue(), 5);
-    text += ", ";
-    text += parameter[1]->getText(parameter[1]->getValue(), 5);
-    text += ")";
-    statusBar.update(text);
+  void showHostMenuNative(size_t index, juce::Point<int> position) {
+    if (auto* hostContext = editor.getHostContext()) {
+      if (auto hostContextMenu = hostContext->getContextMenuForParameter(parameter[index])) {
+        hostContextMenu->showNativeMenu(position);
+      }
+    }
   }
 
-  void updateValueFromPos(const juce::Point<float> &pos, AxisLock lock = AxisLock::none)
-  {
+  void showHostMenuJuce(size_t index) {
+    if (auto* hostContext = editor.getHostContext()) {
+      if (auto hostContextMenu = hostContext->getContextMenuForParameter(parameter[index])) {
+        hostContextMenu->getEquivalentPopupMenu().showMenuAsync(
+          juce::PopupMenu::Options().withTargetComponent(this));
+      }
+    }
+  }
+
+  void updateStatusBar() {
+    statusBar.update(std::format("X: {}, Y: {} = {}, {}", parameter[0]->getName(64).toRawUTF8(),
+                                 parameter[1]->getName(64).toRawUTF8(),
+                                 parameter[0]->getText(parameter[0]->getValue(), 5).toRawUTF8(),
+                                 parameter[1]->getText(parameter[1]->getValue(), 5).toRawUTF8()));
+  }
+
+  void setInternalValue(int index, float newValue) {
+    if (value[index] == newValue) { return; }
+    value[index] = newValue;
+    lastActiveAxis = index;
+    repaint();
+
+    if (auto* handler = getAccessibilityHandler()) {
+      handler->notifyAccessibilityEvent(juce::AccessibilityEvent::valueChanged);
+    }
+  }
+
+  void updateValueFromPos(const juce::Point<float>& pos, AxisLock lock = AxisLock::none) {
     const float w = static_cast<float>(getWidth());
     const float h = static_cast<float>(getHeight());
 
-    if (w <= 0 || h <= 0) return;
+    if (w <= 0 || h <= 0) { return; }
 
     bool isUpdated{false};
 
     if (lock != AxisLock::x) {
       float normX = std::clamp(pos.x, float(0), w) / w;
       if (value[0] != normX) {
-        value[0] = normX;
+        setInternalValue(0, normX);
         attachment.setValueAsPartOfGesture(0, parameter[0]->convertFrom0to1(value[0]));
         isUpdated = true;
       }
@@ -89,18 +161,17 @@ private:
     if (lock != AxisLock::y) {
       float normY = std::clamp(h - pos.y, float(0), h) / h;
       if (value[1] != normY) {
-        value[1] = normY;
+        setInternalValue(1, normY);
         attachment.setValueAsPartOfGesture(1, parameter[1]->convertFrom0to1(value[1]));
         isUpdated = true;
       }
     }
 
-    if (isUpdated) updateStatusBar();
+    if (isUpdated) { updateStatusBar(); }
   }
 
-  void moveValueWithSnap(int axis, float deltaPixel, float rangePixels)
-  {
-    if (rangePixels <= 0) return;
+  void moveValueWithSnap(int axis, float deltaPixel, float rangePixels) {
+    if (rangePixels <= 0) { return; }
 
     if (snappingEnabled && isSnapping[axis]) {
       snapDiffAccumulator[axis] += deltaPixel;
@@ -115,129 +186,122 @@ private:
     float deltaNorm = deltaPixel / rangePixels;
     float nextVal = currentVal + deltaNorm;
 
-    auto findSnapPoint = [&]() -> std::optional<float>
-    {
-      if (!snappingEnabled || snaps[axis].empty() || deltaNorm == float(0)) {
-        return std::nullopt;
-      }
+    auto findSnapPoint = [&]() -> std::optional<float> {
+      if (!snappingEnabled || snaps[axis].empty() || deltaNorm == float(0)) { return std::nullopt; }
 
-      const auto &axisSnaps = snaps[axis];
+      const auto& axisSnaps = snaps[axis];
       if (deltaNorm > float(0)) {
-        // Moving Positive
         auto it = std::ranges::upper_bound(axisSnaps, currentVal);
-        if (it != axisSnaps.end() && nextVal >= *it) return *it;
+        if (it != axisSnaps.end() && nextVal >= *it) { return *it; }
       } else {
-        // Moving Negative
         auto it = std::ranges::lower_bound(axisSnaps, currentVal);
         if (it != axisSnaps.begin()) {
-          if (float prev = *std::prev(it); nextVal <= prev) return prev;
+          if (float prev = *std::prev(it); nextVal <= prev) { return prev; }
         }
       }
       return std::nullopt;
     };
 
     if (auto snapTarget = findSnapPoint()) {
-      value[axis] = *snapTarget;
+      setInternalValue(axis, *snapTarget);
       isSnapping[axis] = true;
       snapDiffAccumulator[axis] = float(0);
     } else {
-      value[axis] = std::clamp(nextVal, float(0), float(1));
+      setInternalValue(axis, std::clamp(nextVal, float(0), float(1)));
     }
   }
 
-  void resetValue(AxisLock lock = AxisLock::none)
-  {
+  void resetValue(AxisLock lock = AxisLock::none) {
     isSnapping = {false, false};
 
     for (int i = 0; i < 2; ++i) {
-      if ((i == 0 && lock == AxisLock::x) || (i == 1 && lock == AxisLock::y)) continue;
+      if ((i == 0 && lock == AxisLock::x) || (i == 1 && lock == AxisLock::y)) { continue; }
 
       float defaultNorm = parameter[i]->getDefaultValue();
-      value[i] = defaultNorm;
+      setInternalValue(i, defaultNorm);
       attachment.setValueAsCompleteGesture(i, parameter[i]->convertFrom0to1(defaultNorm));
     }
     updateStatusBar();
-    repaint();
   }
 
-  void cycleUpValue(size_t index)
-  {
-    auto &v = value[index];
-
+  void cycleUpValue(size_t index) {
+    float v = value[index];
     if (v >= float(1)) {
-      v = float(0);
+      setInternalValue(static_cast<int>(index), float(0));
       return;
     }
 
-    const auto &snp = snaps[index];
+    const auto& snp = snaps[index];
     auto it = std::ranges::upper_bound(snp, v);
-    v = (it != snp.end()) ? *it : float(1);
+    setInternalValue(static_cast<int>(index), (it != snp.end()) ? *it : float(1));
   }
 
-  void cycleDownValue(size_t index)
-  {
-    auto &v = value[index];
-
+  void cycleDownValue(size_t index) {
+    float v = value[index];
     if (v <= 0) {
-      v = float(1);
+      setInternalValue(static_cast<int>(index), float(1));
       return;
     }
 
-    const auto &snp = snaps[index];
+    const auto& snp = snaps[index];
     auto it = std::ranges::lower_bound(snp, v);
-    v = (it != snp.begin()) ? *std::prev(it) : float(0);
+    setInternalValue(static_cast<int>(index), (it != snp.begin()) ? *std::prev(it) : float(0));
   }
 
 public:
-  XYPad(
-    juce::AudioProcessorEditor &editor,
-    Palette &palette,
-    juce::UndoManager *undoManager,
-    std::array<juce::RangedAudioParameter *, 2> parameters,
-    StatusBar &statusBar)
-    : editor(editor)
-    , parameter(parameters)
-    , pal(palette)
-    , statusBar(statusBar)
-    , attachment(
-        parameters,
-        [&](int index, float rawValue)
-        {
-          if (index < 0 || index >= 2) return;
-          float normalized = parameter[index]->convertTo0to1(rawValue);
-          if (value[index] != normalized) {
-            value[index] = normalized;
-            repaint();
-          }
-        },
-        undoManager)
-  {
+  XYPad(juce::AudioProcessorEditor& editor, Palette& palette, juce::UndoManager* undoManager,
+        std::array<juce::RangedAudioParameter*, 2> parameters, StatusBar& statusBar)
+      : editor(editor), parameter(parameters), pal(palette), statusBar(statusBar),
+        attachment(
+          parameters,
+          [&](int index, float rawValue) {
+            if (index < 0 || index >= 2) { return; }
+            float normalized = parameter[index]->convertTo0to1(rawValue);
+            setInternalValue(index, normalized);
+          },
+          undoManager) {
     editor.addAndMakeVisible(*this, 0);
     setMouseCursor(juce::MouseCursor::DraggingHandCursor);
     setWantsKeyboardFocus(true);
+    setMouseClickGrabsKeyboardFocus(true);
 
     for (size_t i = 0; i < 2; ++i) {
-      if (!parameter[i]) continue;
+      if (!parameter[i]) { continue; }
       value[i] = parameter[i]->convertTo0to1(parameter[i]->getValue());
     }
     attachment.sendInitialUpdate();
   }
 
+  std::unique_ptr<juce::AccessibilityHandler> createAccessibilityHandler() override {
+    juce::AccessibilityActions actions;
+    actions.addAction(juce::AccessibilityActionType::showMenu, [this]() {
+      juce::PopupMenu menu;
+      menu.addItem(1, "X: " + parameter[0]->getName(64));
+      menu.addItem(2, "Y: " + parameter[1]->getName(64));
+      menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this), [this](int result) {
+        if (result == 1) {
+          showHostMenuJuce(0);
+        } else if (result == 2) {
+          showHostMenuJuce(1);
+        }
+      });
+    });
+    return std::make_unique<XYPadAccessibilityHandler>(*this, std::move(actions));
+  }
+
   void setSnappingEnabled(bool shouldSnap) { snappingEnabled = shouldSnap; }
 
-  void setSnaps(const std::vector<float> &snapsX_, const std::vector<float> &snapsY_)
-  {
+  void setSnaps(const std::vector<float>& snapsX_, const std::vector<float>& snapsY_) {
     snaps[0] = snapsX_;
-    if (!snaps[0].empty()) std::sort(snaps[0].begin(), snaps[0].end());
+    if (!snaps[0].empty()) { std::sort(snaps[0].begin(), snaps[0].end()); }
 
     snaps[1] = snapsY_;
-    if (!snaps[1].empty()) std::sort(snaps[1].begin(), snaps[1].end());
+    if (!snaps[1].empty()) { std::sort(snaps[1].begin(), snaps[1].end()); }
   }
 
   void setSnapDistance(float pixels) { snapDistancePixel = pixels; }
 
-  void paint(juce::Graphics &ctx) override
-  {
+  void paint(juce::Graphics& ctx) override {
     const float width = static_cast<float>(getWidth());
     const float height = static_cast<float>(getHeight());
 
@@ -279,41 +343,32 @@ public:
     ctx.drawRect(float(0), float(0), width, height, pal.borderThin());
   }
 
-  void mouseEnter(const juce::MouseEvent &event) override
-  {
+  void mouseEnter(const juce::MouseEvent& event) override {
     isMouseEntered = true;
     mousePosition = event.position;
+    updateStatusBar();
     repaint();
   }
 
-  void mouseExit(const juce::MouseEvent &event) override
-  {
+  void mouseExit(const juce::MouseEvent& event) override {
     isMouseEntered = false;
     mousePosition = event.position;
+    statusBar.clear();
     repaint();
   }
 
-  void mouseMove(const juce::MouseEvent &event) override
-  {
-    if (!isMouseEntered) return;
+  void mouseMove(const juce::MouseEvent& event) override {
+    if (!isMouseEntered) { return; }
     mousePosition = event.position;
     repaint();
   }
 
-  void mouseDown(const juce::MouseEvent &event) override
-  {
+  void mouseDown(const juce::MouseEvent& event) override {
     mousePosition = event.position;
 
     if (event.mods.isRightButtonDown()) {
-      auto hostContext = editor.getHostContext();
-      if (hostContext == nullptr) return;
-
       size_t index = event.position.x < getWidth() / float(2) ? 0 : 1;
-
-      auto hostContextMenu = hostContext->getContextMenuForParameter(parameter[index]);
-      if (hostContextMenu != nullptr) {
-        hostContextMenu->showNativeMenu(event.getScreenPosition());
-      }
+      showHostMenuNative(index, editor.getMouseXYRelative());
       return;
     }
 
@@ -333,8 +388,7 @@ public:
     repaint();
   }
 
-  void mouseDrag(const juce::MouseEvent &event) override
-  {
+  void mouseDrag(const juce::MouseEvent& event) override {
     if (isEditing && !event.mods.isRightButtonDown()) {
       float deltaX = event.position.x - lastMousePos.x;
       float deltaY = event.position.y - lastMousePos.y;
@@ -363,14 +417,13 @@ public:
 
       mousePosition = {value[0] * getWidth(), (float(1) - value[1]) * getHeight()};
 
-      if (changed) updateStatusBar();
+      if (changed) { updateStatusBar(); }
       repaint();
     }
   }
 
-  void mouseUp(const juce::MouseEvent &event) override
-  {
-    if (!isEditing) return;
+  void mouseUp(const juce::MouseEvent& event) override {
+    if (!isEditing) { return; }
 
     event.source.enableUnboundedMouseMovement(false);
     mousePosition = {value[0] * getWidth(), (float(1) - value[1]) * getHeight()};
@@ -383,59 +436,61 @@ public:
     repaint();
   }
 
-  void mouseWheelMove(
-    const juce::MouseEvent &event, const juce::MouseWheelDetails &wheel) override
-  {
-    if (wheel.deltaY == 0) return;
+  void mouseWheelMove(const juce::MouseEvent& event,
+                      const juce::MouseWheelDetails& wheel) override {
+    if (wheel.deltaY == 0) { return; }
 
     int index = event.mods.isShiftDown() ? 1 : 0;
 
     float updated = value[index] + float(wheel.deltaY * wheelSensitivity);
     updated = std::clamp(updated, float(0), float(1));
-    if (value[index] == updated) return;
+    if (value[index] == updated) { return; }
 
-    value[index] = updated;
-    attachment.setValueAsCompleteGesture(
-      index, parameter[index]->convertFrom0to1(value[index]));
+    setInternalValue(index, updated);
+    attachment.setValueAsCompleteGesture(index, parameter[index]->convertFrom0to1(value[index]));
 
     updateStatusBar();
-    repaint();
   }
 
-  bool keyPressed(const juce::KeyPress &key) override
-  {
+  bool keyPressed(const juce::KeyPress& key) override {
     using KP = juce::KeyPress;
-    const auto &mods = key.getModifiers();
+    const auto& mods = key.getModifiers();
 
-    auto updateValue = [&](int index)
-    {
-      attachment.setValueAsCompleteGesture(
-        index, parameter[index]->convertFrom0to1(value[index]));
+    if (key.isKeyCode(KP::F10Key) && mods.isShiftDown()) {
+      if (mods.isCommandDown()) {
+        showHostMenuJuce(1);
+      } else {
+        showHostMenuJuce(0);
+      }
+      return true;
+    }
+
+    if (key.isKeyCode(KP::backspaceKey) || key.isKeyCode(KP::deleteKey)) {
+      if (mods.isCommandDown()) {
+        resetValue(AxisLock::none);
+        return true;
+      }
+    }
+
+    auto updateValue = [&](int index) {
+      attachment.setValueAsCompleteGesture(index, parameter[index]->convertFrom0to1(value[index]));
       updateStatusBar();
-      repaint();
       return true;
     };
 
-    auto increaseValue = [&](int index, float delta)
-    { value[index] = std::clamp(value[index] + delta, float(0), float(1)); };
+    auto increaseValue = [&](int index, float delta) {
+      setInternalValue(index, std::clamp(value[index] + delta, float(0), float(1)));
+    };
 
-    auto handleMove = [&](
-                        int index, const int increamentKey, const int decrementKey,
-                        const int cycleUpKey, const int cycleDownKey)
-    {
-      constexpr float sensitivity = float(0.0078125);
+    auto handleMove = [&](int index, const int increamentKey, const int decrementKey,
+                          const int cycleUpKey, const int cycleDownKey) {
+      const float sensitivity = mods.isShiftDown() ? float(0.0078125 / 5) : float(0.0078125);
 
-      if (
-        key.isKeyCode(cycleUpKey)
-        || (key.isKeyCode(increamentKey) && mods.isCommandDown()))
-      {
+      if (key.isKeyCode(cycleUpKey) || (key.isKeyCode(increamentKey) && mods.isCommandDown())) {
         cycleUpValue(index);
         return updateValue(index);
       }
-      if (
-        key.isKeyCode(cycleDownKey)
-        || (key.isKeyCode(decrementKey) && mods.isCommandDown()))
-      {
+      if (key.isKeyCode(cycleDownKey) || (key.isKeyCode(decrementKey) && mods.isCommandDown())) {
         cycleDownValue(index);
         return updateValue(index);
       }
@@ -451,15 +506,9 @@ public:
       return false;
     };
 
-    // X.
-    if (handleMove(0, KP::rightKey, KP::leftKey, KP::pageUpKey, KP::pageDownKey)) {
-      return true;
-    }
-
-    // Y
-    if (handleMove(1, KP::upKey, KP::downKey, KP::homeKey, KP::endKey)) {
-      return true;
-    }
+    // 0: X, 1: Y.
+    if (handleMove(0, KP::rightKey, KP::leftKey, KP::pageUpKey, KP::pageDownKey)) { return true; }
+    if (handleMove(1, KP::upKey, KP::downKey, KP::homeKey, KP::endKey)) { return true; }
 
     return false;
   }
@@ -469,21 +518,51 @@ class LabeledXYPad : public juce::Component {
 private:
   class SnapToggle : public juce::Component {
   private:
-    Palette &pal;
-    StatusBar &statusBar;
+    class SnapToggleAccessibilityHandler : public juce::AccessibilityHandler {
+    public:
+      SnapToggleAccessibilityHandler(SnapToggle& toggleToWrap, juce::AccessibilityActions actions)
+          : juce::AccessibilityHandler(toggleToWrap, juce::AccessibilityRole::toggleButton,
+                                       std::move(actions)),
+            toggle(toggleToWrap) {}
+
+      juce::AccessibleState getCurrentState() const override {
+        auto accessibleState = juce::AccessibilityHandler::getCurrentState().withCheckable();
+        if (toggle.getState()) { accessibleState = accessibleState.withChecked(); }
+        return accessibleState;
+      }
+
+      juce::String getTitle() const override {
+        return "XY Pad Snap " + juce::String(toggle.getState() ? "On" : "Off");
+      }
+
+    private:
+      SnapToggle& toggle;
+    };
+
+    Palette& pal;
+    StatusBar& statusBar;
     bool state = true;
     std::function<void(bool)> onStateChange = nullptr;
 
+    void updateStatusBar() { statusBar.update(state ? "XY Pad: Snap ON" : "XY Pad: Snap OFF"); }
+
   public:
-    SnapToggle(
-      Palette &palette, StatusBar &s, bool initialState, decltype(onStateChange) onChange)
-      : pal(palette), statusBar(s), state(initialState), onStateChange(onChange)
-    {
+    SnapToggle(Palette& palette, StatusBar& s, bool initialState, decltype(onStateChange) onChange)
+        : pal(palette), statusBar(s), state(initialState), onStateChange(onChange) {
       setWantsKeyboardFocus(true);
+      setMouseClickGrabsKeyboardFocus(true);
+      setMouseCursor(juce::MouseCursor::PointingHandCursor);
     }
 
-    void paint(juce::Graphics &ctx) override
-    {
+    std::unique_ptr<juce::AccessibilityHandler> createAccessibilityHandler() override {
+      juce::AccessibilityActions actions;
+      actions.addAction(juce::AccessibilityActionType::toggle, [this]() { toggle(); });
+      return std::make_unique<SnapToggleAccessibilityHandler>(*this, std::move(actions));
+    }
+
+    bool getState() const { return state; }
+
+    void paint(juce::Graphics& ctx) override {
       auto bounds = getLocalBounds().toFloat();
       ctx.setColour(pal.border());
       ctx.drawRect(bounds, pal.borderThin());
@@ -499,20 +578,12 @@ private:
       }
     }
 
-    void mouseEnter(const juce::MouseEvent &) override
-    {
-      setMouseCursor(juce::MouseCursor::PointingHandCursor);
-    }
+    void mouseEnter(const juce::MouseEvent&) override { updateStatusBar(); }
+    void mouseExit(const juce::MouseEvent&) override { statusBar.clear(); }
 
-    void mouseExit(const juce::MouseEvent &) override
-    {
-      setMouseCursor(juce::MouseCursor::NormalCursor);
-    }
+    void mouseDown(const juce::MouseEvent&) override { toggle(); }
 
-    void mouseDown(const juce::MouseEvent &) override { toggle(); }
-
-    bool keyPressed(const juce::KeyPress &key) override
-    {
+    bool keyPressed(const juce::KeyPress& key) override {
       using KP = juce::KeyPress;
       if (key.isKeyCode(KP::returnKey) || key.isKeyCode(KP::spaceKey)) {
         toggle();
@@ -524,62 +595,42 @@ private:
     void focusGained(juce::Component::FocusChangeType) override { repaint(); }
     void focusLost(juce::Component::FocusChangeType) override { repaint(); }
 
-    void toggle()
-    {
+    void toggle() {
       state = !state;
       if (onStateChange) {
         onStateChange(state);
-        statusBar.update(state ? "XYPad Snap: ON" : "XYPad Snap OFF");
+        updateStatusBar();
       }
       repaint();
+
+      if (auto* handler = getAccessibilityHandler()) {
+        handler->notifyAccessibilityEvent(juce::AccessibilityEvent::titleChanged);
+      }
     }
   };
 
-  Palette &pal;
-  XYPad &pad;
+  Palette& pal;
+  XYPad& pad;
   SnapToggle toggle;
 
   LockableLabel labelXComp;
   LockableLabel labelYComp;
 
 public:
-  LabeledXYPad(
-    ParameterLockRegistry &locks,
-    Palette &palette,
-    StatusBar &statusBar,
-    XYPad &pad,
-    const juce::String &labelX,
-    const juce::String &labelY,
-    const juce::AudioProcessorParameter *const parameterX,
-    const juce::AudioProcessorParameter *const parameterY,
-    bool initialSnapState = true,
-    std::function<void(bool)> onSnapChange = nullptr)
-    : pal(palette)
-    , pad(pad)
-    , toggle(
-        palette,
-        statusBar,
-        initialSnapState,
-        [this, onSnapChange](bool state)
-        {
-          this->pad.setSnappingEnabled(state);
-          if (onSnapChange) onSnapChange(state);
-        })
-    , labelXComp(
-        locks,
-        palette,
-        labelX,
-        parameterX,
-        juce::Justification::centred,
-        LockableLabel::Orientation::horizontal)
-    , labelYComp(
-        locks,
-        palette,
-        labelY,
-        parameterY,
-        juce::Justification::centred,
-        LockableLabel::Orientation::vertical)
-  {
+  LabeledXYPad(ParameterLockRegistry& locks, Palette& palette, StatusBar& statusBar, XYPad& pad,
+               const juce::String& labelX, const juce::String& labelY,
+               const juce::AudioProcessorParameter* const parameterX,
+               const juce::AudioProcessorParameter* const parameterY, bool initialSnapState = true,
+               std::function<void(bool)> onSnapChange = nullptr)
+      : pal(palette), pad(pad), toggle(palette, statusBar, initialSnapState,
+                                       [this, onSnapChange](bool state) {
+                                         this->pad.setSnappingEnabled(state);
+                                         if (onSnapChange) { onSnapChange(state); }
+                                       }),
+        labelXComp(locks, palette, statusBar, labelX, parameterX, juce::Justification::centred,
+                   LockableLabel::Orientation::horizontal),
+        labelYComp(locks, palette, statusBar, labelY, parameterY, juce::Justification::centred,
+                   LockableLabel::Orientation::vertical) {
     pad.setSnappingEnabled(initialSnapState);
 
     addAndMakeVisible(pad);
@@ -588,21 +639,18 @@ public:
     addAndMakeVisible(labelYComp);
   }
 
-  void resized() override
-  {
-    int stripSize
-      = static_cast<int>(pal.getFont(pal.textSizeUi()).getHeight() * float(1.5));
+  void resized() override {
+    int stripSize = static_cast<int>(pal.getFont(pal.textSizeUi()).getHeight() * float(1.5));
     auto r = getLocalBounds();
     toggle.setBounds(0, 0, stripSize, stripSize);
     labelXComp.setBounds(stripSize, 0, r.getWidth() - stripSize, stripSize);
     labelYComp.setBounds(0, stripSize, stripSize, r.getHeight() - stripSize);
-    pad.setBounds(
-      stripSize, stripSize, r.getWidth() - stripSize, r.getHeight() - stripSize);
+    pad.setBounds(stripSize, stripSize, r.getWidth() - stripSize, r.getHeight() - stripSize);
   }
 
-  juce::Component &getToggle() { return toggle; }
-  juce::Component &getLabelX() { return labelXComp; }
-  juce::Component &getLabelY() { return labelYComp; }
+  juce::Component& getToggle() { return toggle; }
+  juce::Component& getLabelX() { return labelXComp; }
+  juce::Component& getLabelY() { return labelYComp; }
 };
 
 } // namespace Uhhyou

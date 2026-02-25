@@ -26,11 +26,9 @@ template<typename Sample> struct Sos64FoldFirstStage {
   static constexpr size_t fold = 32;
 
   constexpr static std::array<std::array<Sample, 5>, 8> co{{
-    {Sample(1.354163914584143e-26), Sample(2.708327829168286e-26),
-     Sample(1.354163914584143e-26), Sample(-1.9045872504279573),
-     Sample(0.9068841759295282)},
-    {Sample(1.0), Sample(2.0), Sample(1.0), Sample(-1.908001035290007),
-     Sample(0.9103020778040721)},
+    {Sample(1.354163914584143e-26), Sample(2.708327829168286e-26), Sample(1.354163914584143e-26),
+     Sample(-1.9045872504279573), Sample(0.9068841759295282)},
+    {Sample(1.0), Sample(2.0), Sample(1.0), Sample(-1.908001035290007), Sample(0.9103020778040721)},
     {Sample(1.0), Sample(2.0), Sample(1.0), Sample(-1.9147330871451047),
      Sample(0.9170422484899456)},
     {Sample(1.0), Sample(2.0), Sample(1.0), Sample(-1.9245914935233015),
@@ -64,17 +62,14 @@ template<typename Sample> struct Sos16FoldFirstStage {
   constexpr static size_t fold = 8;
 
   constexpr static std::array<std::array<Sample, 5>, 8> co{{
-    {Sample(3.5903469155931847e-12), Sample(7.1806938311863695e-12),
-     Sample(3.5903469155931847e-12), Sample(-1.2759657610561284),
-     Sample(0.40787244610150275)},
+    {Sample(3.5903469155931847e-12), Sample(7.1806938311863695e-12), Sample(3.5903469155931847e-12),
+     Sample(-1.2759657610561284), Sample(0.40787244610150275)},
     {Sample(1.0), Sample(2.0), Sample(1.0), Sample(-1.2906502176887378),
      Sample(0.42407495130188644)},
-    {Sample(1.0), Sample(2.0), Sample(1.0), Sample(-1.320459244427636),
-     Sample(0.456965573191349)},
+    {Sample(1.0), Sample(2.0), Sample(1.0), Sample(-1.320459244427636), Sample(0.456965573191349)},
     {Sample(1.0), Sample(2.0), Sample(1.0), Sample(-1.3662708320207162),
      Sample(0.5075130673741699)},
-    {Sample(1.0), Sample(2.0), Sample(1.0), Sample(-1.429387848302023),
-     Sample(0.5771549894497601)},
+    {Sample(1.0), Sample(2.0), Sample(1.0), Sample(-1.429387848302023), Sample(0.5771549894497601)},
     {Sample(1.0), Sample(2.0), Sample(1.0), Sample(-1.5114943545116066),
      Sample(0.6677494954045713)},
     {Sample(1.0), Sample(2.0), Sample(1.0), Sample(-1.6145439579130596),
@@ -102,9 +97,8 @@ template<typename Sample> struct Sos8FoldFirstStage {
   constexpr static size_t fold = 4;
 
   constexpr static std::array<std::array<Sample, 5>, 5> co{{
-    {Sample(1.6921576928941614e-05), Sample(3.384315385788323e-05),
-     Sample(1.6921576928941614e-05), Sample(-0.7844963643040177),
-     Sample(0.1583016535071512)},
+    {Sample(1.6921576928941614e-05), Sample(3.384315385788323e-05), Sample(1.6921576928941614e-05),
+     Sample(-0.7844963643040177), Sample(0.1583016535071512)},
     {Sample(1.0), Sample(2.0), Sample(1.0), Sample(-0.818202758191658),
      Sample(0.20806883350989597)},
     {Sample(1.0), Sample(2.0), Sample(1.0), Sample(-0.8910219912408522),
@@ -123,10 +117,9 @@ template<typename T> struct HalfBandCoefficient {
     T(0.9308500986629166), T(0.9640156636878193), T(0.9862978287283355),
   };
   static constexpr std::array<T, 10> h1_a{
-    T(0.019911761024506557), T(0.16170648261075027), T(0.37320978687920564),
-    T(0.5766558985008232),   T(0.7334355636406803),  T(0.8399227128761151),
-    T(0.9074601780285125),   T(0.9492937701934973),  T(0.9760539731706528),
-    T(0.9955323321150525),
+    T(0.019911761024506557), T(0.16170648261075027), T(0.37320978687920564), T(0.5766558985008232),
+    T(0.7334355636406803),   T(0.8399227128761151),  T(0.9074601780285125),  T(0.9492937701934973),
+    T(0.9760539731706528),   T(0.9955323321150525),
   };
 };
 

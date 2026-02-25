@@ -32,116 +32,99 @@ template<int nParameter>
 class ParameterArrayAttachment : private juce::AudioProcessorParameter::Listener,
                                  private juce::AsyncUpdater {
 public:
-  ParameterArrayAttachment(
-    std::array<juce::RangedAudioParameter *, nParameter> parameter,
-    std::function<void(int, float)> parameterChangedCallback,
-    juce::UndoManager *undoManager = nullptr)
-    : parameter(parameter)
-    , undoManager(undoManager)
-    , parameterChangedCallback(std::move(parameterChangedCallback))
-  {
+  ParameterArrayAttachment(std::array<juce::RangedAudioParameter*, nParameter> parameter,
+                           std::function<void(int, float)> parameterChangedCallback,
+                           juce::UndoManager* undoManager = nullptr)
+      : parameter(parameter), undoManager(undoManager),
+        parameterChangedCallback(std::move(parameterChangedCallback)) {
     isEditing.fill(false);
 
-    for (auto &x : parameter) x->addListener(this);
+    for (auto& x : parameter) { x->addListener(this); }
 
-    for (int i = 0; i < nParameter; ++i)
+    for (int i = 0; i < nParameter; ++i) {
       indexMap.emplace(std::make_pair(parameter[i]->getParameterIndex(), i));
+    }
   }
 
-  virtual ~ParameterArrayAttachment() override
-  {
-    for (auto &x : parameter) x->removeListener(this);
+  virtual ~ParameterArrayAttachment() override {
+    for (auto& x : parameter) { x->removeListener(this); }
     cancelPendingUpdate();
   }
 
-  void sendInitialUpdate()
-  {
-    for (int i = 0; i < nParameter; ++i)
+  void sendInitialUpdate() {
+    for (int i = 0; i < nParameter; ++i) {
       parameterValueChanged(parameter[i]->getParameterIndex(), parameter[i]->getValue());
+    }
   }
 
-  void setValueAsCompleteGesture(int index, float newRawValue)
-  {
-    callIfParameterValueChanged(
-      index, newRawValue,
-      [this](int i, float v)
-      {
-        parameter[i]->beginChangeGesture();
-        parameter[i]->setValueNotifyingHost(v);
-        parameter[i]->endChangeGesture();
-      });
+  void setValueAsCompleteGesture(int index, float newRawValue) {
+    callIfParameterValueChanged(index, newRawValue, [this](int i, float v) {
+      parameter[i]->beginChangeGesture();
+      parameter[i]->setValueNotifyingHost(v);
+      parameter[i]->endChangeGesture();
+    });
   }
 
-  void setValueAsCompleteGesture(const std::array<float, nParameter> &newRawValue)
-  {
+  void setValueAsCompleteGesture(const std::array<float, nParameter>& newRawValue) {
     beginGesture();
     for (int index = 0; index < nParameter; ++index) {
-      callIfParameterValueChanged(
-        index, newRawValue[index],
-        [this](int i, float v) { parameter[i]->setValueNotifyingHost(v); });
+      callIfParameterValueChanged(index, newRawValue[index], [this](int i, float v) {
+        parameter[i]->setValueNotifyingHost(v);
+      });
     }
     endGesture();
   }
 
-  void beginGesture()
-  {
-    if (undoManager != nullptr) undoManager->beginNewTransaction();
+  void beginGesture() {
+    if (undoManager != nullptr) { undoManager->beginNewTransaction(); }
     for (int index = 0; index < nParameter; ++index) {
-      if (!isEditing[index]) parameter[index]->beginChangeGesture();
+      if (!isEditing[index]) { parameter[index]->beginChangeGesture(); }
     }
     isEditing.fill(true);
   }
 
-  void beginGesture(int index)
-  {
-    if (isEditing[index]) return;
-    if (undoManager != nullptr) undoManager->beginNewTransaction();
+  void beginGesture(int index) {
+    if (isEditing[index]) { return; }
+    if (undoManager != nullptr) { undoManager->beginNewTransaction(); }
     parameter[index]->beginChangeGesture();
     isEditing[index] = true;
   }
 
-  void setValueAsPartOfGesture(int index, float newRawValue)
-  {
-    callIfParameterValueChanged(
-      index, newRawValue,
-      [this](int i, float v) { parameter[i]->setValueNotifyingHost(v); });
+  void setValueAsPartOfGesture(int index, float newRawValue) {
+    callIfParameterValueChanged(index, newRawValue,
+                                [this](int i, float v) { parameter[i]->setValueNotifyingHost(v); });
   }
 
-  void setValueAsPartOfGesture(const std::array<float, nParameter> &newRawValue)
-  {
+  void setValueAsPartOfGesture(const std::array<float, nParameter>& newRawValue) {
     for (int index = 0; index < nParameter; ++index) {
-      callIfParameterValueChanged(
-        index, newRawValue[index],
-        [this](int i, float v) { parameter[i]->setValueNotifyingHost(v); });
+      callIfParameterValueChanged(index, newRawValue[index], [this](int i, float v) {
+        parameter[i]->setValueNotifyingHost(v);
+      });
     }
   }
 
-  void endGesture()
-  {
+  void endGesture() {
     for (int index = 0; index < nParameter; ++index) {
-      if (isEditing[index]) parameter[index]->endChangeGesture();
+      if (isEditing[index]) { parameter[index]->endChangeGesture(); }
     }
     isEditing.fill(false);
   }
 
-  void endGesture(int index)
-  {
+  void endGesture(int index) {
     parameter[index]->endChangeGesture();
     isEditing[index] = false;
   }
 
 private:
   template<typename Callback>
-  void callIfParameterValueChanged(int index, float newRawValue, Callback &&callback)
-  {
+  void callIfParameterValueChanged(int index, float newRawValue, Callback&& callback) {
     const auto newValue = parameter[index]->convertTo0to1(newRawValue);
-    if (parameter[index]->getValue() != newValue) callback(index, newValue);
+    if (parameter[index]->getValue() != newValue) { callback(index, newValue); }
   }
 
   // `parameterIndex` is a value from `AudioParameter::getParameterIndex()`.
-  void parameterValueChanged(int parameterIndex, float newValue) override
-  {
-    if (!indexMap.contains(parameterIndex)) return;
+  void parameterValueChanged(int parameterIndex, float newValue) override {
+    if (!indexMap.contains(parameterIndex)) { return; }
     auto index = indexMap[parameterIndex];
     lastValue[index] = newValue;
 
@@ -155,18 +138,17 @@ private:
 
   void parameterGestureChanged(int, bool) override {}
 
-  void handleAsyncUpdate() override
-  {
-    if (parameterChangedCallback != nullptr)
-      for (int i = 0; i < nParameter; ++i)
+  void handleAsyncUpdate() override {
+    if (parameterChangedCallback != nullptr) {
+      for (int i = 0; i < nParameter; ++i) {
         parameterChangedCallback(i, parameter[i]->convertFrom0to1(lastValue[i]));
+      }
+    }
   }
 
-  void handleAsyncUpdate(int index)
-  {
+  void handleAsyncUpdate(int index) {
     if (parameterChangedCallback != nullptr) {
-      parameterChangedCallback(
-        index, parameter[index]->convertFrom0to1(lastValue[index]));
+      parameterChangedCallback(index, parameter[index]->convertFrom0to1(lastValue[index]));
     }
   }
 
@@ -174,10 +156,10 @@ private:
   // index of `juce::Array` to the internal index used in this class.
   std::unordered_map<int, int> indexMap;
 
-  std::array<juce::RangedAudioParameter *, nParameter> parameter;
+  std::array<juce::RangedAudioParameter*, nParameter> parameter;
   std::array<bool, nParameter> isEditing{};
   std::array<std::atomic<float>, nParameter> lastValue{};
-  juce::UndoManager *undoManager = nullptr;
+  juce::UndoManager* undoManager = nullptr;
   std::function<void(int, float)> parameterChangedCallback;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ParameterArrayAttachment)

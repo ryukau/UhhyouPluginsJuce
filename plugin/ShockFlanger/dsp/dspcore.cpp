@@ -11,52 +11,48 @@
 
 namespace Uhhyou {
 
-void DSPCore::setup(Real sampleRate_)
-{
+void DSPCore::setup(Real sampleRate_) {
   sampleRate = Real(sampleRate_);
   upRate = sampleRate * upFold;
 
   smoo.setTime(upRate, smootherTimeInSecond);
 
   const Real maxDelayTimeSeconds = Real(0.001) * param.scale.delayTimeMs.getMax();
-  for (auto &x : fdn) x.setup(upRate * maxDelayTimeSeconds);
+  for (auto& x : fdn) { x.setup(upRate * maxDelayTimeSeconds); }
 
   reset();
   startup();
 }
 
-void DSPCore::updateUpRate()
-{
+void DSPCore::updateUpRate() {
   upRate = sampleRate * (overSampling ? 2 : 1);
   smoo.setTime(upRate, smootherTimeInSecond);
   lfo.setSyncRate(secondToEmaAlpha(upRate, Real(0.002)));
-  for (auto &x : fdn) x.updateSamplingRate(upRate);
-  for (auto &x : halfbandIir) x.reset();
+  for (auto& x : fdn) { x.updateSamplingRate(upRate); }
+  for (auto& x : halfbandIir) { x.reset(); }
   fadeKp = cutoffToEmaAlpha<Real>(Real(2) / upRate);
   noteKp = cutoffToEmaAlpha<Real>(Real(500) / upRate);
 }
 
 size_t DSPCore::getLatency() { return 0; }
 
-template<typename Func> void DSPCore::applyToParameters(Func apply)
-{
+template<typename Func> void DSPCore::applyToParameters(Func apply) {
   constexpr auto eps = std::numeric_limits<Real>::epsilon();
-  auto &pv = param.value;
-  auto &scl = param.scale;
+  auto& pv = param.value;
+  auto& scl = param.scale;
 
   // L for load.
-  auto L = [](const std::atomic<float> *const value)
-  { return value->load(std::memory_order_relaxed); };
+  auto L
+    = [](const std::atomic<float>* const value) { return value->load(std::memory_order_relaxed); };
 
   noteReceive = L(pv.noteReceive) >= Real(0.5);
   notePitchScalar = -L(pv.notePitchRange);
   noteGainScalar = L(pv.noteGainRange);
 
   useFeedbackGate = L(pv.feedbackGate) >= Real(0.5);
-  const auto newSaturatorType
-    = static_cast<Saturator<Real>::Function>(L(pv.saturationType) + 0.5f);
+  const auto newSaturatorType = static_cast<Saturator<Real>::Function>(L(pv.saturationType) + 0.5f);
   if (saturatorType != newSaturatorType) {
-    for (auto &x : fdn) x.softReset();
+    for (auto& x : fdn) { x.softReset(); }
   }
   saturatorType = newSaturatorType;
 
@@ -74,8 +70,7 @@ template<typename Func> void DSPCore::applyToParameters(Func apply)
 
   apply(crossModMode, L(pv.crossModMode));
 
-  const auto setMod = [&](Real invTime, Real mod, Real tracking) -> Real
-  {
+  const auto setMod = [&](Real invTime, Real mod, Real tracking) -> Real {
     constexpr auto invLn2 = Real(1) / std::numbers::ln2_v<Real>;
     const auto weakBound = std::log1p(std::abs(mod) * invTime) * invLn2;
     const auto scaled = std::lerp(weakBound, mod, tracking);
@@ -93,7 +88,7 @@ template<typename Func> void DSPCore::applyToParameters(Func apply)
   apply(timeModOctave0, setMod(invTime0, L(pv.lfoToDelayTimeOctave0), modTracking));
   apply(timeModOctave1, setMod(invTime1, L(pv.lfoToDelayTimeOctave1), modTracking));
 
-  const auto &cutoffMax = scl.cutoffHz.getMax();
+  const auto& cutoffMax = scl.cutoffHz.getMax();
   apply(lowpassCutoff, L(pv.lowpassCutoffHz) / upRate);
   apply(lowpassFade, (L(pv.lowpassCutoffHz) >= cutoffMax) ? Real(0) : Real(1));
   apply(highpassCutoff, L(pv.highpassCutoffHz) / upRate);
@@ -117,11 +112,10 @@ template<typename Func> void DSPCore::applyToParameters(Func apply)
   isResettingLfoPhase = L(pv.lfoPhaseReset) >= Real(0.5);
 }
 
-void DSPCore::reset()
-{
+void DSPCore::reset() {
   updateUpRate();
 
-  applyToParameters([](auto &target, auto value) { target.reset(value); });
+  applyToParameters([](auto& target, auto value) { target.reset(value); });
 
   noteIdStack.clear();
   notePitch.reset(Real(1));
@@ -131,24 +125,23 @@ void DSPCore::reset()
   modPhase.fill({});
   lfo.reset();
 
-  for (auto &x : fdn) x.reset();
-  for (auto &x : halfbandInput) x.fill({});
-  for (auto &x : halfbandIir) x.reset();
+  for (auto& x : fdn) { x.reset(); }
+  for (auto& x : halfbandInput) { x.fill({}); }
+  for (auto& x : halfbandIir) { x.reset(); }
 
   startup();
 }
 
 void DSPCore::startup() {}
 
-void DSPCore::setParameters()
-{
+void DSPCore::setParameters() {
   unsigned newOverSampling = unsigned(param.value.oversampling->load());
   if (overSampling != newOverSampling) {
     overSampling = newOverSampling;
     updateUpRate();
   }
 
-  applyToParameters([](auto &target, auto value) { target.push(value); });
+  applyToParameters([](auto& target, auto value) { target.push(value); });
 
   // Prepare for this cycle.
   preSaturationPeak.fill({});
@@ -162,8 +155,7 @@ void DSPCore::setParameters()
   }
 }
 
-auto DSPCore::processSample(const std::array<Real, 2> in) -> std::array<Real, 2>
-{
+auto DSPCore::processSample(const std::array<Real, 2> in) -> std::array<Real, 2> {
   saturationGain.process();
   constexpr auto gateThresholdBase = Real{0.05};
   const auto gateThresholdAdjusted = useFeedbackGate
@@ -171,9 +163,8 @@ auto DSPCore::processSample(const std::array<Real, 2> in) -> std::array<Real, 2>
                                          : gateThresholdBase * saturationGain.value())
     : Real(0);
 
-  modPhase[0] = lfo.process(
-    isPlaying, isResettingLfoPhase, lfoPhaseInitial.process(), upRate, beatsElapsed,
-    tempo);
+  modPhase[0] = lfo.process(isPlaying, isResettingLfoPhase, lfoPhaseInitial.process(), upRate,
+                            beatsElapsed, tempo);
   modPhase[1] = modPhase[0] + lfoPhaseStereoOffset.process();
   modPhase[1] -= std::floor(modPhase[1]);
 
@@ -212,7 +203,7 @@ auto DSPCore::processSample(const std::array<Real, 2> in) -> std::array<Real, 2>
 
   if (saturationGain.value() < Real(1)) {
     constexpr auto eps = std::numeric_limits<Real>::epsilon();
-    const auto &g = saturationGain.value();
+    const auto& g = saturationGain.value();
     const auto cleanUpGain = std::copysign(std::max(std::abs(g), eps), g);
     sig0 /= cleanUpGain;
     sig1 /= cleanUpGain;
@@ -230,9 +221,8 @@ auto DSPCore::processSample(const std::array<Real, 2> in) -> std::array<Real, 2>
   return {sig0, sig1};
 };
 
-void DSPCore::process(
-  const size_t length, const float *in0, const float *in1, float *out0, float *out1)
-{
+void DSPCore::process(const size_t length, const float* in0, const float* in1, float* out0,
+                      float* out1) {
   std::array<Real, 2> frame{};
   for (size_t i = 0; i < length; ++i) {
     const auto inSig0 = Real(in0[i]);
@@ -265,13 +255,12 @@ void DSPCore::process(
 
   // Send values to GUI.
   constexpr auto mem = std::memory_order_relaxed;
-  auto &pv = param.value;
+  auto& pv = param.value;
 
-  auto storeMax = [&](std::atomic<float> &target, Real value)
-  {
+  auto storeMax = [&](std::atomic<float>& target, Real value) {
     float candidate = float(value);
     float current = target.load(mem);
-    if (current < candidate) target.store(candidate, mem);
+    if (current < candidate) { target.store(candidate, mem); }
   };
 
   storeMax(pv.displayPreSaturationPeak[0], preSaturationPeak[0]);
@@ -292,14 +281,12 @@ void DSPCore::process(
   pv.displayDelayTimeLower[1][1].store(float(displayTime[1].lower[1] * invUpRate), mem);
 }
 
-template<typename Real> inline Real semitoneToRatio(Real scaler, Real semitone)
-{
+template<typename Real> inline Real semitoneToRatio(Real scaler, Real semitone) {
   return std::exp2(scaler * (semitone / Real(12) - Real(5)));
 }
 
-void DSPCore::noteOn(int noteId, Real pitchSemitone, Real velocity)
-{
-  if (!noteReceive) return;
+void DSPCore::noteOn(int noteId, Real pitchSemitone, Real velocity) {
+  if (!noteReceive) { return; }
 
   noteIdStack.push_back({
     .noteId = noteId,
@@ -310,10 +297,8 @@ void DSPCore::noteOn(int noteId, Real pitchSemitone, Real velocity)
   noteGain.push(noteIdStack.back().gain);
 }
 
-void DSPCore::noteOff(int noteId)
-{
-  auto reset = [&]()
-  {
+void DSPCore::noteOff(int noteId) {
+  auto reset = [&]() {
     notePitch.push(Real(1));
     noteGain.push(Real(1));
   };
@@ -324,11 +309,11 @@ void DSPCore::noteOff(int noteId)
   }
 
   auto it = std::ranges::find(noteIdStack, noteId, &NoteData::noteId);
-  if (it == noteIdStack.end()) return;
+  if (it == noteIdStack.end()) { return; }
 
   const bool latestNoteIsOff = (it == std::prev(noteIdStack.end()));
   noteIdStack.erase(it);
-  if (!latestNoteIsOff) return;
+  if (!latestNoteIsOff) { return; }
 
   if (noteIdStack.empty()) {
     reset();
@@ -338,17 +323,15 @@ void DSPCore::noteOff(int noteId)
   }
 }
 
-void DSPCore::notePitchBend(int noteId, Real pitchSemitone)
-{
-  if (!noteReceive || noteIdStack.empty()) return;
+void DSPCore::notePitchBend(int noteId, Real pitchSemitone) {
+  if (!noteReceive || noteIdStack.empty()) { return; }
 
-  auto it = std::find_if(
-    noteIdStack.rbegin(), noteIdStack.rend(),
-    [noteId](const auto &data) { return data.noteId == noteId; });
+  auto it = std::find_if(noteIdStack.rbegin(), noteIdStack.rend(),
+                         [noteId](const auto& data) { return data.noteId == noteId; });
 
   if (it != noteIdStack.rend()) {
     it->pitch = semitoneToRatio(notePitchScalar, pitchSemitone);
-    if (it == noteIdStack.rbegin()) notePitch.push(it->pitch);
+    if (it == noteIdStack.rbegin()) { notePitch.push(it->pitch); }
   }
 }
 

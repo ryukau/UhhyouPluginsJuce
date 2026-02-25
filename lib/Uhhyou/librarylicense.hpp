@@ -5,10 +5,9 @@
 
 namespace Uhhyou {
 
-inline juce::String getLibraryLicenseText()
-{
-  return juce::String::createStringFromData(
-    ::UhhyouLicense::README_md, ::UhhyouLicense::README_mdSize);
+inline juce::String getLibraryLicenseText() {
+  return juce::String::createStringFromData(::UhhyouLicense::README_md,
+                                            ::UhhyouLicense::README_mdSize);
 }
 
 } // namespace Uhhyou

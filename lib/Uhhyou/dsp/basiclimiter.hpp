@@ -18,43 +18,37 @@ public:
   Sample v1 = 0;
   Sample v2 = 0;
 
-  void reset(Sample value = 0)
-  {
+  void reset(Sample value = 0) {
     v1 = value;
     v2 = value;
   }
 
-  void setMin(Sample value)
-  {
+  void setMin(Sample value) {
     v1 = std::min(v1, value);
     v2 = std::min(v2, value);
   }
 
-  void setCutoff(Sample sampleRate, Sample cutoffHz)
-  {
+  void setCutoff(Sample sampleRate, Sample cutoffHz) {
     kp = cutoffHz >= sampleRate / Sample(2)
       ? Sample(1)
       : Sample(cutoffToEmaAlpha<double>(double(sampleRate), double(cutoffHz)));
   }
 
-  void setSecond(Sample sampleRate, Sample second)
-  {
+  void setSecond(Sample sampleRate, Sample second) {
     kp = Sample(cutoffToEmaAlpha<double>(double(sampleRate), double(second)));
   }
 
   Sample getValue() { return v2; }
 
-  Sample process(Sample input)
-  {
-    auto &&v0 = input;
+  Sample process(Sample input) {
+    auto&& v0 = input;
     v1 += kp * (v0 - v1);
     v2 += kp * (v1 - v2);
     return v2;
   }
 
-  Sample processKp(Sample input, Sample kp)
-  {
-    auto &&v0 = input;
+  Sample processKp(Sample input, Sample kp) {
+    auto&& v0 = input;
     v1 += kp * (v0 - v1);
     v2 += kp * (v1 - v2);
     return v2;
@@ -71,8 +65,7 @@ private:
 public:
   IntDelay(size_t size = 64) : buf(size) {}
 
-  void resize(size_t size)
-  {
+  void resize(size_t size) {
     buf.resize(size + 1);
     wptr = 0;
     rptr = 0;
@@ -80,19 +73,19 @@ public:
 
   void reset() { std::fill(buf.begin(), buf.end(), Sample(0)); }
 
-  void setFrames(size_t delayFrames)
-  {
-    if (delayFrames >= buf.size()) delayFrames = buf.size();
+  void setFrames(size_t delayFrames) {
+    if (delayFrames >= buf.size()) { delayFrames = buf.size(); }
     rptr = wptr - delayFrames;
-    if (rptr >= buf.size()) rptr += buf.size(); // Unsigned negative overflow case.
+    if (rptr >= buf.size()) {
+      rptr += buf.size(); // Unsigned negative overflow case.
+    }
   }
 
-  Sample process(Sample input)
-  {
-    if (++wptr >= buf.size()) wptr = 0;
+  Sample process(Sample input) {
+    if (++wptr >= buf.size()) { wptr = 0; }
     buf[wptr] = input;
 
-    if (++rptr >= buf.size()) rptr = 0;
+    if (++rptr >= buf.size()) { rptr = 0; }
     return buf[rptr];
   }
 };
@@ -105,58 +98,54 @@ template<typename T> struct RingQueue {
 
   RingQueue(size_t size = 64) : buf(size) {}
 
-  void resize(size_t size)
-  {
+  void resize(size_t size) {
     buf.resize(size);
     wptr = 0;
     rptr = 0;
   }
 
-  void reset(T value = 0)
-  {
+  void reset(T value = 0) {
     std::fill(buf.begin(), buf.end(), value);
     wptr = 0;
     rptr = 0;
   }
 
-  inline size_t size()
-  {
+  inline size_t size() {
     auto sz = wptr - rptr;
-    if (sz >= buf.size()) sz += buf.size(); // Unsigned overflow case.
+    if (sz >= buf.size()) {
+      sz += buf.size(); // Unsigned overflow case.
+    }
     return sz;
   }
 
   inline bool empty() { return wptr == rptr; }
 
-  T &front() { return buf[increment(rptr)]; }
-  T &back() { return buf[wptr]; }
+  T& front() { return buf[increment(rptr)]; }
+  T& back() { return buf[wptr]; }
 
-  inline size_t increment(size_t idx)
-  {
-    if (++idx >= buf.size()) idx -= buf.size();
+  inline size_t increment(size_t idx) {
+    if (++idx >= buf.size()) { idx -= buf.size(); }
     return idx;
   }
 
-  inline size_t decrement(size_t idx)
-  {
-    if (--idx >= buf.size()) idx += buf.size(); // Unsigned overflow case.
+  inline size_t decrement(size_t idx) {
+    if (--idx >= buf.size()) {
+      idx += buf.size(); // Unsigned overflow case.
+    }
     return idx;
   }
 
-  void push_back(T value)
-  {
+  void push_back(T value) {
     wptr = increment(wptr);
     buf[wptr] = value;
   }
 
-  T pop_front()
-  {
+  T pop_front() {
     rptr = increment(rptr);
     return buf[rptr];
   }
 
-  T pop_back()
-  {
+  T pop_back() {
     wptr = decrement(wptr);
     return buf[wptr];
   }
@@ -171,34 +160,30 @@ template<typename Sample> struct PeakHold {
   IntDelay<Sample> delay;
   RingQueue<Sample> queue;
 
-  PeakHold(size_t size = 64)
-  {
+  PeakHold(size_t size = 64) {
     resize(size);
     setFrames(1);
   }
 
-  void resize(size_t size)
-  {
+  void resize(size_t size) {
     delay.resize(size);
     queue.resize(size);
   }
 
-  void reset()
-  {
+  void reset() {
     delay.reset();
     queue.reset();
   }
 
   void setFrames(size_t frames) { delay.setFrames(frames); }
 
-  Sample process(Sample x0)
-  {
+  Sample process(Sample x0) {
     while (!queue.empty()) {
-      if (queue.back() >= x0) break;
+      if (queue.back() >= x0) { break; }
       queue.pop_back();
     }
     queue.push_back(x0);
-    if (delay.process(x0) == queue.front()) queue.pop_front();
+    if (delay.process(x0) == queue.front()) { queue.pop_front(); }
     return queue.front();
   }
 };
@@ -213,14 +198,12 @@ private:
   IntDelay<Sample> delay2;
 
 public:
-  void resize(size_t size)
-  {
+  void resize(size_t size) {
     delay1.resize(size / 2 + 1);
     delay2.resize(size / 2);
   }
 
-  void reset()
-  {
+  void reset() {
     sum1 = 0;
     sum2 = 0;
     buf = 0;
@@ -228,19 +211,17 @@ public:
     delay2.reset();
   }
 
-  void setFrames(size_t frames)
-  {
+  void setFrames(size_t frames) {
     auto half = frames / 2;
     denom = 1 / Sample((half + 1) * half);
     delay1.setFrames(half + 1);
     delay2.setFrames(half);
   }
 
-  inline Sample add(Sample lhs, Sample rhs)
-  {
-    if constexpr (fastSmoothing) return lhs + rhs;
+  inline Sample add(Sample lhs, Sample rhs) {
+    if constexpr (fastSmoothing) { return lhs + rhs; }
 
-    if (lhs < rhs) std::swap(lhs, rhs);
+    if (lhs < rhs) { std::swap(lhs, rhs); }
     int expL;
     std::frexp(lhs, &expL);
     auto cut = std::ldexp(float(1), expL - std::numeric_limits<Sample>::digits);
@@ -248,8 +229,7 @@ public:
     return lhs + rounded;
   }
 
-  Sample process(Sample input)
-  {
+  Sample process(Sample input) {
     input *= denom;
 
     sum1 = add(sum1, input);
@@ -279,33 +259,27 @@ private:
 public:
   size_t latency(size_t upfold) { return attackFrames / upfold; }
 
-  void resize(size_t size)
-  {
+  void resize(size_t size) {
     size += size % 2; // DoubleAverageFilter requires multiple of 2.
     peakhold.resize(size);
     smoother.resize(size);
     lookaheadDelay.resize(size);
   }
 
-  void reset()
-  {
+  void reset() {
     peakhold.reset();
     smoother.reset();
     releaseFilter.reset(Sample(1));
     lookaheadDelay.reset();
   }
 
-  void prepare(
-    Sample sampleRate,
-    Sample attackSeconds,
-    Sample releaseSeconds,
-    Sample thresholdAmplitude)
-  {
+  void prepare(Sample sampleRate, Sample attackSeconds, Sample releaseSeconds,
+               Sample thresholdAmplitude) {
     auto prevAttack = attackFrames;
     attackFrames = size_t(sampleRate * attackSeconds + Sample(0.5));
     attackFrames += attackFrames % 2; // DoubleAverageFilter requires multiple of 2.
 
-    if (prevAttack != attackFrames) reset();
+    if (prevAttack != attackFrames) { reset(); }
 
     releaseFilter.setSecond(sampleRate, releaseSeconds);
 
@@ -316,19 +290,16 @@ public:
     lookaheadDelay.setFrames(attackFrames);
   }
 
-  inline Sample applyCharacteristicCurve(Sample peakAmp)
-  {
+  inline Sample applyCharacteristicCurve(Sample peakAmp) {
     return peakAmp > thresholdAmp ? thresholdAmp / peakAmp : Sample(1);
   }
 
-  inline Sample processRelease(Sample gain)
-  {
+  inline Sample processRelease(Sample gain) {
     releaseFilter.setMin(gain);
     return releaseFilter.process(gain);
   }
 
-  Sample process(Sample input)
-  {
+  Sample process(Sample input) {
     auto inAbs = std::fabs(input);
     auto peakAmp = peakhold.process(inAbs);
     auto candidate = applyCharacteristicCurve(peakAmp);

@@ -23,10 +23,9 @@ namespace fs = std::filesystem;
 Specification of $XDG_CONFIG_HOME:
 https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
 */
-inline fs::path getConfigHome()
-{
+inline fs::path getConfigHome() {
 #ifdef _WIN32
-  char *appdataDir = nullptr;
+  char* appdataDir = nullptr;
   size_t size = 0;
   if (_dupenv_s(&appdataDir, &size, "AppData") == 0 && appdataDir != nullptr) {
     auto path = fs::path(appdataDir);
@@ -36,16 +35,16 @@ inline fs::path getConfigHome()
 
   std::cerr << "%AppData% is empty.\n";
 #elif __APPLE__
-  const char *home = std::getenv("HOME");
-  if (home != nullptr) return fs::path(home) / "Library/Preferences";
+  const char* home = std::getenv("HOME");
+  if (home != nullptr) { return fs::path(home) / "Library/Preferences"; }
 
   std::cerr << "$HOME is empty.\n";
 #else
-  const char *configDir = std::getenv("XDG_CONFIG_HOME");
-  if (configDir != nullptr) return fs::path(configDir);
+  const char* configDir = std::getenv("XDG_CONFIG_HOME");
+  if (configDir != nullptr) { return fs::path(configDir); }
 
-  const char *home = std::getenv("HOME");
-  if (home != nullptr) return fs::path(home) / ".config";
+  const char* home = std::getenv("HOME");
+  if (home != nullptr) { return fs::path(home) / ".config"; }
 
   std::cerr << "$XDG_CONFIG_HOME and $HOME is empty.\n";
 
@@ -57,12 +56,11 @@ inline fs::path getConfigHome()
 Load style config from `$XDG_CONFIG_HOME/UhhyouPlugins/style/style.json`.
 Returns empty json on failure.
 */
-inline nlohmann::json loadStyleJson()
-{
+inline nlohmann::json loadStyleJson() {
   nlohmann::json data;
 
   fs::path home = getConfigHome();
-  if (home.empty()) return data;
+  if (home.empty()) { return data; }
 
   auto styleJsonPath = home / fs::path("UhhyouPlugins/style/style.json");
   std::ifstream ifs(styleJsonPath);
@@ -75,8 +73,7 @@ inline nlohmann::json loadStyleJson()
   return data;
 }
 
-inline juce::uint8 strHexToUInt8(std::string_view sv)
-{
+inline juce::uint8 strHexToUInt8(std::string_view sv) {
   uint8_t result{};
   std::from_chars(sv.data(), sv.data() + sv.size(), result, 16);
   return result;
@@ -87,38 +84,34 @@ data[key] must come in string of hex color code. "#123456", "#aabbccdd" etc.
 Color will be only loaded if the size of string is either 7 or 9 (RGB or RGBA).
 First character is ignored. So "!303030", " 0000ff88" are valid.
 */
-inline void loadColor(nlohmann::json &data, std::string key, juce::Colour &color)
-{
-  if (!data.contains(key)) return;
+inline void loadColor(nlohmann::json& data, std::string key, juce::Colour& color) {
+  if (!data.contains(key)) { return; }
 
-  const auto &value = data[key];
-  if (!value.is_string()) return;
+  const auto& value = data[key];
+  if (!value.is_string()) { return; }
 
-  const std::string &hexRef = value.get_ref<const std::string &>();
+  const std::string& hexRef = value.get_ref<const std::string&>();
   std::string_view hex = hexRef;
-  if (hex.size() != 7 && hex.size() != 9) return;
+  if (hex.size() != 7 && hex.size() != 9) { return; }
 
-  color = juce::Colour(
-    strHexToUInt8(hex.substr(1, 2)), strHexToUInt8(hex.substr(3, 2)),
-    strHexToUInt8(hex.substr(5, 2)),
-    hex.size() != 9 ? juce::uint8(255) : strHexToUInt8(hex.substr(7, 2)));
+  color = juce::Colour(strHexToUInt8(hex.substr(1, 2)), strHexToUInt8(hex.substr(3, 2)),
+                       strHexToUInt8(hex.substr(5, 2)),
+                       hex.size() != 9 ? juce::uint8(255) : strHexToUInt8(hex.substr(7, 2)));
 }
 
-inline void loadString(nlohmann::json &data, std::string key, juce::String &value)
-{
-  if (!data.contains(key)) return;
-  if (!data[key].is_string()) return;
+inline void loadString(nlohmann::json& data, std::string key, juce::String& value) {
+  if (!data.contains(key)) { return; }
+  if (!data[key].is_string()) { return; }
 
   std::string loaded = data[key];
-  if (loaded.empty()) return;
+  if (loaded.empty()) { return; }
 
   value = loaded;
 }
 
-void Palette::load()
-{
+void Palette::load() {
   auto data = loadStyleJson();
-  if (data.is_null()) return;
+  if (data.is_null()) { return; }
 
   loadString(data, "fontUiName", _fontUiName);
   loadString(data, "fontUiStyle", _fontUiStyle);

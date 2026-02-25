@@ -18,9 +18,9 @@ class DSPCore {
 public:
   using Real = double;
 
-  DSPCore(ParameterStore &param) : param(param) { noteIdStack.reserve(1024); }
+  DSPCore(ParameterStore& param) : param(param) { noteIdStack.reserve(1024); }
 
-  ParameterStore &param;
+  ParameterStore& param;
   bool isPlaying = false;
   Real tempo = Real(120);
   Real beatsElapsed = Real(0);
@@ -32,8 +32,7 @@ public:
   void startup();
   size_t getLatency();
   void setParameters();
-  void process(
-    const size_t length, const float *in0, const float *in1, float *out0, float *out1);
+  void process(const size_t length, const float* in0, const float* in1, float* out0, float* out1);
 
   void noteOn(int noteId, Real pitchSemitone, Real velocity);
   void noteOff(int noteId);

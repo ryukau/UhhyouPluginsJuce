@@ -1,10 +1,13 @@
 // Copyright Takamitsu Endo (ryukau@gmail.com).
 // SPDX-License-Identifier: AGPL-3.0-only
 
+// Note that changing this source leads to slow compilation due to
+// nlohmann/json.hpp.
+
 #pragma once
 
 #include <juce_graphics/juce_graphics.h>
-
+#include <juce_gui_basics/juce_gui_basics.h>
 #include <memory>
 #include <unordered_map>
 
@@ -21,15 +24,12 @@ public:
   Palette() { load(); }
   void load();
 
-  const juce::Font &getFont(float size, FontType fontType = FontType::ui)
-  {
-    auto findFont = [&](
-                      FontMap &fmap, const juce::String &name, const juce::String &style,
-                      std::vector<juce::String> fallbacks) -> juce::Font &
-    {
+  const juce::Font& getFont(float size, FontType fontType = FontType::ui) {
+    auto findFont = [&](FontMap& fmap, const juce::String& name, const juce::String& style,
+                        std::vector<juce::String> fallbacks) -> juce::Font& {
       auto key = unsigned(fontMapKeyScaling * size);
       auto found = fmap.find(key);
-      if (found != fmap.end()) return found->second;
+      if (found != fmap.end()) { return found->second; }
 
       const auto height = key * scalingFactor / fontMapKeyScaling;
       auto inserted = fmap.emplace(
@@ -39,29 +39,24 @@ public:
     };
 
     if (fontType == FontType::monospace) {
-      return findFont(
-        fontMonoMap, fontMonoName(), fontMonoStyle(),
-        {"Consolas", "Menlo", "DejaVu Sans Mono", "mono"});
+      return findFont(fontMonoMap, fontMonoName(), fontMonoStyle(),
+                      {"Consolas", "Menlo", "DejaVu Sans Mono", "mono"});
     }
-    return findFont(
-      fontUiMap, fontUiName(), fontUiStyle(),
-      {"Segoe UI", ".AppleSystemUIFont", "DejaVu Sans", "Verdana", "sans-serif"});
+    return findFont(fontUiMap, fontUiName(), fontUiStyle(),
+                    {"Segoe UI", ".AppleSystemUIFont", "DejaVu Sans", "Verdana", "sans-serif"});
   }
 
-  void resize(float scale)
-  {
+  void resize(float scale) {
     scalingFactor = scale;
 
-    auto reconstruct
-      = [&](FontMap &fontMap, const juce::String &name, const juce::String &style)
-    {
+    auto reconstruct = [&](FontMap& fontMap, const juce::String& name, const juce::String& style) {
       fontMap.clear();
       std::vector<unsigned> sizes{
         unsigned(textSizeSmall() * fontMapKeyScaling),
         unsigned(textSizeUi() * fontMapKeyScaling),
         unsigned(textSizeBig() * fontMapKeyScaling),
       };
-      for (const auto &key : sizes) {
+      for (const auto& key : sizes) {
         const auto height = key * scalingFactor / fontMapKeyScaling;
         fontMap.emplace(key, juce::Font(juce::FontOptions{name, style, height}));
       }
@@ -74,31 +69,31 @@ public:
     _borderThickScaled = scalingFactor * _borderThick;
   }
 
-  const juce::String &fontUiName() { return _fontUiName; }
-  const juce::String &fontUiStyle() { return _fontUiStyle; }
-  const juce::String &fontMonoName() { return _fontMonoName; }
-  const juce::String &fontMonoStyle() { return _fontMonoStyle; }
+  const juce::String& fontUiName() const { return _fontUiName; }
+  const juce::String& fontUiStyle() const { return _fontUiStyle; }
+  const juce::String& fontMonoName() const { return _fontMonoName; }
+  const juce::String& fontMonoStyle() const { return _fontMonoStyle; }
   float textSizeSmall() const { return 10; }
   float textSizeUi() const { return 14; }
   float textSizeBig() const { return 20; }
   float borderThin() const { return _borderThinScaled; }
   float borderThick() const { return _borderThickScaled; }
-  const juce::Colour &foreground() { return _foreground; }
-  const juce::Colour &foregroundButtonOn() { return _foregroundButtonOn; }
-  const juce::Colour &foregroundInactive() { return _foregroundInactive; }
-  const juce::Colour &background() { return _background; }
-  const juce::Colour &boxBackground() { return _boxBackground; }
-  const juce::Colour &border() { return _border; }
-  const juce::Colour &borderCheckbox() { return _borderCheckbox; }
-  const juce::Colour &borderLabel() { return _borderLabel; }
-  const juce::Colour &unfocused() { return _unfocused; }
-  const juce::Colour &highlightMain() { return _highlightMain; }
-  const juce::Colour &highlightAccent() { return _highlightAccent; }
-  const juce::Colour &highlightButton() { return _highlightButton; }
-  const juce::Colour &highlightWarning() { return _highlightWarning; }
-  const juce::Colour &overlay() { return _overlay; }
-  const juce::Colour &overlayHighlight() { return _overlayHighlight; }
-  const juce::Colour &overlayFaint() { return _overlayFaint; }
+  const juce::Colour& foreground() const { return _foreground; }
+  const juce::Colour& foregroundButtonOn() const { return _foregroundButtonOn; }
+  const juce::Colour& foregroundInactive() const { return _foregroundInactive; }
+  const juce::Colour& background() const { return _background; }
+  const juce::Colour& boxBackground() const { return _boxBackground; }
+  const juce::Colour& border() const { return _border; }
+  const juce::Colour& borderCheckbox() const { return _borderCheckbox; }
+  const juce::Colour& borderLabel() const { return _borderLabel; }
+  const juce::Colour& unfocused() const { return _unfocused; }
+  const juce::Colour& highlightMain() const { return _highlightMain; }
+  const juce::Colour& highlightAccent() const { return _highlightAccent; }
+  const juce::Colour& highlightButton() const { return _highlightButton; }
+  const juce::Colour& highlightWarning() const { return _highlightWarning; }
+  const juce::Colour& overlay() const { return _overlay; }
+  const juce::Colour& overlayHighlight() const { return _overlayHighlight; }
+  const juce::Colour& overlayFaint() const { return _overlayFaint; }
 
 private:
   static constexpr unsigned fontMapKeyScaling = 10;

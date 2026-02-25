@@ -34,22 +34,15 @@ struct GroupLabel {
   juce::Rectangle<int> rect;
   juce::Justification justification = juce::Justification::centred;
 
-  GroupLabel(const juce::String &text) : text(text), rect({0, 0, 0, 0}) {}
+  GroupLabel(const juce::String& text) : text(text), rect({0, 0, 0, 0}) {}
 
-  GroupLabel(
-    const juce::String &text,
-    const juce::Rectangle<int> &rect,
-    juce::Justification justification = juce::Justification::centred)
-    : text(text), rect(rect), justification(justification)
-  {
-  }
+  GroupLabel(const juce::String& text, const juce::Rectangle<int>& rect,
+             juce::Justification justification = juce::Justification::centred)
+      : text(text), rect(rect), justification(justification) {}
 
-  void
-  paint(juce::Graphics &ctx, juce::Font &font, float lineWidth, float marginWidth) const
-  {
+  void paint(juce::Graphics& ctx, juce::Font& font, float lineWidth, float marginWidth) const {
     juce::Graphics::ScopedSaveState saveState(ctx);
-    ctx.addTransform(
-      juce::AffineTransform::translation(float(rect.getX()), float(rect.getY())));
+    ctx.addTransform(juce::AffineTransform::translation(float(rect.getX()), float(rect.getY())));
     auto localBounds = rect.withZeroOrigin().toFloat();
 
     // Text.
@@ -74,8 +67,8 @@ struct GroupLabel {
     p.closeSubPath();
 
     p.addPath(p, juce::AffineTransform::scale(float(-1), float(1), centerX, centerY));
-    juce::PathStrokeType stroke(
-      lineWidth, juce::PathStrokeType::mitered, juce::PathStrokeType::rounded);
+    juce::PathStrokeType stroke(lineWidth, juce::PathStrokeType::mitered,
+                                juce::PathStrokeType::rounded);
     ctx.strokePath(p, stroke);
     ctx.fillPath(p);
   }
@@ -86,64 +79,48 @@ public:
   enum Layout { showLabel = 0, expand = 1 };
 
 private:
-  Palette &pal;
+  Palette& pal;
   Layout option;
-  juce::Component &widget;
+  juce::Component& widget;
   LockableLabel lockLabel;
 
 public:
-  LabeledWidget(
-    ParameterLockRegistry &locks,
-    Palette &palette,
-    const juce::String &label,
-    juce::Component &widget,
-    const juce::AudioProcessorParameter *const parameter,
-    Layout option = Layout::showLabel)
-    : pal(palette)
-    , option(option)
-    , widget(widget)
-    , lockLabel(
-        locks,
-        palette,
-        label,
-        parameter,
-        juce::Justification::centredLeft,
-        LockableLabel::Orientation::horizontal)
-  {
-    addAndMakeVisible(widget);
-
+  LabeledWidget(ParameterLockRegistry& locks, Palette& palette, StatusBar& statusBar,
+                const juce::String& label, juce::Component& widget,
+                const juce::AudioProcessorParameter* const parameter,
+                Layout option = Layout::showLabel)
+      : pal(palette), option(option), widget(widget),
+        lockLabel(locks, palette, statusBar, label, parameter, juce::Justification::centredLeft,
+                  LockableLabel::Orientation::horizontal) {
     if (option == Layout::showLabel) {
       addAndMakeVisible(lockLabel);
     } else {
       locks.lock(parameter);
     }
+    addAndMakeVisible(widget);
   }
 
-  LockableLabel &lockableLabel() { return lockLabel; }
+  LockableLabel& lockableLabel() { return lockLabel; }
 
-  void resized() override
-  {
+  void resized() override {
     auto r = getLocalBounds();
     if (option == expand) {
       widget.setBounds(r);
     } else {
-      // Left: `lockLabel`, Right: `widget`.
       auto labelBounds = r.removeFromLeft(r.getWidth() / 2);
       lockLabel.setBounds(labelBounds);
       widget.setBounds(r);
     }
   }
 
-  void paint(juce::Graphics &ctx) override
-  {
+  void paint(juce::Graphics& ctx) override {
     if (option == showLabel) {
       auto r = getLocalBounds();
       r.removeFromRight(r.getWidth() / 2);
       r.removeFromLeft(int(pal.textSizeUi()));
 
       ctx.setColour(pal.border().withAlpha(float(0.25)));
-      ctx.drawLine(
-        {r.getBottomLeft().toFloat(), r.getBottomRight().toFloat()}, pal.borderThin());
+      ctx.drawLine({r.getBottomLeft().toFloat(), r.getBottomRight().toFloat()}, pal.borderThin());
     }
   }
 };
@@ -153,16 +130,10 @@ struct LayoutSection {
   std::vector<std::shared_ptr<LabeledWidget>> widgets;
 };
 
-inline int layoutVerticalSection(
-  std::vector<GroupLabel> &groupLabels,
-  int left,
-  int top,
-  int sectionWidth,
-  int labelHeight,
-  int labelYIncrement,
-  const juce::String &groupTitle,
-  std::vector<std::shared_ptr<juce::Component>> &widgets)
-{
+inline int layoutVerticalSection(std::vector<GroupLabel>& groupLabels, int left, int top,
+                                 int sectionWidth, int labelHeight, int labelYIncrement,
+                                 const juce::String& groupTitle,
+                                 std::vector<std::shared_ptr<juce::Component>>& widgets) {
   using Rect = juce::Rectangle<int>;
 
   if (groupTitle.isNotEmpty()) {
@@ -170,7 +141,7 @@ inline int layoutVerticalSection(
     top += labelYIncrement;
   }
 
-  for (auto &wd : widgets) {
+  for (auto& wd : widgets) {
     wd->setBounds(Rect{left, top, sectionWidth, labelHeight});
     top += labelYIncrement;
   }
@@ -178,20 +149,11 @@ inline int layoutVerticalSection(
   return top;
 }
 
-inline int layoutActionSection(
-  std::vector<GroupLabel> &groupLabels,
-  int left,
-  int top,
-  int sectionWidth,
-  int labelWidth,
-  int labelXIncrement,
-  int labelHeight,
-  int labelYIncrement,
-  juce::Component &undoButton,
-  juce::Component &redoButton,
-  juce::Component &randomizeButton,
-  juce::Component &presetManager)
-{
+inline int layoutActionSection(std::vector<GroupLabel>& groupLabels, int left, int top,
+                               int sectionWidth, int labelWidth, int labelXIncrement,
+                               int labelHeight, int labelYIncrement, juce::Component& undoButton,
+                               juce::Component& redoButton, juce::Component& randomizeButton,
+                               juce::Component& presetManager) {
   using Rect = juce::Rectangle<int>;
 
   groupLabels.emplace_back("Action", Rect{left, top, sectionWidth, labelHeight});

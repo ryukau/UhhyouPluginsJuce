@@ -8,54 +8,82 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 
 #include "../scaledparameter.hpp"
-#include "./numbereditor.hpp"
+#include "numbereditor.hpp"
 #include "style.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <functional>
 #include <limits>
 
 namespace Uhhyou {
 
-template<Style style = Style::common> class ButtonBase : public juce::Component {
+class ButtonAccessibilityHandler : public juce::AccessibilityHandler {
+public:
+  using StateModifier = std::function<juce::AccessibleState(juce::AccessibleState)>;
+  using TitleCallback = std::function<juce::String()>;
+
+  ButtonAccessibilityHandler(juce::Component& comp, juce::AccessibilityRole role,
+                             juce::AccessibilityActions actions,
+                             StateModifier stateModifier = nullptr,
+                             TitleCallback titleCallback = nullptr)
+      : juce::AccessibilityHandler(comp, role, std::move(actions)),
+        stateModifier(std::move(stateModifier)), titleCallback(std::move(titleCallback)) {}
+
+  juce::AccessibleState getCurrentState() const override {
+    auto state = juce::AccessibilityHandler::getCurrentState();
+    if (stateModifier) { state = stateModifier(state); }
+    return state;
+  }
+
+  juce::String getTitle() const override {
+    if (titleCallback) { return titleCallback(); }
+    return juce::AccessibilityHandler::getTitle();
+  }
+
+private:
+  StateModifier stateModifier;
+  TitleCallback titleCallback;
+};
+
+template<Style style = Style::common>
+class ButtonBase : public juce::Component, public juce::SettableTooltipClient {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ButtonBase)
 
 protected:
-  Palette &pal;
-  StatusBar &statusBar;
-  NumberEditor &numberEditor;
+  Palette& pal;
+  StatusBar& statusBar;
+  NumberEditor& numberEditor;
 
   float value{}; // Normalized in [0, 1].
 
   bool isMouseEntered = false;
   juce::Font font;
   juce::String label;
+  juce::String hint;
 
 public:
-  ButtonBase(
-    juce::AudioProcessorEditor &editor,
-    Palette &palette,
-    StatusBar &statusBar,
-    NumberEditor &numberEditor,
-    const juce::String &label)
-    : pal(palette)
-    , statusBar(statusBar)
-    , numberEditor(numberEditor)
-    , font(juce::FontOptions{})
-    , label(label)
-  {
+  ButtonBase(juce::AudioProcessorEditor& editor, Palette& palette, StatusBar& statusBar,
+             NumberEditor& numberEditor, const juce::String& label, const juce::String& hint)
+      : pal(palette), statusBar(statusBar), numberEditor(numberEditor), font(juce::FontOptions{}),
+        label(label), hint(hint) {
     editor.addAndMakeVisible(*this, 0);
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
     setWantsKeyboardFocus(true);
     setMouseClickGrabsKeyboardFocus(true);
+    setTitle(label);
   }
 
   virtual void resized() override { font = pal.getFont(pal.textSizeUi()); }
 
-  virtual void paint(juce::Graphics &ctx) override
-  {
+  std::unique_ptr<juce::AccessibilityHandler> createAccessibilityHandler() override {
+    return std::make_unique<ButtonAccessibilityHandler>(*this, juce::AccessibilityRole::button,
+                                                        juce::AccessibilityActions{});
+  }
+
+  virtual void paint(juce::Graphics& ctx) override {
     const float lw1 = pal.borderThin();
     const float lw2 = 2 * lw1;
     const float lwHalf = lw1 / 2;
@@ -85,20 +113,18 @@ public:
     // Text.
     ctx.setFont(font);
     ctx.setColour(pal.foreground());
-    ctx.drawText(
-      label, juce::Rectangle<float>(float(0), float(0), width, height),
-      juce::Justification::centred);
+    ctx.drawText(label, juce::Rectangle<float>(float(0), float(0), width, height),
+                 juce::Justification::centred);
   }
 
-  virtual void mouseEnter(const juce::MouseEvent &) override
-  {
+  virtual void mouseEnter(const juce::MouseEvent&) override {
     isMouseEntered = true;
     repaint();
   }
 
-  virtual void mouseExit(const juce::MouseEvent &) override
-  {
+  virtual void mouseExit(const juce::MouseEvent&) override {
     isMouseEntered = false;
+    statusBar.clear();
     repaint();
   }
 };
@@ -109,48 +135,51 @@ private:
 
   std::function<void(void)> onClick;
 
-public:
-  ActionButton(
-    juce::AudioProcessorEditor &editor,
-    Palette &palette,
-    StatusBar &statusBar,
-    NumberEditor &numberEditor,
-    const juce::String &label,
-    std::function<void(void)> onClick)
-    : ButtonBase<style>(editor, palette, statusBar, numberEditor, label), onClick(onClick)
-  {
+  void fireAction() {
+    this->value = 1;
+    this->repaint();
+    onClick();
+    juce::Timer::callAfterDelay(100, [this]() {
+      this->value = 0;
+      this->repaint();
+    });
   }
 
-  virtual ~ActionButton() override {}
+public:
+  ActionButton(juce::AudioProcessorEditor& editor, Palette& palette, StatusBar& statusBar,
+               NumberEditor& numberEditor, const juce::String& label, const juce::String& hint,
+               std::function<void(void)> onClick)
+      : ButtonBase<style>(editor, palette, statusBar, numberEditor, label, hint), onClick(onClick) {
+  }
 
-  virtual void mouseDown(const juce::MouseEvent &) override
-  {
+  std::unique_ptr<juce::AccessibilityHandler> createAccessibilityHandler() override {
+    juce::AccessibilityActions actions;
+    actions.addAction(juce::AccessibilityActionType::press, [&]() { fireAction(); });
+
+    return std::make_unique<ButtonAccessibilityHandler>(*this, juce::AccessibilityRole::button,
+                                                        std::move(actions));
+  }
+
+  void mouseEnter(const juce::MouseEvent& event) override {
+    this->ButtonBase<style>::mouseEnter(event);
+    this->statusBar.setText(this->label + (this->hint.isEmpty() ? "" : ". " + this->hint));
+  }
+
+  void mouseDown(const juce::MouseEvent&) override {
     this->value = 1;
     this->repaint();
   }
 
-  virtual void mouseUp(const juce::MouseEvent &) override
-  {
-    if (this->isMouseEntered) onClick();
+  void mouseUp(const juce::MouseEvent&) override {
+    if (this->isMouseEntered) { onClick(); }
     this->value = 0;
     this->repaint();
   }
 
-  virtual bool keyPressed(const juce::KeyPress &key) override
-  {
-    if (
-      key.isKeyCode(juce::KeyPress::returnKey) || key.isKeyCode(juce::KeyPress::spaceKey))
-    {
-      this->value = 1;
-      this->repaint();
-      onClick();
-      juce::Timer::callAfterDelay(
-        100,
-        [this]()
-        {
-          this->value = 0;
-          this->repaint();
-        });
+  bool keyPressed(const juce::KeyPress& key) override {
+    using KP = juce::KeyPress;
+    if (key.isKeyCode(KP::returnKey) || key.isKeyCode(KP::spaceKey)) {
+      fireAction();
       return true;
     }
     return false;
@@ -163,85 +192,106 @@ private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ToggleButton)
 
 protected:
-  juce::AudioProcessorEditor &editor;
-  const juce::RangedAudioParameter *const parameter;
+  juce::AudioProcessorEditor& editor;
+  const juce::RangedAudioParameter* const parameter;
 
-  Scale &scale;
+  Scale& scale;
   juce::ParameterAttachment attachment;
 
-  void toggleValue()
-  {
-    this->value = this->value >= float(1) ? float(0) : float(1);
-    attachment.setValueAsCompleteGesture(
-      this->value >= float(1) ? float(scale.getMax()) : float(scale.getMin()));
+  void showHostMenuNative(juce::Point<int> position) {
+    if (auto* hostContext = editor.getHostContext()) {
+      if (auto hostContextMenu = hostContext->getContextMenuForParameter(parameter)) {
+        hostContextMenu->showNativeMenu(position);
+      }
+    }
+  }
 
-    // update statusBar.
-    auto text = parameter->getName(256);
-    text += ": ";
-    text += juce::String(int(this->value) ? "ON" : "OFF");
-    text += " ";
-    text += parameter->getLabel();
-    this->statusBar.setText(text);
+  void showHostMenuJuce() {
+    if (auto* hostContext = editor.getHostContext()) {
+      if (auto hostContextMenu = hostContext->getContextMenuForParameter(parameter)) {
+        hostContextMenu->getEquivalentPopupMenu().showMenuAsync(
+          juce::PopupMenu::Options().withTargetComponent(this));
+      }
+    }
+  }
+
+  void updateStatusBar() {
+    this->statusBar.setText(std::format("{}: {} {}", parameter->getName(256).toRawUTF8(),
+                                        this->value >= float(0.5) ? "ON" : "OFF",
+                                        parameter->getLabel().toRawUTF8()));
+  }
+
+  void setInternalValue(float newValue) {
+    if (this->value == newValue) { return; }
+    this->value = newValue;
+    this->repaint();
+
+    if (this->isMouseEntered || this->hasKeyboardFocus(true)) { updateStatusBar(); }
+
+    if (auto* handler = this->getAccessibilityHandler()) {
+      handler->notifyAccessibilityEvent(juce::AccessibilityEvent::titleChanged);
+    }
+  }
+
+  void toggleValue() {
+    auto newValue = this->value >= float(1) ? float(0) : float(1);
+    setInternalValue(newValue);
+    attachment.setValueAsCompleteGesture(newValue >= float(1) ? float(scale.getMax())
+                                                              : float(scale.getMin()));
   }
 
 public:
-  ToggleButton(
-    juce::AudioProcessorEditor &editor,
-    Palette &palette,
-    juce::UndoManager *undoManager,
-    juce::RangedAudioParameter *parameter,
-    Scale &scale,
-    StatusBar &statusBar,
-    NumberEditor &numberEditor,
-    const juce::String &label)
-    : ButtonBase<style>(editor, palette, statusBar, numberEditor, label)
-    , editor(editor)
-    , parameter(parameter)
-    , scale(scale)
-    , attachment(
-        *parameter,
-        [&](float newRaw)
-        {
-          auto normalized = newRaw >= scale.getMax() ? float(1) : float(0);
-          if (this->value == normalized) return;
-          this->value = normalized;
-          this->repaint();
-        },
-        undoManager)
-  {
+  ToggleButton(juce::AudioProcessorEditor& editor, Palette& palette, juce::UndoManager* undoManager,
+               juce::RangedAudioParameter* parameter, Scale& scale, StatusBar& statusBar,
+               NumberEditor& numberEditor, const juce::String& label, const juce::String& hint)
+      : ButtonBase<style>(editor, palette, statusBar, numberEditor, label, hint), editor(editor),
+        parameter(parameter), scale(scale),
+        attachment(
+          *parameter,
+          [&](float newRaw) {
+            auto normalized = newRaw >= scale.getMax() ? float(1) : float(0);
+            setInternalValue(normalized);
+          },
+          undoManager) {
     attachment.sendInitialUpdate();
   }
 
-  virtual void mouseDown(const juce::MouseEvent &event) override
-  {
+  std::unique_ptr<juce::AccessibilityHandler> createAccessibilityHandler() override {
+    juce::AccessibilityActions actions;
+    actions.addAction(juce::AccessibilityActionType::toggle, [&]() { toggleValue(); });
+    actions.addAction(juce::AccessibilityActionType::showMenu, [&]() { showHostMenuJuce(); });
+
+    return std::make_unique<ButtonAccessibilityHandler>(
+      *this, juce::AccessibilityRole::toggleButton, std::move(actions),
+      [this](juce::AccessibleState state) {
+        state = state.withCheckable();
+        if (this->value >= float(1)) { state = state.withChecked(); }
+        return state;
+      },
+      [this]() { return this->label + (this->value >= 0.5f ? " On" : " Off"); });
+  }
+
+  void mouseEnter(const juce::MouseEvent& event) override {
+    this->ButtonBase<style>::mouseEnter(event);
+    updateStatusBar();
+  }
+
+  void mouseDown(const juce::MouseEvent& event) override {
     if (event.mods.isRightButtonDown()) {
-      auto hostContext = editor.getHostContext();
-      if (hostContext == nullptr) return;
-
-      auto hostContextMenu = hostContext->getContextMenuForParameter(parameter);
-      if (hostContextMenu == nullptr) return;
-
-      hostContextMenu->showNativeMenu(editor.getMouseXYRelative());
+      showHostMenuNative(editor.getMouseXYRelative());
       return;
     }
-
     toggleValue();
-    this->repaint();
   }
 
-  virtual void
-  mouseWheelMove(const juce::MouseEvent &, const juce::MouseWheelDetails &wheel) override
-  {
-    if (std::abs(wheel.deltaY) <= std::numeric_limits<float>::epsilon()) toggleValue();
-    this->repaint();
-  }
-
-  virtual bool keyPressed(const juce::KeyPress &key) override
-  {
+  bool keyPressed(const juce::KeyPress& key) override {
     using KP = juce::KeyPress;
     if (key.isKeyCode(KP::returnKey) || key.isKeyCode(KP::spaceKey)) {
       toggleValue();
-      this->repaint();
+      return true;
+    }
+    if (key.isKeyCode(KP::F10Key) && key.getModifiers().isShiftDown()) {
+      showHostMenuJuce();
       return true;
     }
     return false;
@@ -254,89 +304,101 @@ private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MomentaryButton)
 
 protected:
-  juce::AudioProcessorEditor &editor;
-  const juce::RangedAudioParameter *const parameter;
+  juce::AudioProcessorEditor& editor;
+  const juce::RangedAudioParameter* const parameter;
 
-  Scale &scale;
+  Scale& scale;
   juce::ParameterAttachment attachment;
 
-  void updateStatusBar()
-  {
-    auto text = parameter->getName(256);
-    text += ": ";
-    text += juce::String(int(this->value) ? "ON" : "OFF");
-    text += " ";
-    text += parameter->getLabel();
-    this->statusBar.setText(text);
+  void showHostMenuNative(juce::Point<int> position) {
+    if (auto* hostContext = editor.getHostContext()) {
+      if (auto hostContextMenu = hostContext->getContextMenuForParameter(parameter)) {
+        hostContextMenu->showNativeMenu(position);
+      }
+    }
   }
 
-  void setValue(bool isPressed)
-  {
-    if (isPressed) {
-      this->value = float(1);
-      attachment.setValueAsCompleteGesture(float(scale.getMax()));
-    } else {
-      this->value = float(0);
-      attachment.setValueAsCompleteGesture(float(scale.getMin()));
+  void showHostMenuJuce() {
+    if (auto* hostContext = editor.getHostContext()) {
+      if (auto hostContextMenu = hostContext->getContextMenuForParameter(parameter)) {
+        hostContextMenu->getEquivalentPopupMenu().showMenuAsync(
+          juce::PopupMenu::Options().withTargetComponent(this));
+      }
     }
-    updateStatusBar();
+  }
+
+  void updateStatusBar() {
+    this->statusBar.setText(std::format("{}: {} {}", parameter->getName(256).toRawUTF8(),
+                                        this->value >= float(0.5) ? "ON" : "OFF",
+                                        parameter->getLabel().toRawUTF8()));
+  }
+
+  void setInternalValue(float newValue) {
+    if (this->value == newValue) { return; }
+    this->value = newValue;
     this->repaint();
+
+    if (this->isMouseEntered || this->hasKeyboardFocus(true)) { updateStatusBar(); }
+  }
+
+  void setValue(bool isPressed) {
+    auto newValue = isPressed ? float(1) : float(0);
+    setInternalValue(newValue);
+    attachment.setValueAsCompleteGesture(isPressed ? float(scale.getMax()) : float(scale.getMin()));
   }
 
 public:
-  MomentaryButton(
-    juce::AudioProcessorEditor &editor,
-    Palette &palette,
-    juce::UndoManager *undoManager,
-    juce::RangedAudioParameter *parameter,
-    Scale &scale,
-    StatusBar &statusBar,
-    NumberEditor &numberEditor,
-    const juce::String &label)
-    : ButtonBase<style>(editor, palette, statusBar, numberEditor, label)
-    , editor(editor)
-    , parameter(parameter)
-    , scale(scale)
-    , attachment(
-        *parameter,
-        [&](float newRaw)
-        {
-          auto normalized = newRaw >= scale.getMax() ? float(1) : float(0);
-          if (this->value == normalized) return;
-          this->value = normalized;
-          this->repaint();
-        },
-        undoManager)
-  {
+  MomentaryButton(juce::AudioProcessorEditor& editor, Palette& palette,
+                  juce::UndoManager* undoManager, juce::RangedAudioParameter* parameter,
+                  Scale& scale, StatusBar& statusBar, NumberEditor& numberEditor,
+                  const juce::String& label, const juce::String& hint)
+      : ButtonBase<style>(editor, palette, statusBar, numberEditor, label, hint), editor(editor),
+        parameter(parameter), scale(scale),
+        attachment(
+          *parameter,
+          [&](float newRaw) {
+            auto normalized = newRaw >= scale.getMax() ? float(1) : float(0);
+            setInternalValue(normalized);
+          },
+          undoManager) {
     attachment.sendInitialUpdate();
   }
 
-  virtual void mouseDown(const juce::MouseEvent &event) override
-  {
+  std::unique_ptr<juce::AccessibilityHandler> createAccessibilityHandler() override {
+    juce::AccessibilityActions actions;
+    actions.addAction(juce::AccessibilityActionType::press, [&]() {
+      if (this->value < float(1)) { setValue(true); }
+      juce::Timer::callAfterDelay(100, [&]() {
+        if (this->value > float(0)) { setValue(false); }
+      });
+    });
+    actions.addAction(juce::AccessibilityActionType::showMenu, [&]() { showHostMenuJuce(); });
+
+    return std::make_unique<ButtonAccessibilityHandler>(*this, juce::AccessibilityRole::button,
+                                                        std::move(actions));
+  }
+
+  void mouseEnter(const juce::MouseEvent& event) override {
+    this->ButtonBase<style>::mouseEnter(event);
+    updateStatusBar();
+  }
+
+  void mouseDown(const juce::MouseEvent& event) override {
     if (event.mods.isRightButtonDown()) {
-      auto hostContext = editor.getHostContext();
-      if (hostContext == nullptr) return;
-
-      auto hostContextMenu = hostContext->getContextMenuForParameter(parameter);
-      if (hostContextMenu == nullptr) return;
-
-      hostContextMenu->showNativeMenu(editor.getMouseXYRelative());
+      showHostMenuNative(editor.getMouseXYRelative());
       return;
     }
-
     setValue(true);
   }
 
-  virtual void mouseUp(const juce::MouseEvent &) override
-  {
-    if (this->value) setValue(false);
+  void mouseUp(const juce::MouseEvent&) override {
+    if (this->value) { setValue(false); }
   }
 
-  bool keyStateChanged(bool) override
-  {
+  bool keyStateChanged(bool) override {
     using KP = juce::KeyPress;
     if (KP::isKeyCurrentlyDown(KP::returnKey) || KP::isKeyCurrentlyDown(KP::spaceKey)) {
-      if (this->value < float(1)) setValue(true);
+      if (this->value < float(1)) { setValue(true); }
       return true;
     }
     if (this->value > float(0)) {
@@ -346,8 +408,16 @@ public:
     return false;
   }
 
-  void focusLost(juce::Component::FocusChangeType cause) override
-  {
+  bool keyPressed(const juce::KeyPress& key) override {
+    using KP = juce::KeyPress;
+    if (key.isKeyCode(KP::F10Key) && key.getModifiers().isShiftDown()) {
+      showHostMenuJuce();
+      return true;
+    }
+    return false;
+  }
+
+  void focusLost(juce::Component::FocusChangeType cause) override {
     using FCT = juce::Component::FocusChangeType;
     if (cause == FCT::focusChangedByTabKey || cause == FCT::focusChangedByMouseClick) {
       setValue(false);

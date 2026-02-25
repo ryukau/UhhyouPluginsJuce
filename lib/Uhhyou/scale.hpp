@@ -15,8 +15,7 @@ namespace Uhhyou {
 
 namespace ScaleTools {
 
-template<typename T> inline T dbToAmp(T dB)
-{
+template<typename T> inline T dbToAmp(T dB) {
   return std::exp(dB * static_cast<T>(0.1151292546497022842));
 }
 
@@ -34,17 +33,13 @@ private:
   int32_t diff{};
 
 public:
-  IntScale(int32_t min, int32_t max) : min(min), max(max), diff(max - min)
-  {
+  IntScale(int32_t min, int32_t max) : min(min), max(max), diff(max - min) {
     assert(min < max);
     assert(-maxFloat32 < min && min < maxFloat32);
     assert(-maxFloat32 < max && max < maxFloat32);
   }
 
-  int32_t map(T normalized) const
-  {
-    return std::clamp(int32_t(normalized * diff) + min, min, max);
-  }
+  int32_t map(T normalized) const { return std::clamp(int32_t(normalized * diff) + min, min, max); }
 
   int32_t reverseMap(T input) const { return map(T(1) - input); }
   T invmap(T raw) const { return std::clamp((raw - T(min)) / T(diff), T(0), T(1)); }
@@ -84,23 +79,20 @@ private:
 public:
   LinearScale(T min, T max) { set(min, max); }
 
-  void set(T min, T max)
-  {
+  void set(T min, T max) {
     min_ = min;
     max_ = max;
     scale_ = (max - min);
   }
 
-  T map(T input) const
-  {
+  T map(T input) const {
     T value = input * scale_ + min_;
     return std::clamp(value, min_, max_);
   }
 
   T reverseMap(T input) const { return map(T(1) - input); }
 
-  T invmap(T input) const
-  {
+  T invmap(T input) const {
     T value = (input - min_) / scale_;
     return std::clamp(value, T(0), T(1));
   }
@@ -124,8 +116,7 @@ private:
 public:
   SPolyScale(T min, T max, T power = T(2.0)) { set(min, max, power); }
 
-  void set(T min, T max, T power)
-  {
+  void set(T min, T max, T power) {
     this->min = min;
     this->max = max;
     this->power = power;
@@ -133,26 +124,22 @@ public:
     scale = (max - min);
   }
 
-  T map(T input) const
-  {
-    if (input < T(0.0)) return min;
-    if (input > T(1.0)) return max;
-    T value = input <= T(0.5)
-      ? T(0.5) * std::pow(T(2.0) * input, power)
-      : T(1.0) - T(0.5) * std::pow(T(2.0) - T(2.0) * input, power);
+  T map(T input) const {
+    if (input < T(0.0)) { return min; }
+    if (input > T(1.0)) { return max; }
+    T value = input <= T(0.5) ? T(0.5) * std::pow(T(2.0) * input, power)
+                              : T(1.0) - T(0.5) * std::pow(T(2.0) - T(2.0) * input, power);
     return value * scale + min;
   }
 
   T reverseMap(T input) const { return map(T(1.0) - input); }
 
-  T invmap(T input) const
-  {
-    if (input < min) return T(0.0);
-    if (input > max) return T(1.0);
+  T invmap(T input) const {
+    if (input < min) { return T(0.0); }
+    if (input > max) { return T(1.0); }
     T value = (input - min) / scale;
-    return value <= T(0.5)
-      ? T(0.5) * std::pow(T(2.0) * value, powerInv)
-      : T(1.0) - T(0.5) * std::pow(T(2.0) - T(2.0) * value, powerInv);
+    return value <= T(0.5) ? T(0.5) * std::pow(T(2.0) * value, powerInv)
+                           : T(1.0) - T(0.5) * std::pow(T(2.0) - T(2.0) * value, powerInv);
   }
 
   T toDisplay(T normalized) { return map(normalized); }
@@ -176,8 +163,7 @@ private:
 public:
   EllipticScale(T min, T max, T power = T(2.0)) { set(min, max, power); }
 
-  void set(T min, T max, T power)
-  {
+  void set(T min, T max, T power) {
     this->min = min;
     this->max = max;
     this->power = power;
@@ -185,26 +171,22 @@ public:
     scale = (max - min);
   }
 
-  T map(T value) const
-  {
-    if (value < T(0.0)) return min;
-    if (value > T(1.0)) return max;
-    value = value <= T(0.5)
-      ? T(0.5) * (T(1.0) - std::pow(std::cos(value * pi), power))
-      : T(0.5) + T(0.5) * std::pow(std::cos((T(1.0) - value) * pi), power);
+  T map(T value) const {
+    if (value < T(0.0)) { return min; }
+    if (value > T(1.0)) { return max; }
+    value = value <= T(0.5) ? T(0.5) * (T(1.0) - std::pow(std::cos(value * pi), power))
+                            : T(0.5) + T(0.5) * std::pow(std::cos((T(1.0) - value) * pi), power);
     return value * scale + min;
   }
 
   T reverseMap(T input) const { return map(T(T(1.0)) - input); }
 
-  T invmap(T value) const
-  {
-    if (value < min) return T(0.0);
-    if (value > max) return T(1.0);
+  T invmap(T value) const {
+    if (value < min) { return T(0.0); }
+    if (value > max) { return T(1.0); }
     value = (value - min) / scale;
-    return value <= T(0.5)
-      ? std::acos(std::pow(T(1.0) - value * T(2.0), powerInv)) / pi
-      : T(1.0) - std::acos(std::pow(T(2.0) * value - T(1.0), powerInv)) / pi;
+    return value <= T(0.5) ? std::acos(std::pow(T(1.0) - value * T(2.0), powerInv)) / pi
+                           : T(1.0) - std::acos(std::pow(T(2.0) * value - T(1.0), powerInv)) / pi;
   }
 
   T toDisplay(T normalized) { return map(normalized); }
@@ -225,13 +207,11 @@ private:
   T max{};
 
 public:
-  LogScale(T min, T max, T inValue = T(0.5), T outValue = T(0.1))
-  {
+  LogScale(T min, T max, T inValue = T(0.5), T outValue = T(0.1)) {
     set(min, max, inValue, outValue);
   }
 
-  void set(T min, T max, T inValue, T outValue)
-  {
+  void set(T min, T max, T inValue, T outValue) {
     this->min = min;
     this->max = max;
     scale = max - min;
@@ -239,20 +219,18 @@ public:
     expoInv = T(1.0) / expo;
   }
 
-  T map(T input) const
-  {
-    if (input < T(0.0)) return min;
-    if (input > T(1.0)) return max;
+  T map(T input) const {
+    if (input < T(0.0)) { return min; }
+    if (input > T(1.0)) { return max; }
     T value = std::pow(input, expo) * scale + min;
     return value;
   }
 
   T reverseMap(T input) const { return map(T(1.0) - input); }
 
-  T invmap(T input) const
-  {
-    if (input < min) return T(0.0);
-    if (input > max) return T(1.0);
+  T invmap(T input) const {
+    if (input < min) { return T(0.0); }
+    if (input > max) { return T(1.0); }
     T value = std::pow((input - min) / scale, expoInv);
     return value;
   }
@@ -277,13 +255,9 @@ private:
   T scaleNote{};
 
 public:
-  SemitoneScale(T minNote, T maxNote, bool minToZero)
-  {
-    set(minNote, maxNote, minToZero);
-  }
+  SemitoneScale(T minNote, T maxNote, bool minToZero) { set(minNote, maxNote, minToZero); }
 
-  void set(T minNote, T maxNote, bool minToZero)
-  {
+  void set(T minNote, T maxNote, bool minToZero) {
     this->minToZero = minToZero;
     this->minNote = minNote;
     this->maxNote = maxNote;
@@ -295,22 +269,19 @@ public:
   T map(T normalized) const { return noteToFreq(toDisplay(normalized)); }
   T reverseMap(T input) const { return map(T(1) - input); }
 
-  T invmap(T hz) const
-  {
-    if (hz <= T(0)) return T(0);
+  T invmap(T hz) const {
+    if (hz <= T(0)) { return T(0); }
     T normalized = (freqToNote(hz) - minNote) / scaleNote;
     return std::clamp(normalized, T(0), T(1));
   }
 
-  T toDisplay(T normalized)
-  {
+  T toDisplay(T normalized) {
     // normalized to MIDI note number conversion.
-    if (minToZero && normalized <= T(0)) return T(0);
+    if (minToZero && normalized <= T(0)) { return T(0); }
     return std::clamp(normalized * scaleNote + minNote, minNote, maxNote);
   }
 
-  T fromDisplay(T display)
-  {
+  T fromDisplay(T display) {
     T normalized = (display - minNote) / scaleNote;
     return std::clamp(normalized, T(0), T(1));
   }
@@ -332,8 +303,7 @@ private:
 public:
   DecibelScale(T minDB_, T maxDB_, bool minToZero_) { set(minDB_, maxDB_, minToZero_); }
 
-  void set(T minDB_, T maxDB_, bool minToZero_)
-  {
+  void set(T minDB_, T maxDB_, bool minToZero_) {
     minToZero = minToZero_;
     minDB = minDB_;
     maxDB = maxDB_;
@@ -345,23 +315,20 @@ public:
   T map(T normalized) const { return ScaleTools::dbToAmp(toDisplay(normalized)); }
   T reverseMap(T input) const { return map(T(1) - input); }
 
-  T invmap(T amplitude) const
-  {
-    if (amplitude <= T(0)) return T(0);
+  T invmap(T amplitude) const {
+    if (amplitude <= T(0)) { return T(0); }
     T normalized = (ScaleTools::ampToDB(amplitude) - minDB) / scaleDB;
     return std::clamp(normalized, T(0), T(1));
   }
 
-  T invmapDB(T dB) const
-  {
+  T invmapDB(T dB) const {
     T normalized = (dB - minDB) / scaleDB;
     return std::clamp(normalized, T(0), T(1));
   }
 
-  T toDisplay(T normalized) const
-  {
+  T toDisplay(T normalized) const {
     // normalized to decibel conversion.
-    if (minToZero && normalized <= T(0)) return -std::numeric_limits<T>::infinity();
+    if (minToZero && normalized <= T(0)) { return -std::numeric_limits<T>::infinity(); }
     return std::clamp(normalized * scaleDB + minDB, minDB, maxDB);
   }
 
@@ -388,13 +355,11 @@ private:
 
 public:
   NegativeDecibelScale(T minDB, T maxDB, T offset, bool minToZero)
-    : scale(minDB, maxDB, minToZero)
-  {
+      : scale(minDB, maxDB, minToZero) {
     this->offset = offset;
   }
 
-  void set(T minDB, T maxDB, T offset, bool minToZero)
-  {
+  void set(T minDB, T maxDB, T offset, bool minToZero) {
     this->offset = offset;
     scale.set(minDB, maxDB, minToZero);
   }
@@ -430,12 +395,9 @@ public:
   static constexpr bool isBipolarDecibel = true;
 
   template<typename... Args>
-  BipolarDecibelBase(Args &&...args) : scale(std::forward<Args>(args)...)
-  {
-  }
+  BipolarDecibelBase(Args&&... args) : scale(std::forward<Args>(args)...) {}
 
-  T map(T normalized) const
-  {
+  T map(T normalized) const {
     if (normalized >= upperRangeStart) {
       return scale.map((normalized - upperRangeStart) / (T(1) - upperRangeStart));
     } else if (normalized <= lowerRangeEnd) {
@@ -446,8 +408,7 @@ public:
 
   T reverseMap(T input) const { return map(T(1) - input); }
 
-  T invmap(T amplitude) const
-  {
+  T invmap(T amplitude) const {
     if (amplitude > 0) {
       return scale.invmap(amplitude) * (T(1) - upperRangeStart) + upperRangeStart;
 
@@ -457,14 +418,12 @@ public:
     return center;
   }
 
-  T invmapDB(T dB, T sign) const
-  {
-    if (sign == 0 || dB < scale.getMinDB()) return center;
+  T invmapDB(T dB, T sign) const {
+    if (sign == 0 || dB < scale.getMinDB()) { return center; }
     return invmap(std::copysign(ScaleTools::dbToAmp(dB), sign));
   }
 
-  T toDisplay(T normalized) const
-  {
+  T toDisplay(T normalized) const {
     if (normalized >= upperRangeStart) {
       return scale.toDisplay((normalized - upperRangeStart) / (T(1) - upperRangeStart));
     } else if (normalized <= lowerRangeEnd) {
@@ -473,8 +432,7 @@ public:
     return 0;
   }
 
-  T fromDisplay(T decibel) const
-  {
+  T fromDisplay(T decibel) const {
     return invmapDB(std::abs(decibel), std::copysign(T(1), decibel));
   }
 
@@ -489,13 +447,10 @@ public:
 // - Same decibel range is used for positive and negative values.
 //
 // This scale is added for FM or PM amount.
-template<typename T>
-class BipolarDecibelScale : public BipolarDecibelBase<T, DecibelScale<T>> {
+template<typename T> class BipolarDecibelScale : public BipolarDecibelBase<T, DecibelScale<T>> {
 public:
   BipolarDecibelScale(T minDB, T maxDB)
-    : BipolarDecibelBase<T, DecibelScale<T>>(minDB, maxDB, false)
-  {
-  }
+      : BipolarDecibelBase<T, DecibelScale<T>>(minDB, maxDB, false) {}
 
   void set(T minDB, T maxDB) { this->scale.set(minDB, maxDB, false); }
 };
@@ -509,13 +464,10 @@ public:
 // Added to use for feedback or resonance. Increasing normalized value makes the raw value
 // to be close to `offset`.
 template<typename T>
-class BipolarNegativeDecibelScale
-  : public BipolarDecibelBase<T, NegativeDecibelScale<T>> {
+class BipolarNegativeDecibelScale : public BipolarDecibelBase<T, NegativeDecibelScale<T>> {
 public:
   BipolarNegativeDecibelScale(T minDB, T maxDB)
-    : BipolarDecibelBase<T, NegativeDecibelScale<T>>(minDB, maxDB, T(1), false)
-  {
-  }
+      : BipolarDecibelBase<T, NegativeDecibelScale<T>>(minDB, maxDB, T(1), false) {}
 
   void set(T minDB, T maxDB) { this->scale.set(minDB, maxDB, T(1), false); }
 };

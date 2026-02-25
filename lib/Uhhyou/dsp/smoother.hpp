@@ -12,20 +12,17 @@
 namespace Uhhyou {
 
 // cutoffNormalized = (cutoff in Hz) / (sampling rate). The value range is [0.0, 0.5).
-template<typename T> inline T cutoffToEmaAlpha(T cutoffNormalized)
-{
+template<typename T> inline T cutoffToEmaAlpha(T cutoffNormalized) {
   const auto sn = std::sin(std::numbers::pi_v<T> * cutoffNormalized);
   return T(2) * sn / (std::sqrt(sn * sn + T(1)) + sn);
 }
 
-template<typename T> inline T cutoffToEmaAlpha(T sampleRate, T cutoffHz)
-{
+template<typename T> inline T cutoffToEmaAlpha(T sampleRate, T cutoffHz) {
   return cutoffToEmaAlpha(cutoffHz / sampleRate);
 }
 
-template<typename T> inline T secondToEmaAlpha(T sampleRate, T second)
-{
-  if (second < std::numeric_limits<T>::epsilon()) return T(1);
+template<typename T> inline T secondToEmaAlpha(T sampleRate, T second) {
+  if (second < std::numeric_limits<T>::epsilon()) { return T(1); }
   return cutoffToEmaAlpha(T(1) / (second * sampleRate));
 }
 
@@ -35,8 +32,7 @@ public:
   Sample kp = Sample(1); // In [0, 1].
   Sample value = 0;
 
-  void setCutoff(Sample sampleRate, Sample cutoffHz)
-  {
+  void setCutoff(Sample sampleRate, Sample cutoffHz) {
     kp = Sample(cutoffToEmaAlpha<double>(double(sampleRate), double(cutoffHz)));
   }
 
@@ -52,8 +48,7 @@ private:
   Sample kp_{0};
 
 public:
-  void setTime(Sample sampleRate, Sample seconds)
-  {
+  void setTime(Sample sampleRate, Sample seconds) {
     timeInSamples_ = seconds * sampleRate;
     kp_ = secondToEmaAlpha(sampleRate, seconds);
   }
@@ -64,18 +59,17 @@ public:
 
 template<typename Sample> class ExpSmoother {
 private:
-  const SmootherParameter<Sample> &param_;
+  const SmootherParameter<Sample>& param_;
   Sample value_ = 0;
   Sample target_ = 0;
 
 public:
-  explicit ExpSmoother(const SmootherParameter<Sample> &param) : param_(param) {}
+  explicit ExpSmoother(const SmootherParameter<Sample>& param) : param_(param) {}
 
   inline Sample value() { return value_; }
   inline Sample target() { return target_; }
 
-  void reset(Sample value = 0)
-  {
+  void reset(Sample value = 0) {
     value_ = value;
     target_ = value;
   }
@@ -92,8 +86,7 @@ private:
 public:
   inline Sample value() { return value_; }
 
-  void reset(Sample value = 0)
-  {
+  void reset(Sample value = 0) {
     value_ = value;
     target_ = value;
   }
@@ -104,23 +97,21 @@ public:
 
 template<typename Sample, size_t length> class ParallelExpSmoother {
 private:
-  const SmootherParameter<Sample> &param_;
+  const SmootherParameter<Sample>& param_;
   alignas(32) std::array<Sample, length> value_{};
   alignas(32) std::array<Sample, length> target_{};
 
 public:
-  explicit ParallelExpSmoother(const SmootherParameter<Sample> &param) : param_(param) {}
+  explicit ParallelExpSmoother(const SmootherParameter<Sample>& param) : param_(param) {}
 
   inline Sample operator[](size_t index) const { return value_[index]; }
 
-  void reset(Sample value = 0)
-  {
+  void reset(Sample value = 0) {
     value_.fill(value);
     target_.fill(value);
   }
 
-  void resetAt(size_t index, Sample value = 0)
-  {
+  void resetAt(size_t index, Sample value = 0) {
     value_[index] = value;
     target_[index] = value;
   }
@@ -128,35 +119,30 @@ public:
   void push(Sample target) { target_.fill(target); }
   void pushAt(size_t index, Sample target) { target_[index] = target; }
 
-  void process()
-  {
-    for (size_t i = 0; i < length; ++i) {
-      value_[i] += param_.kp() * (target_[i] - value_[i]);
-    }
+  void process() {
+    for (size_t i = 0; i < length; ++i) { value_[i] += param_.kp() * (target_[i] - value_[i]); }
   }
 };
 
 template<typename Sample> class RotaryExpSmoother {
 private:
-  const SmootherParameter<Sample> &param_;
+  const SmootherParameter<Sample>& param_;
   Sample value_{0};
   Sample target_{0};
 
 public:
-  explicit RotaryExpSmoother(const SmootherParameter<Sample> &param) : param_(param) {}
+  explicit RotaryExpSmoother(const SmootherParameter<Sample>& param) : param_(param) {}
 
   inline Sample value() const { return value_; }
 
-  void reset(Sample value = 0)
-  {
+  void reset(Sample value = 0) {
     value_ = value;
     target_ = value;
   }
 
   void push(Sample target) { target_ = target; }
 
-  Sample process()
-  {
+  Sample process() {
     value_ += param_.kp() * std::remainder(target_ - value_, Sample(1));
     value_ -= std::floor(value_);
     return value_;
@@ -171,22 +157,19 @@ private:
 public:
   inline Sample value() { return value_; }
 
-  void reset(Sample value = 0)
-  {
+  void reset(Sample value = 0) {
     value_ = value;
     target_ = value;
   }
 
   void push(Sample target) { target_ = target; }
 
-  Sample process(Sample rate)
-  {
+  Sample process(Sample rate) {
     const Sample absRate = std::abs(rate);
     return value_ += std::clamp(target_ - value_, -absRate, absRate);
   }
 
-  Sample process(Sample value, Sample rate)
-  {
+  Sample process(Sample value, Sample rate) {
     push(value);
     return process(rate);
   }
@@ -200,16 +183,14 @@ private:
 public:
   inline Sample operator[](size_t index) const { return value_[index]; }
 
-  void resetAt(size_t index, Sample value = 0)
-  {
+  void resetAt(size_t index, Sample value = 0) {
     value_[index] = value;
     target_[index] = value;
   }
 
   void pushAt(size_t index, Sample value) { target_[index] = value; }
 
-  void process(Sample rate)
-  {
+  void process(Sample rate) {
     const Sample absRate = std::abs(rate);
     for (size_t i = 0; i < length; ++i) {
       const Sample diff = target_[i] - value_[i];

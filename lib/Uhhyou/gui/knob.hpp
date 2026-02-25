@@ -14,24 +14,72 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <limits>
 #include <numbers>
 
 namespace Uhhyou {
 
 enum class KnobType { clamped, rotary };
 
-template<typename Scale, KnobType knobType> class KnobBase : public juce::Component {
+template<typename Scale, KnobType knobType>
+class KnobBase : public juce::Component, public juce::SettableTooltipClient {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KnobBase)
 
 protected:
-  juce::AudioProcessorEditor &editor;
-  const juce::RangedAudioParameter *const parameter;
+  class KnobValueInterface : public juce::AccessibilityValueInterface {
+  public:
+    explicit KnobValueInterface(KnobBase& knobToWrap) : knob(knobToWrap) {}
 
-  Scale &scale;
-  Palette &pal;
-  StatusBar &statusBar;
-  NumberEditor &numberEditor;
+    bool isReadOnly() const override { return false; }
+
+    double getCurrentValue() const override { return double(knob.scale.map(knob.value)); }
+
+    void setValue(double newValue) override {
+      knob.attachment.setValueAsCompleteGesture(float(newValue));
+    }
+
+    juce::String getCurrentValueAsString() const override {
+      return knob.parameter->getText(knob.value, std::numeric_limits<float>::digits10 + 1);
+    }
+
+    void setValueAsString(const juce::String& newValue) override {
+      auto normalized = knob.parameter->getValueForText(newValue);
+      knob.attachment.setValueAsCompleteGesture(float(knob.scale.map(normalized)));
+    }
+
+    AccessibleValueRange getRange() const override {
+      return {{double(knob.scale.getMin()), double(knob.scale.getMax())}, 0.0};
+    }
+
+  private:
+    KnobBase& knob;
+  };
+
+  class KnobAccessibilityHandler : public juce::AccessibilityHandler {
+  public:
+    explicit KnobAccessibilityHandler(KnobBase& knobToWrap, juce::AccessibilityActions actions)
+        : juce::AccessibilityHandler(knobToWrap, juce::AccessibilityRole::slider,
+                                     std::move(actions),
+                                     Interfaces{std::make_unique<KnobValueInterface>(knobToWrap)}),
+          knob(knobToWrap) {}
+
+    juce::String getTitle() const override {
+      if (knob.parameter != nullptr) { return knob.parameter->getName(256); }
+      return juce::AccessibilityHandler::getTitle();
+    }
+
+  private:
+    KnobBase& knob;
+  };
+
+  juce::AudioProcessorEditor& editor;
+  const juce::RangedAudioParameter* const parameter;
+
+  Scale& scale;
+  Palette& pal;
+  StatusBar& statusBar;
+  NumberEditor& numberEditor;
   juce::ParameterAttachment attachment;
 
   float value{}; // Normalized in [0, 1].
@@ -49,8 +97,35 @@ protected:
   juce::PathStrokeType arcStrokeType;
   juce::PathStrokeType handStrokeType;
 
-  juce::Point<float> mapValueToHand(float normalized, float length)
-  {
+  void showHostMenuNative(juce::Point<int> position) {
+    if (auto* hostContext = editor.getHostContext()) {
+      if (auto hostContextMenu = hostContext->getContextMenuForParameter(parameter)) {
+        hostContextMenu->showNativeMenu(position);
+      }
+    }
+  }
+
+  void showHostMenuJuce() {
+    if (auto* hostContext = editor.getHostContext()) {
+      if (auto hostContextMenu = hostContext->getContextMenuForParameter(parameter)) {
+        hostContextMenu->getEquivalentPopupMenu().showMenuAsync(
+          juce::PopupMenu::Options().withTargetComponent(this));
+      }
+    }
+  }
+
+  // Centralized method to update value and notify accessibility.
+  void setInternalValue(float newValue) {
+    if (value == newValue) { return; }
+    value = newValue;
+    repaint();
+
+    if (auto* handler = this->getAccessibilityHandler()) {
+      handler->notifyAccessibilityEvent(juce::AccessibilityEvent::valueChanged);
+    }
+  }
+
+  juce::Point<float> mapValueToHand(float normalized, float length) {
     constexpr auto pi = std::numbers::pi_v<float>;
     auto radian = knobType == KnobType::rotary
       ? pi * 2 * normalized
@@ -58,50 +133,45 @@ protected:
     return {-std::sin(radian) * length, std::cos(radian) * length};
   }
 
-  void invokeTextEditor()
-  {
+  void invokeTextEditor() {
     numberEditor.invoke(
       *this, juce::Rectangle<int>{0, 0, getWidth(), getHeight()},
       this->parameter->getText(this->value, std::numeric_limits<float>::digits10 + 1),
-      [&](juce::String text)
-      {
-        const auto value = parameter->getValueForText(text);
-        attachment.setValueAsCompleteGesture(float(this->scale.map(value)));
+      [&](juce::String text) {
+        const auto val = parameter->getValueForText(text);
+        attachment.setValueAsCompleteGesture(float(this->scale.map(val)));
       });
   }
 
-  void cycleUpValue()
-  {
+  void cycleUpValue() {
     if (value >= float(1)) {
-      value = float(0);
+      setInternalValue(float(0));
       return;
     }
     auto it = std::ranges::upper_bound(snaps, value);
-    value = (it != snaps.end()) ? *it : float(1);
+    setInternalValue((it != snaps.end()) ? *it : float(1));
   }
 
-  void cycleDownValue()
-  {
+  void cycleDownValue() {
     if (value <= 0) {
-      value = float(1);
+      setInternalValue(float(1));
       return;
     }
     auto it = std::ranges::lower_bound(snaps, value);
-    value = (it != snaps.begin()) ? *std::prev(it) : float(0);
+    setInternalValue((it != snaps.begin()) ? *std::prev(it) : float(0));
   }
 
-  void increaseValue(float delta)
-  {
-    value += delta;
-    value = knobType == KnobType::rotary ? (value - std::floor(value))
-                                         : std::clamp(value, float(0), float(1));
+  void increaseValue(float delta) {
+    float newValue = value + delta;
+    newValue = knobType == KnobType::rotary ? (newValue - std::floor(newValue))
+                                            : std::clamp(newValue, float(0), float(1));
+    setInternalValue(newValue);
   }
 
-  void increaseValueWithSnap(
-    const juce::Point<float> &position, float deltaPixel, float deltaNormalized)
-  {
+  void increaseValueWithSnap(const juce::Point<float>& position, float deltaPixel,
+                             float deltaNormalized) {
     if (isSnapping) {
-      if (std::abs(deltaPixel) <= snapDistancePixel) return;
+      if (std::abs(deltaPixel) <= snapDistancePixel) { return; }
       isSnapping = false;
       anchor = position;
       return;
@@ -113,7 +183,7 @@ protected:
       auto it = std::upper_bound(snaps.begin(), snaps.end(), value);
       if (it != snaps.end()) {
         if (value + deltaNormalized >= *it) {
-          value = (knobType == KnobType::rotary && *it == float(1)) ? float(0) : *it;
+          setInternalValue((knobType == KnobType::rotary && *it == float(1)) ? float(0) : *it);
           isSnapping = true;
           return;
         }
@@ -123,7 +193,7 @@ protected:
       if (it != snaps.begin()) {
         auto prev_it = std::prev(it);
         if (value + deltaNormalized <= *prev_it) {
-          value = *prev_it;
+          setInternalValue(*prev_it);
           isSnapping = true;
           return;
         }
@@ -139,40 +209,22 @@ public:
   float lowSensitivity = float(sensitivity / 5);
   float wheelSensitivity = float(sensitivity / 10);
 
-  KnobBase(
-    juce::AudioProcessorEditor &editor,
-    Palette &palette,
-    juce::UndoManager *undoManager,
-    juce::RangedAudioParameter *parameter,
-    Scale &scale,
-    StatusBar &statusBar,
-    NumberEditor &numberEditor)
-    : editor(editor)
-    , parameter(parameter)
-    , scale(scale)
-    , pal(palette)
-    , statusBar(statusBar)
-    , numberEditor(numberEditor)
-    , attachment(
-        *parameter,
-        [&](float newRaw)
-        {
-          auto normalized = scale.invmap(newRaw);
-          if (value == normalized) return;
-          value = normalized;
-          repaint();
-        },
-        undoManager)
-    , defaultValue(parameter->getDefaultValue())
-    , arcStrokeType(
-        palette.borderThick(),
-        juce::PathStrokeType::JointStyle::curved,
-        juce::PathStrokeType::EndCapStyle::rounded)
-    , handStrokeType(
-        palette.borderThick() / 4,
-        juce::PathStrokeType::JointStyle::curved,
-        juce::PathStrokeType::EndCapStyle::rounded)
-  {
+  KnobBase(juce::AudioProcessorEditor& editor, Palette& palette, juce::UndoManager* undoManager,
+           juce::RangedAudioParameter* parameter, Scale& scale, StatusBar& statusBar,
+           NumberEditor& numberEditor)
+      : editor(editor), parameter(parameter), scale(scale), pal(palette), statusBar(statusBar),
+        numberEditor(numberEditor), attachment(
+                                      *parameter,
+                                      [&](float newRaw) {
+                                        auto normalized = scale.invmap(newRaw);
+                                        setInternalValue(normalized);
+                                      },
+                                      undoManager),
+        defaultValue(parameter->getDefaultValue()),
+        arcStrokeType(palette.borderThick(), juce::PathStrokeType::JointStyle::curved,
+                      juce::PathStrokeType::EndCapStyle::rounded),
+        handStrokeType(palette.borderThick() / 4, juce::PathStrokeType::JointStyle::curved,
+                       juce::PathStrokeType::EndCapStyle::rounded) {
     editor.addAndMakeVisible(*this, 0);
     attachment.sendInitialUpdate();
 
@@ -183,49 +235,44 @@ public:
 
   virtual ~KnobBase() override {}
 
-  void setSnaps(const std::vector<float> &snaps_)
-  {
+  std::unique_ptr<juce::AccessibilityHandler> createAccessibilityHandler() override {
+    juce::AccessibilityActions actions;
+    actions.addAction(juce::AccessibilityActionType::showMenu, [this]() { showHostMenuJuce(); });
+    return std::make_unique<KnobAccessibilityHandler>(*this, std::move(actions));
+  }
+
+  void setSnaps(const std::vector<float>& snaps_) {
     snaps = snaps_;
-    if (snaps.empty()) return;
+    if (snaps.empty()) { return; }
     std::sort(snaps.begin(), snaps.end());
 
     if constexpr (knobType == KnobType::rotary) {
-      if (snaps[0] == float(0)) snaps.push_back(float(1));
+      if (snaps[0] == float(0)) { snaps.push_back(float(1)); }
     }
   }
 
   void setSnapDistance(float pixels) { snapDistancePixel = pixels; }
 
-  virtual void resized() override
-  {
+  virtual void resized() override {
     arcStrokeType.setStrokeThickness(pal.borderThick());
     handStrokeType.setStrokeThickness(pal.borderThick() / 4);
   }
 
-  virtual void mouseMove(const juce::MouseEvent &) override {}
-
-  virtual void mouseEnter(const juce::MouseEvent &) override
-  {
+  virtual void mouseEnter(const juce::MouseEvent&) override {
     isMouseEntered = true;
+    statusBar.update(parameter);
     repaint();
   }
 
-  virtual void mouseExit(const juce::MouseEvent &) override
-  {
+  virtual void mouseExit(const juce::MouseEvent&) override {
     isMouseEntered = false;
+    statusBar.clear();
     repaint();
   }
 
-  virtual void mouseDown(const juce::MouseEvent &event) override
-  {
+  virtual void mouseDown(const juce::MouseEvent& event) override {
     if (event.mods.isRightButtonDown()) {
-      auto hostContext = editor.getHostContext();
-      if (hostContext == nullptr) return;
-
-      auto hostContextMenu = hostContext->getContextMenuForParameter(parameter);
-      if (hostContextMenu == nullptr) return;
-
-      hostContextMenu->showNativeMenu(editor.getMouseXYRelative());
+      showHostMenuNative(editor.getMouseXYRelative());
       return;
     }
 
@@ -233,7 +280,7 @@ public:
       const auto oldValue = value;
 
       if (event.mods.isShiftDown()) {
-        value = this->scale.fromDisplay(std::floor(this->scale.toDisplay(value)));
+        setInternalValue(this->scale.fromDisplay(std::floor(this->scale.toDisplay(value))));
       } else {
         cycleUpValue();
       }
@@ -242,29 +289,26 @@ public:
         this->attachment.setValueAsCompleteGesture(float(this->scale.map(value)));
         statusBar.update(parameter);
       }
-      repaint();
       return;
     }
 
-    if (!event.mods.isLeftButtonDown()) return;
+    if (!event.mods.isLeftButtonDown()) { return; }
 
     if (event.mods.isCommandDown()) {
-      value = defaultValue;
+      setInternalValue(defaultValue);
       attachment.setValueAsCompleteGesture(float(scale.map(value)));
       statusBar.update(parameter);
-      repaint();
       return;
     }
 
-    if (liveUpdate) attachment.beginGesture();
+    if (liveUpdate) { attachment.beginGesture(); }
     isMouseDragging = true;
     anchor = event.position;
     event.source.enableUnboundedMouseMovement(true);
   }
 
-  virtual void mouseDrag(const juce::MouseEvent &event) override
-  {
-    if (!event.mods.isLeftButtonDown() || !isMouseDragging) return;
+  virtual void mouseDrag(const juce::MouseEvent& event) override {
+    if (!event.mods.isLeftButtonDown() || !isMouseDragging) { return; }
 
     const auto sensi = event.mods.isShiftDown() ? lowSensitivity : sensitivity;
     const auto delta = (anchor.y - event.position.y) * sensi;
@@ -282,11 +326,10 @@ public:
     repaint();
   }
 
-  virtual void mouseUp(const juce::MouseEvent &event) override
-  {
+  virtual void mouseUp(const juce::MouseEvent& event) override {
     isMouseDragging = false;
     isSnapping = false;
-    if (!event.mods.isLeftButtonDown()) return;
+    if (!event.mods.isLeftButtonDown()) { return; }
 
     event.source.enableUnboundedMouseMovement(false);
 
@@ -300,56 +343,66 @@ public:
     repaint();
   }
 
-  virtual void mouseDoubleClick(const juce::MouseEvent &event) override
-  {
-    if (!event.mods.isLeftButtonDown()) return;
+  virtual void mouseDoubleClick(const juce::MouseEvent& event) override {
+    if (!event.mods.isLeftButtonDown()) { return; }
     invokeTextEditor();
   }
 
-  virtual void
-  mouseWheelMove(const juce::MouseEvent &, const juce::MouseWheelDetails &wheel) override
-  {
+  virtual void mouseWheelMove(const juce::MouseEvent&,
+                              const juce::MouseWheelDetails& wheel) override {
     increaseValue(wheel.deltaY * wheelSensitivity);
     attachment.setValueAsCompleteGesture(float(scale.map(value)));
     statusBar.update(parameter);
     repaint();
   }
 
-  bool keyPressed(const juce::KeyPress &key) override
-  {
+  bool keyPressed(const juce::KeyPress& key) override {
     using KP = juce::KeyPress;
-    const auto &mods = key.getModifiers();
+    const auto& mods = key.getModifiers();
 
     if (key.isKeyCode(KP::returnKey) || key.isKeyCode(KP::spaceKey)) {
       invokeTextEditor();
       return true;
     }
 
-    auto updateValue = [&]()
-    {
+    if (key.isKeyCode(KP::F10Key) && mods.isShiftDown()) {
+      showHostMenuJuce();
+      return true;
+    }
+
+    auto updateValue = [&]() {
       attachment.setValueAsCompleteGesture(float(scale.map(value)));
       statusBar.update(parameter);
       repaint();
       return true;
     };
 
-    if (key.isKeyCode(KP::homeKey) || (key.isKeyCode(KP::upKey) && mods.isCommandDown()))
-    {
+    if (key.isKeyCode(KP::backspaceKey) || key.isKeyCode(KP::deleteKey)) {
+      if (mods.isCommandDown()) {
+        setInternalValue(defaultValue);
+        return updateValue();
+      } else if (mods.isShiftDown()) {
+        setInternalValue(this->scale.fromDisplay(std::floor(this->scale.toDisplay(value))));
+        return updateValue();
+      }
+    }
+
+    if (key.isKeyCode(KP::homeKey) || (key.isKeyCode(KP::upKey) && mods.isCommandDown())) {
       cycleUpValue();
       return updateValue();
     }
-    if (key.isKeyCode(KP::endKey) || (key.isKeyCode(KP::downKey) && mods.isCommandDown()))
-    {
+    if (key.isKeyCode(KP::endKey) || (key.isKeyCode(KP::downKey) && mods.isCommandDown())) {
       cycleDownValue();
       return updateValue();
     }
 
-    if (key.isKeyCode(KP::upKey)) {
-      increaseValue(sensitivity);
+    const float moveSensi = mods.isShiftDown() ? lowSensitivity : sensitivity;
+    if (key.isKeyCode(KP::upKey) || key.isKeyCode(KP::rightKey)) {
+      increaseValue(moveSensi);
       return updateValue();
     }
-    if (key.isKeyCode(KP::downKey)) {
-      increaseValue(-sensitivity);
+    if (key.isKeyCode(KP::downKey) || key.isKeyCode(KP::leftKey)) {
+      increaseValue(-moveSensi);
       return updateValue();
     }
 
@@ -363,43 +416,29 @@ private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Knob)
 
 public:
-  Knob(
-    juce::AudioProcessorEditor &editor,
-    Palette &palette,
-    juce::UndoManager *undoManager,
-    juce::RangedAudioParameter *parameter,
-    Scale &scale,
-    StatusBar &statusBar,
-    NumberEditor &numberEditor)
-    : KnobBase<Scale, KnobType::clamped>(
-        editor, palette, undoManager, parameter, scale, statusBar, numberEditor)
-  {
-  }
+  Knob(juce::AudioProcessorEditor& editor, Palette& palette, juce::UndoManager* undoManager,
+       juce::RangedAudioParameter* parameter, Scale& scale, StatusBar& statusBar,
+       NumberEditor& numberEditor)
+      : KnobBase<Scale, KnobType::clamped>(editor, palette, undoManager, parameter, scale,
+                                           statusBar, numberEditor) {}
 
-  virtual ~Knob() override {}
-
-  virtual void paint(juce::Graphics &ctx) override
-  {
+  virtual void paint(juce::Graphics& ctx) override {
     const juce::Point<int> center{this->getWidth() / 2, this->getHeight() / 2};
     ctx.setOrigin(center);
 
     // Arc.
     if constexpr (style == Style::accent) {
-      ctx.setColour(
-        this->isMouseEntered ? this->pal.highlightAccent() : this->pal.unfocused());
+      ctx.setColour(this->isMouseEntered ? this->pal.highlightAccent() : this->pal.unfocused());
     } else if constexpr (style == Style::warning) {
-      ctx.setColour(
-        this->isMouseEntered ? this->pal.highlightWarning() : this->pal.unfocused());
+      ctx.setColour(this->isMouseEntered ? this->pal.highlightWarning() : this->pal.unfocused());
     } else {
-      ctx.setColour(
-        this->isMouseEntered ? this->pal.highlightMain() : this->pal.unfocused());
+      ctx.setColour(this->isMouseEntered ? this->pal.highlightMain() : this->pal.unfocused());
     }
     constexpr auto twopi = 2 * std::numbers::pi_v<float>;
     const auto radius = center.x > center.y ? center.y : center.x;
     juce::Path arc;
-    arc.addCentredArc(
-      0, 0, radius, radius, 0, twopi * (0.5f + this->arcOpenPartRatio),
-      twopi * (1.5f - this->arcOpenPartRatio), true);
+    arc.addCentredArc(0, 0, radius, radius, 0, twopi * (0.5f + this->arcOpenPartRatio),
+                      twopi * (1.5f - this->arcOpenPartRatio), true);
     ctx.strokePath(arc, this->arcStrokeType);
 
     // Mark for default value. Sharing color and style with hand.
@@ -429,36 +468,23 @@ private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RotaryKnob)
 
 public:
-  RotaryKnob(
-    juce::AudioProcessorEditor &editor,
-    Palette &palette,
-    juce::UndoManager *undoManager,
-    juce::RangedAudioParameter *parameter,
-    Scale &scale,
-    StatusBar &statusBar,
-    NumberEditor &numberEditor)
-    : KnobBase<Scale, KnobType::rotary>(
-        editor, palette, undoManager, parameter, scale, statusBar, numberEditor)
-  {
-  }
+  RotaryKnob(juce::AudioProcessorEditor& editor, Palette& palette, juce::UndoManager* undoManager,
+             juce::RangedAudioParameter* parameter, Scale& scale, StatusBar& statusBar,
+             NumberEditor& numberEditor)
+      : KnobBase<Scale, KnobType::rotary>(editor, palette, undoManager, parameter, scale, statusBar,
+                                          numberEditor) {}
 
-  virtual ~RotaryKnob() override {}
-
-  virtual void paint(juce::Graphics &ctx) override
-  {
+  virtual void paint(juce::Graphics& ctx) override {
     const juce::Point<int> center{this->getWidth() / 2, this->getHeight() / 2};
     ctx.setOrigin(center);
 
     // Arc.
     if constexpr (style == Style::accent) {
-      ctx.setColour(
-        this->isMouseEntered ? this->pal.highlightAccent() : this->pal.unfocused());
+      ctx.setColour(this->isMouseEntered ? this->pal.highlightAccent() : this->pal.unfocused());
     } else if constexpr (style == Style::warning) {
-      ctx.setColour(
-        this->isMouseEntered ? this->pal.highlightWarning() : this->pal.unfocused());
+      ctx.setColour(this->isMouseEntered ? this->pal.highlightWarning() : this->pal.unfocused());
     } else {
-      ctx.setColour(
-        this->isMouseEntered ? this->pal.highlightMain() : this->pal.unfocused());
+      ctx.setColour(this->isMouseEntered ? this->pal.highlightMain() : this->pal.unfocused());
     }
     const auto radius = center.x > center.y ? center.y : center.x;
     const auto rHalf = radius / 2;
@@ -498,35 +524,23 @@ public:
   int precision = 0;
   int32_t offset = 0;
 
-  TextKnobPainter(
-    juce::AudioProcessorEditor &editor,
-    Palette &palette,
-    juce::UndoManager *undoManager,
-    juce::RangedAudioParameter *parameter,
-    Scale &scale,
-    StatusBar &statusBar,
-    NumberEditor &numberEditor,
-    int precision = 0)
-    : KnobBase<Scale, knobType>(
-        editor, palette, undoManager, parameter, scale, statusBar, numberEditor)
-    , font(palette.getFont(palette.textSizeUi()))
-    , precision(precision)
-  {
+  TextKnobPainter(juce::AudioProcessorEditor& editor, Palette& palette,
+                  juce::UndoManager* undoManager, juce::RangedAudioParameter* parameter,
+                  Scale& scale, StatusBar& statusBar, NumberEditor& numberEditor, int precision = 0)
+      : KnobBase<Scale, knobType>(editor, palette, undoManager, parameter, scale, statusBar,
+                                  numberEditor),
+        font(palette.getFont(palette.textSizeUi())), precision(precision) {
     this->sensitivity = float(0.002);
     this->lowSensitivity = this->sensitivity / float(10);
   }
 
-  virtual ~TextKnobPainter() override {}
-
-  virtual void resized() override
-  {
+  virtual void resized() override {
     font = this->pal.getFont(this->pal.textSizeUi());
 
     KnobBase<Scale, knobType>::resized();
   }
 
-  virtual void paint(juce::Graphics &ctx) override
-  {
+  virtual void paint(juce::Graphics& ctx) override {
     const float lw1 = this->pal.borderThin(); // Border width.
     const float lw2 = 2 * lw1;
     const float lwHalf = lw1 / 2;
@@ -540,8 +554,7 @@ public:
     ctx.fillRoundedRectangle(bounds, lw2);
 
     // Border.
-    const auto &colorBorder = [&]()
-    {
+    const auto& colorBorder = [&]() {
       if constexpr (style == Uhhyou::Style::accent) {
         return this->isMouseEntered ? this->pal.highlightAccent() : this->pal.border();
       } else if constexpr (style == Uhhyou::Style::warning) {
@@ -566,10 +579,9 @@ public:
     // Text.
     ctx.setFont(font);
     ctx.setColour(this->pal.foreground());
-    ctx.drawText(
-      this->parameter->getText(this->value, int(precision)),
-      juce::Rectangle<float>(float(0), float(0), width, height),
-      juce::Justification::centred);
+    ctx.drawText(this->parameter->getText(this->value, int(precision)),
+                 juce::Rectangle<float>(float(0), float(0), width, height),
+                 juce::Justification::centred);
   }
 };
 
