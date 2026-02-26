@@ -163,6 +163,9 @@ protected:
   ParameterLockRegistry paramLocks;
   std::unordered_map<const juce::AudioProcessorParameter*, juce::String> paramPtrToId;
 
+  using RandomizeFn = std::function<float(float)>;
+  std::unordered_map<const juce::AudioProcessorParameter*, RandomizeFn> randomizers;
+
   inline juce::ValueTree getStateTree() {
     return processor.param.tree.state.getOrCreateChildWithName("GUI", nullptr);
   }
@@ -180,15 +183,19 @@ protected:
     if (mainScope.add(widget)) { widget.addMouseListener(this, true); }
   }
 
+  void registerParameterId(const juce::String& id, const juce::AudioProcessorParameter* prm) {
+    if (prm) { paramPtrToId[prm] = id; }
+  }
+
+  void registerRandomizer(const juce::AudioProcessorParameter* prm, RandomizeFn randomizer) {
+    if (prm != nullptr && randomizer != nullptr) { randomizers[prm] = std::move(randomizer); }
+  }
+
   // Adds a widget to a layout section (takes Ownership via shared_ptr).
   void addRawWidgetToSection(const juce::String& sectionTitle,
                              std::shared_ptr<juce::Component> widget) {
     auto [iter, inserted] = sections.try_emplace(sectionTitle);
     iter->second.push_back(widget);
-  }
-
-  void registerParameterId(const juce::String& id, const juce::AudioProcessorParameter* prm) {
-    if (prm) { paramPtrToId[prm] = id; }
   }
 
   // Helper to compose a LabeledWidget, register it, and store ownership.
@@ -209,41 +216,50 @@ protected:
   template<Style style = Style::common, typename Scale>
   auto addMomentaryButton(const juce::String& section, const juce::String& paramId, Scale& scale,
                           const juce::String& label = "", const juce::String& hint = "",
-                          LabeledWidget::Layout layout = LabeledWidget::expand) {
+                          LabeledWidget::Layout layout = LabeledWidget::expand,
+                          RandomizeFn randomizer = nullptr) {
     using ButtonType = MomentaryButton<Scale, style>;
-    return addButton_<ButtonType>(section, paramId, scale, label, hint, layout);
+    return addButton_<ButtonType>(section, paramId, scale, label, hint, layout,
+                                  std::move(randomizer));
   }
 
   template<Style style = Style::common, typename Scale>
   auto addToggleButton(const juce::String& section, const juce::String& paramId, Scale& scale,
                        const juce::String& label = "", const juce::String& hint = "",
-                       LabeledWidget::Layout layout = LabeledWidget::expand) {
+                       LabeledWidget::Layout layout = LabeledWidget::expand,
+                       RandomizeFn randomizer = nullptr) {
     using ButtonType = ToggleButton<Scale, style>;
-    return addButton_<ButtonType>(section, paramId, scale, label, hint, layout);
+    return addButton_<ButtonType>(section, paramId, scale, label, hint, layout,
+                                  std::move(randomizer));
   }
 
   template<Style style = Style::common, typename Scale>
   auto addTextKnob(const juce::String& sectionTitle, const juce::String& paramId, Scale& scale,
                    const std::vector<float> snaps, int precision = 5,
                    const juce::String& label = "",
-                   LabeledWidget::Layout layoutOption = LabeledWidget::showLabel) {
+                   LabeledWidget::Layout layoutOption = LabeledWidget::showLabel,
+                   RandomizeFn randomizer = nullptr) {
     using KnobType = TextKnob<Scale, style>;
-    return addKnob_<KnobType>(sectionTitle, paramId, scale, snaps, precision, label, layoutOption);
+    return addKnob_<KnobType>(sectionTitle, paramId, scale, snaps, precision, label, layoutOption,
+                              std::move(randomizer));
   }
 
   template<Style style = Style::common, typename Scale>
   auto addRotaryTextKnob(const juce::String& sectionTitle, const juce::String& paramId,
                          Scale& scale, const std::vector<float> snaps, int precision = 5,
                          const juce::String& label = "",
-                         LabeledWidget::Layout layoutOption = LabeledWidget::showLabel) {
+                         LabeledWidget::Layout layoutOption = LabeledWidget::showLabel,
+                         RandomizeFn randomizer = nullptr) {
     using KnobType = RotaryTextKnob<Scale, style>;
-    return addKnob_<KnobType>(sectionTitle, paramId, scale, snaps, precision, label, layoutOption);
+    return addKnob_<KnobType>(sectionTitle, paramId, scale, snaps, precision, label, layoutOption,
+                              std::move(randomizer));
   }
 
   template<Style style = Style::common, typename Scale>
   auto addComboBox(const juce::String& sectionTitle, const juce::String& paramId, Scale& scale,
                    const std::vector<juce::String>& menuItems, juce::String label,
-                   LabeledWidget::Layout layoutOption = LabeledWidget::showLabel) {
+                   LabeledWidget::Layout layoutOption = LabeledWidget::showLabel,
+                   RandomizeFn randomizer = nullptr) {
     auto prm = processor.param.tree.getParameter(paramId);
     if (label.isEmpty() && prm != nullptr) { label = prm->getName(2048); }
     auto widget = std::make_shared<ComboBox<Scale, style>>(
@@ -257,6 +273,17 @@ protected:
     }
 
     registerParameterId(paramId, prm);
+
+    if (randomizer) {
+      registerRandomizer(prm, std::move(randomizer));
+    } else if (prm != nullptr && !menuItems.empty()) {
+      registerRandomizer(prm, [&scale, size = menuItems.size()](float randVal) {
+        int idx = int(randVal * float(size));
+        if (idx >= int(size)) { idx = int(size) - 1; }
+        return float(scale.invmap(float(idx)));
+      });
+    }
+
     widgetStorage.push_back(widget);
     return widget;
   }
@@ -264,12 +291,16 @@ protected:
   std::shared_ptr<XYPad> addXYPad(const juce::String& sectionTitle, const juce::String& paramIdX,
                                   const juce::String& paramIdY, const std::vector<float> snapsX,
                                   const std::vector<float> snapsY, juce::String labelX = "",
-                                  juce::String labelY = "") {
+                                  juce::String labelY = "", RandomizeFn randX = nullptr,
+                                  RandomizeFn randY = nullptr) {
     auto prmX = processor.param.tree.getParameter(paramIdX);
     auto prmY = processor.param.tree.getParameter(paramIdY);
 
     registerParameterId(paramIdX, prmX);
     registerParameterId(paramIdY, prmY);
+
+    registerRandomizer(prmX, std::move(randX));
+    registerRandomizer(prmY, std::move(randY));
 
     if (labelX.isEmpty() && prmX) { labelX = prmX->getName(2048); }
     if (labelY.isEmpty() && prmY) { labelY = prmY->getName(2048); }
@@ -307,7 +338,7 @@ private:
   template<typename KnobType, typename Scale>
   auto addKnob_(const juce::String& sectionTitle, const juce::String& paramId, Scale& scale,
                 const std::vector<float>& snaps, int precision, juce::String label,
-                LabeledWidget::Layout layoutOption) {
+                LabeledWidget::Layout layoutOption, RandomizeFn randomizer) {
     auto prm = processor.param.tree.getParameter(paramId);
 
     if (label.isEmpty() && prm != nullptr) {
@@ -329,13 +360,15 @@ private:
     }
 
     registerParameterId(paramId, prm);
+    registerRandomizer(prm, std::move(randomizer));
     widgetStorage.push_back(widget);
     return widget;
   }
 
   template<typename ButtonType, typename Scale>
   auto addButton_(const juce::String& sectionTitle, const juce::String& paramId, Scale& scale,
-                  juce::String label, const juce::String& hint, LabeledWidget::Layout layout) {
+                  juce::String label, const juce::String& hint, LabeledWidget::Layout layout,
+                  RandomizeFn randomizer) {
     auto prm = processor.param.tree.getParameter(paramId);
     if (label.isEmpty() && prm) { label = prm->getName(2048); }
 
@@ -350,6 +383,7 @@ private:
     }
 
     registerParameterId(paramId, prm);
+    registerRandomizer(prm, std::move(randomizer));
     widgetStorage.push_back(widget);
     return widget;
   }

@@ -11,8 +11,7 @@
 
 namespace Uhhyou {
 
-void DSPCore::setup(double sampleRate_)
-{
+void DSPCore::setup(double sampleRate_) {
   sampleRate = double(sampleRate_);
 
   smoo.setTime(sampleRate, double(1));
@@ -23,18 +22,17 @@ void DSPCore::setup(double sampleRate_)
 
 size_t DSPCore::getLatency() { return crossoverFilter[0].getLatency(); }
 
-#define ASSIGN_PARAMETER(METHOD)                                                         \
-  auto &pv = param.value;                                                                \
-                                                                                         \
-  crossoverFreq.METHOD(pv.crossoverHz->load() / sampleRate);                             \
-  lowerStereoSpread.METHOD(pv.lowerStereoSpread->load());                                \
+#define ASSIGN_PARAMETER(METHOD)                                                                   \
+  auto& pv = param.value;                                                                          \
+                                                                                                   \
+  crossoverFreq.METHOD(pv.crossoverHz->load() / sampleRate);                                       \
+  lowerStereoSpread.METHOD(pv.lowerStereoSpread->load());                                          \
   upperStereoSpread.METHOD(pv.upperStereoSpread->load());
 
-void DSPCore::reset()
-{
+void DSPCore::reset() {
   ASSIGN_PARAMETER(reset);
 
-  for (auto &x : crossoverFilter) x.reset();
+  for (auto& x : crossoverFilter) { x.reset(); }
 
   startup();
 }
@@ -44,8 +42,7 @@ void DSPCore::startup() {}
 void DSPCore::setParameters() { ASSIGN_PARAMETER(push); }
 
 template<typename Sample>
-inline std::array<Sample, 2> mixStereo(Sample inL, Sample inR, Sample spread)
-{
+inline std::array<Sample, 2> mixStereo(Sample inL, Sample inR, Sample spread) {
   auto mid = (inL + inR) / Sample(2);
 
   auto outL = std::lerp(mid, inL, spread);
@@ -54,22 +51,19 @@ inline std::array<Sample, 2> mixStereo(Sample inL, Sample inR, Sample spread)
   return {outL, outR};
 }
 
-void DSPCore::process(
-  const size_t length, const float *in0, const float *in1, float *out0, float *out1)
-{
+void DSPCore::process(const size_t length, const float* in0, const float* in1, float* out0,
+                      float* out1) {
   for (size_t i = 0; i < length; ++i) {
     crossoverFreq.process();
-    for (auto &x : crossoverFilter) x.prepare(crossoverFreq.value());
+    for (auto& x : crossoverFilter) { x.prepare(crossoverFreq.value()); }
 
     crossoverFilter[0].process(double(in0[i]));
     crossoverFilter[1].process(double(in1[i]));
 
-    auto lower = mixStereo(
-      crossoverFilter[0].output[0], crossoverFilter[1].output[0],
-      lowerStereoSpread.process());
-    auto upper = mixStereo(
-      crossoverFilter[0].output[1], crossoverFilter[1].output[1],
-      upperStereoSpread.process());
+    auto lower = mixStereo(crossoverFilter[0].output[0], crossoverFilter[1].output[0],
+                           lowerStereoSpread.process());
+    auto upper = mixStereo(crossoverFilter[0].output[1], crossoverFilter[1].output[1],
+                           upperStereoSpread.process());
 
     out0[i] = float(lower[0] + upper[0]);
     out1[i] = float(lower[1] + upper[1]);

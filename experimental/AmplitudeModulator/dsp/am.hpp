@@ -24,16 +24,14 @@ template<typename Sample, typename Sos> class SosFilter {
   std::array<Sample, Sos::co.size()> y2{};
 
 public:
-  void reset()
-  {
+  void reset() {
     x1.fill(0);
     x2.fill(0);
     y1.fill(0);
     y2.fill(0);
   }
 
-  Sample process(Sample input)
-  {
+  Sample process(Sample input) {
     for (size_t i = 0; i < Sos::co.size(); ++i) {
       Sample y0                  //
         = Sos::co[i][0] * input  //
@@ -60,9 +58,8 @@ public:
 template<typename Sample> class SosOneThirdLowpass {
 public:
   constexpr static std::array<std::array<Sample, 5>, 8> co{{
-    {Sample(1.4299700336859399e-05), Sample(2.6223643283408427e-05),
-     Sample(1.4299700336859402e-05), Sample(-1.419010779886042),
-     Sample(0.5152639120776978)},
+    {Sample(1.4299700336859399e-05), Sample(2.6223643283408427e-05), Sample(1.4299700336859402e-05),
+     Sample(-1.419010779886042), Sample(0.5152639120776978)},
     {Sample(1.0000000000000000), Sample(0.9374859430410645), Sample(1.0000000000000000),
      Sample(-1.374108854632666), Sample(0.569988993082886)},
     {Sample(1.0000000000000000), Sample(0.1350973292280386), Sample(0.9999999999999998),
@@ -95,9 +92,8 @@ public:
 template<typename Sample> class SosOneThirdBandpass {
 public:
   constexpr static std::array<std::array<Sample, 5>, 16> co{{
-    {Sample(0.07996306031918912), Sample(-0.15512096495683905),
-     Sample(0.07996306031918912), Sample(-0.04905756091899954),
-     Sample(0.06089317414996781)},
+    {Sample(0.07996306031918912), Sample(-0.15512096495683905), Sample(0.07996306031918912),
+     Sample(-0.04905756091899954), Sample(0.06089317414996781)},
     {Sample(1.0000000000000000), Sample(-1.605912361850232), Sample(1.0000000000000000),
      Sample(-0.3914194433835788), Sample(0.39780395780767436)},
     {Sample(1.0000000000000000), Sample(-1.3044450264840837), Sample(1.0000000000000000),
@@ -112,9 +108,8 @@ public:
      Sample(-0.9928926526136225), Sample(0.990449173400009)},
     {Sample(1.0000000000000000), Sample(-1.0095384322002112), Sample(1.0000000000000000),
      Sample(-0.998957500114774), Sample(0.9974851593731303)},
-    {Sample(0.003929281896699457), Sample(0.007783864623170485),
-     Sample(0.003929281896699457), Sample(-0.6125926872786202),
-     Sample(0.13187643733994786)},
+    {Sample(0.003929281896699457), Sample(0.007783864623170485), Sample(0.003929281896699457),
+     Sample(-0.6125926872786202), Sample(0.13187643733994786)},
     {Sample(1.0000000000000000), Sample(1.8466736192584305), Sample(1.0000000000000000),
      Sample(-0.3190661665817673), Sample(0.29140967523377553)},
     {Sample(1.0000000000000000), Sample(1.648795055047372), Sample(0.9999999999999998),
@@ -140,9 +135,8 @@ public:
 template<typename Sample> class SosHalfHighpass {
 public:
   constexpr static std::array<std::array<Sample, 5>, 8> co{{
-    {Sample(0.022533030123118865), Sample(-0.0411189601921383),
-     Sample(0.022533030123118865), Sample(0.5209635159310878),
-     Sample(0.1207066785590715)},
+    {Sample(0.022533030123118865), Sample(-0.0411189601921383), Sample(0.022533030123118865),
+     Sample(0.5209635159310878), Sample(0.1207066785590715)},
     {Sample(1.0), Sample(-1.011674456291376), Sample(1.0000000000000002),
      Sample(0.3573911427742562), Sample(0.39490425738945695)},
     {Sample(1.0), Sample(-0.45091438753049795), Sample(0.9999999999999999),
@@ -155,8 +149,8 @@ public:
      Sample(0.013408644836165261), Sample(0.972208991199606)},
     {Sample(1.0), Sample(-0.018521267756271977), Sample(1.0000000000000002),
      Sample(0.004004687637778214), Sample(0.9889883586768273)},
-    {Sample(1.0), Sample(-0.011853373888226475), Sample(1.0),
-     Sample(0.0006172958500284454), Sample(0.9970964690788071)},
+    {Sample(1.0), Sample(-0.011853373888226475), Sample(1.0), Sample(0.0006172958500284454),
+     Sample(0.9970964690788071)},
   }};
 };
 
@@ -165,9 +159,9 @@ private:
   constexpr static std::array<Sample, 4> coRe{
     Sample(0.16175849836770106), Sample(0.7330289323414905), Sample(0.9453497003291133),
     Sample(0.9905991566845292)};
-  constexpr static std::array<Sample, 4> coIm{
-    Sample(0.47940086558884), Sample(0.8762184935393101), Sample(0.9765975895081993),
-    Sample(0.9974992559355491)};
+  constexpr static std::array<Sample, 4> coIm{Sample(0.47940086558884), Sample(0.8762184935393101),
+                                              Sample(0.9765975895081993),
+                                              Sample(0.9974992559355491)};
 
   std::array<Sample, coRe.size()> x1Re{};
   std::array<Sample, coRe.size()> x2Re{};
@@ -182,8 +176,7 @@ private:
   Sample delayedIm = 0;
 
 public:
-  void reset()
-  {
+  void reset() {
     x1Re.fill(0);
     x2Re.fill(0);
     y1Re.fill(0);
@@ -197,8 +190,7 @@ public:
     delayedIm = 0;
   }
 
-  std::complex<Sample> process(Sample input)
-  {
+  std::complex<Sample> process(Sample input) {
     auto sigRe = input;
     for (size_t i = 0; i < coRe.size(); ++i) {
       auto y0 = coRe[i] * (sigRe + y2Re[i]) - x2Re[i];
@@ -231,15 +223,13 @@ private:
   Sample phase = 0;
 
 public:
-  void reset()
-  {
+  void reset() {
     hilbert.reset();
     phase = 0;
   }
 
   // `shiftFreq` is normalized frequency in [0, 0.5).
-  Sample process(Sample input, Sample shiftFreq)
-  {
+  Sample process(Sample input, Sample shiftFreq) {
     auto sig = hilbert.process(input);
     auto norm = std::sqrt(sig.real() * sig.real() + sig.imag() * sig.imag());
     auto theta = std::atan2(sig.imag(), sig.real());
@@ -264,15 +254,13 @@ private:
   HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbDown;
 
 public:
-  void reset()
-  {
+  void reset() {
     hbCar.reset();
     hbMod.reset();
     hbDown.reset();
   }
 
-  Sample process(Sample carrior, Sample modulator)
-  {
+  Sample process(Sample carrior, Sample modulator) {
     auto upCar = hbCar.processUp(carrior);
     auto upMod = hbMod.processUp(modulator);
     return hbDown.process({upCar[0] * upMod[0], upCar[1] * upMod[1]});
@@ -289,8 +277,7 @@ private:
   FrequencyShifter<Sample> backwardShifter;
 
 public:
-  void reset()
-  {
+  void reset() {
     lowpassCar.reset();
     lowpassMod.reset();
     lowpassDown.reset();
@@ -299,8 +286,7 @@ public:
     backwardShifter.reset();
   }
 
-  Sample process(Sample carrior, Sample modulator)
-  {
+  Sample process(Sample carrior, Sample modulator) {
     Sample output;
     for (size_t idx = 0; idx < 3; ++idx) {
       carrior = lowpassCar.process(carrior);
@@ -327,14 +313,12 @@ private:
   AnalyticSignalFilter<Sample> modFilter;
 
 public:
-  void reset()
-  {
+  void reset() {
     carFilter.reset();
     modFilter.reset();
   }
 
-  Sample process(Sample carrior, Sample modulator)
-  {
+  Sample process(Sample carrior, Sample modulator) {
     auto c0 = carFilter.process(carrior);
     auto m0 = modFilter.process(modulator);
     return c0.real() * m0.real() - c0.imag() * m0.imag();
@@ -349,14 +333,12 @@ private:
   AnalyticSignalFilter<Sample> modFilter;
 
 public:
-  void reset()
-  {
+  void reset() {
     carFilter.reset();
     modFilter.reset();
   }
 
-  Sample process(Sample carrior, Sample modulator)
-  {
+  Sample process(Sample carrior, Sample modulator) {
     auto c0 = carFilter.process(carrior);
     auto m0 = modFilter.process(modulator);
     return c0.real() * m0.real() + c0.imag() * m0.imag();
@@ -371,16 +353,14 @@ private:
   HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbDown;
 
 public:
-  void reset()
-  {
+  void reset() {
     hbCar.reset();
     hbMod.reset();
     usb.reset();
     hbDown.reset();
   }
 
-  Sample process(Sample carrior, Sample modulator)
-  {
+  Sample process(Sample carrior, Sample modulator) {
     auto upCar = hbCar.processUp(carrior);
     auto upMod = hbMod.processUp(modulator);
     auto s0 = usb.process(upCar[0], upMod[0]);
@@ -400,8 +380,7 @@ private:
   FrequencyShifter<Sample> backwardShifter;
 
 public:
-  void reset()
-  {
+  void reset() {
     hbCar.reset();
     hbMod.reset();
     hbDown.reset();
@@ -411,8 +390,7 @@ public:
     backwardShifter.reset();
   }
 
-  Sample process(Sample carrior, Sample modulator)
-  {
+  Sample process(Sample carrior, Sample modulator) {
     auto upCar = hbCar.processUp(carrior);
     auto upMod = hbMod.processUp(modulator);
     std::array<Sample, 2> output{};

@@ -9,7 +9,7 @@ juce_add_plugin(AmplitudeModulator
   PLUGIN_MANUFACTURER_CODE "Uhyo"
   PLUGIN_CODE "d5bd"
   NEEDS_MIDI_INPUT TRUE
-  EDITOR_WANTS_KEYBOARD_FOCUS TRUE
+  EDITOR_WANTS_KEYBOARD_FOCUS FALSE
   FORMATS AU VST3)
 
 target_sources(AmplitudeModulator

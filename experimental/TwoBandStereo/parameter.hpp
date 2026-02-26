@@ -31,9 +31,9 @@ struct Scales {
 };
 
 struct ValueReceivers {
-  std::atomic<float> *crossoverHz{};
-  std::atomic<float> *upperStereoSpread{};
-  std::atomic<float> *lowerStereoSpread{};
+  std::atomic<float>* crossoverHz{};
+  std::atomic<float>* upperStereoSpread{};
+  std::atomic<float>* lowerStereoSpread{};
 
   // Internal values used for GUI.
 };
@@ -50,21 +50,18 @@ public:
 
 private:
   template<typename ParamType>
-  inline auto addParameter(
-    std::unique_ptr<juce::AudioProcessorParameterGroup> &group, ParamType param)
-  {
+  inline auto addParameter(std::unique_ptr<juce::AudioProcessorParameterGroup>& group,
+                           ParamType param) {
     auto atomRaw = param->getAtomicRaw();
     group->addChild(std::move(param));
     return atomRaw;
   }
 
-  inline auto createParameterGroup(juce::String name)
-  {
+  inline auto createParameterGroup(juce::String name) {
     return std::make_unique<juce::AudioProcessorParameterGroup>(name, name, "/");
   }
 
-  auto constructParameter()
-  {
+  auto constructParameter() {
     using Cat = juce::AudioProcessorParameter::Category;
     using Rep = ParameterTextRepresentation;
 
@@ -74,34 +71,30 @@ private:
 
     auto generalGroup = createParameterGroup("generalGroup");
 
-    value.crossoverHz = addParameter(
-      generalGroup,
-      std::make_unique<ScaledParameter<Scales::DecibelScl>>(
-        scale.crossoverHz.invmap(200), scale.crossoverHz, "crossoverHz",
-        Cat::genericParameter, version0, "", Rep::raw));
-    value.upperStereoSpread = addParameter(
-      generalGroup,
-      std::make_unique<ScaledParameter<Scales::LinearScl>>(
-        1.0f, scale.unipolar, "upperStereoSpread", Cat::genericParameter, version0, "",
-        Rep::raw));
-    value.lowerStereoSpread = addParameter(
-      generalGroup,
-      std::make_unique<ScaledParameter<Scales::LinearScl>>(
-        1.0f, scale.unipolar, "lowerStereoSpread", Cat::genericParameter, version0, "",
-        Rep::raw));
+    value.crossoverHz
+      = addParameter(generalGroup,
+                     std::make_unique<ScaledParameter<Scales::DecibelScl>>(
+                       scale.crossoverHz.invmap(200), scale.crossoverHz, "crossoverHz", "Crossover",
+                       Cat::genericParameter, version0, "Hz", Rep::raw));
+    value.upperStereoSpread
+      = addParameter(generalGroup,
+                     std::make_unique<ScaledParameter<Scales::LinearScl>>(
+                       1.0f, scale.unipolar, "upperStereoSpread", "Upper Spread",
+                       Cat::genericParameter, version0, "", Rep::raw));
+    value.lowerStereoSpread
+      = addParameter(generalGroup,
+                     std::make_unique<ScaledParameter<Scales::LinearScl>>(
+                       1.0f, scale.unipolar, "lowerStereoSpread", "Lower Spread",
+                       Cat::genericParameter, version0, "", Rep::raw));
 
     layout.add(std::move(generalGroup));
     return layout;
   }
 
 public:
-  ParameterStore(
-    juce::AudioProcessor &processor,
-    juce::UndoManager *undoManager,
-    const juce::Identifier &id)
-    : scale(), value(), tree(processor, undoManager, id, constructParameter())
-  {
-  }
+  ParameterStore(juce::AudioProcessor& processor, juce::UndoManager* undoManager,
+                 const juce::Identifier& id)
+      : scale(), value(), tree(processor, undoManager, id, constructParameter()) {}
 };
 
 } // namespace Uhhyou

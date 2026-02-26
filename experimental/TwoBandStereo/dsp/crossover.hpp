@@ -16,15 +16,13 @@ private:
   std::array<Sample, length> buf{};
 
 public:
-  void reset(Sample value = 0)
-  {
+  void reset(Sample value = 0) {
     ptr = 0;
     buf.fill(value);
   }
 
-  Sample process(Sample x0)
-  {
-    if (++ptr >= length) ptr = 0;
+  Sample process(Sample x0) {
+    if (++ptr >= length) { ptr = 0; }
     Sample output = buf[ptr];
     buf[ptr] = x0;
     return output;
@@ -37,8 +35,8 @@ template<typename Sample, size_t fullStage> struct ComplexIIRDelay<Sample, fullS
   void reset() {}
 
   using C = std::complex<Sample>;
-  inline C process1PoleForward(C x0, const std::array<C, fullStage> &) { return x0; }
-  inline C process1PoleReversed(C x0, const std::array<C, fullStage> &) { return x0; }
+  inline C process1PoleForward(C x0, const std::array<C, fullStage>&) { return x0; }
+  inline C process1PoleReversed(C x0, const std::array<C, fullStage>&) { return x0; }
 };
 
 template<typename Sample, size_t fullStage, size_t recStage> struct ComplexIIRDelay {
@@ -46,21 +44,20 @@ template<typename Sample, size_t fullStage, size_t recStage> struct ComplexIIRDe
   FixedIntDelay<std::complex<Sample>, size_t(1) << index> delay;
   ComplexIIRDelay<Sample, fullStage, recStage - 1> recursion;
 
-  void reset()
-  {
+  void reset() {
     delay.reset();
     recursion.reset();
   }
 
-  inline std::complex<Sample> process1PoleForward(
-    std::complex<Sample> x0, const std::array<std::complex<Sample>, fullStage> &poles)
-  {
+  inline std::complex<Sample>
+  process1PoleForward(std::complex<Sample> x0,
+                      const std::array<std::complex<Sample>, fullStage>& poles) {
     return recursion.process1PoleForward(x0 + poles[index] * delay.process(x0), poles);
   }
 
-  inline std::complex<Sample> process1PoleReversed(
-    std::complex<Sample> x0, const std::array<std::complex<Sample>, fullStage> &poles)
-  {
+  inline std::complex<Sample>
+  process1PoleReversed(std::complex<Sample> x0,
+                       const std::array<std::complex<Sample>, fullStage>& poles) {
     return recursion.process1PoleReversed(poles[index] * x0 + delay.process(x0), poles);
   }
 };
@@ -76,43 +73,37 @@ private:
   ComplexIIRDelay<Sample, stage, stage - 1> delay;
 
 public:
-  void reset()
-  {
+  void reset() {
     x1 = 0;
     delay.reset();
   }
 
-  void prepare(std::complex<Sample> pole)
-  {
+  void prepare(std::complex<Sample> pole) {
     a_per_b = pole.real() / pole.imag();
-    for (auto &value : poles) {
+    for (auto& value : poles) {
       value = pole;
       pole *= pole;
     }
   }
 
-  std::complex<Sample> process1PoleForward(Sample x0)
-  {
+  std::complex<Sample> process1PoleForward(Sample x0) {
     std::complex<Sample> sig = x0 + poles[0] * x1;
     x1 = x0;
     return delay.process1PoleForward(sig, poles);
   }
 
-  std::complex<Sample> process1PoleReversed(Sample x0)
-  {
+  std::complex<Sample> process1PoleReversed(Sample x0) {
     std::complex<Sample> sig = poles[0] * x0 + x1;
     x1 = x0;
     return delay.process1PoleReversed(sig, poles);
   }
 
-  Sample process2PoleForward(Sample x0)
-  {
+  Sample process2PoleForward(Sample x0) {
     std::complex<Sample> sig = process1PoleForward(x0);
     return sig.real() + a_per_b * sig.imag();
   }
 
-  Sample process2PoleReversed(Sample x0)
-  {
+  Sample process2PoleReversed(Sample x0) {
     std::complex<Sample> sig = process1PoleReversed(x0);
     return sig.real() + a_per_b * sig.imag();
   }
@@ -137,10 +128,9 @@ public:
 
   LinkwitzRileyFIR() { static_assert(order % 4 == 0 && order >= 4); }
 
-  void reset()
-  {
-    for (auto &x : reverse) x.reset();
-    for (auto &x : forward) x.reset();
+  void reset() {
+    for (auto& x : reverse) { x.reset(); }
+    for (auto& x : forward) { x.reset(); }
 
     u1.fill({});
     u2.fill({});
@@ -148,8 +138,7 @@ public:
     v2.fill({});
   }
 
-  void prepare(Sample normalizedCrossover)
-  {
+  void prepare(Sample normalizedCrossover) {
     constexpr Sample pi = std::numbers::pi_v<Sample>;
     constexpr size_t N = 2 * nSection; // Butterworth order.
 
@@ -168,8 +157,7 @@ public:
     gain = std::pow(gain, Sample(1) / Sample(nSection));
   }
 
-  Sample process(Sample x0)
-  {
+  Sample process(Sample x0) {
     constexpr Sample a1 = Sample(2); // -2 for highpass.
 
     for (size_t i = 0; i < nSection; ++i) {
@@ -202,16 +190,14 @@ public:
 
   size_t getLatency() { return latency; }
 
-  void reset()
-  {
+  void reset() {
     lowpass.reset();
     highpassDelay.reset();
   }
 
   void prepare(Sample normalizedCrossover) { lowpass.prepare(normalizedCrossover); }
 
-  void process(Sample x0)
-  {
+  void process(Sample x0) {
     output[0] = lowpass.process(x0);
     output[1] = highpassDelay.process(x0) - output[0];
   }

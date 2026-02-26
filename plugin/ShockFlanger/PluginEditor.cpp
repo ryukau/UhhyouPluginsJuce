@@ -70,8 +70,14 @@ Editor::Editor(Processor& processor)
         auto params = processor.getParameters();
         for (auto& prm : params) {
           if (this->paramLocks.isLocked(prm)) { continue; }
+
+          float normalized = dist(rng);
+          if (auto it = this->randomizers.find(prm); it != this->randomizers.end()) {
+            normalized = it->second(normalized);
+          }
+
           prm->beginChangeGesture();
-          prm->setValueNotifyingHost(dist(rng));
+          prm->setValueNotifyingHost(normalized);
           prm->endChangeGesture();
         }
       }) {

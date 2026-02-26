@@ -28,13 +28,9 @@ private:
   Sample y1 = 0;
 
 public:
-  Sample nyquistGain() const
-  {
-    return (coTarget[0] - coTarget[1]) / (Sample(1) + coTarget[2]);
-  }
+  Sample nyquistGain() const { return (coTarget[0] - coTarget[1]) / (Sample(1) + coTarget[2]); }
 
-  void push(Sample cutoffNormalized, Sample gainAmp)
-  {
+  void push(Sample cutoffNormalized, Sample gainAmp) {
     using S = Sample;
 
     constexpr S minCut = S(10.0 / 48000.0);
@@ -63,8 +59,7 @@ public:
     coTarget[2] = neg_a1;                       // -a1
   }
 
-  void reset(Sample cutoffNormalized, Sample gainAmp)
-  {
+  void reset(Sample cutoffNormalized, Sample gainAmp) {
     push(cutoffNormalized, gainAmp);
     coV = coTarget;
 
@@ -72,9 +67,8 @@ public:
     y1 = 0;
   }
 
-  Sample process(Sample x0)
-  {
-    for (size_t i = 0; i < coV.size(); ++i) coV[i] += kp * (coTarget[i] - coV[i]);
+  Sample process(Sample x0) {
+    for (size_t i = 0; i < coV.size(); ++i) { coV[i] += kp * (coTarget[i] - coV[i]); }
 
     auto y0 = coV[0] * x0 + coV[1] * x1 + coV[2] * y1;
     x1 = x0;
@@ -91,60 +85,48 @@ private:
   Sample gainTarget = Sample(1);
   Sample gainV = Sample(1);
 
-  inline Sample lowshelfGain()
-  {
+  inline Sample lowshelfGain() {
     Sample gain = Sample(1);
-    for (const auto &flt : filters) gain *= flt.nyquistGain();
+    for (const auto& flt : filters) { gain *= flt.nyquistGain(); }
     return Sample(1) / std::max(gain, std::numeric_limits<Sample>::epsilon());
   }
 
 public:
 // TODO: pow(10, dB / 20) can be replaced to exp.
-#define SET_SLOPE_FILTER_PARAMETERS(METHOD)                                              \
-  if (isHighshelf) {                                                                     \
-    Sample gainAmp = std::pow(Sample(10), slopeDecibel / Sample(20));                    \
-    Sample cutoff = startHz / sampleRate;                                                \
-    for (auto &flt : filters) {                                                          \
-      flt.push(cutoff, gainAmp);                                                         \
-      cutoff *= Sample(2);                                                               \
-    }                                                                                    \
-    gainTarget = outputGain;                                                             \
-  } else { /* Low shelf */                                                               \
-    Sample gainAmp = std::pow(Sample(10), -slopeDecibel / Sample(20));                   \
-    Sample cutoff = startHz / sampleRate;                                                \
-    for (auto &flt : filters) {                                                          \
-      flt.push(cutoff, gainAmp);                                                         \
-      cutoff *= Sample(0.5);                                                             \
-    }                                                                                    \
-    gainTarget = outputGain * lowshelfGain();                                            \
+#define SET_SLOPE_FILTER_PARAMETERS(METHOD)                                                        \
+  if (isHighshelf) {                                                                               \
+    Sample gainAmp = std::pow(Sample(10), slopeDecibel / Sample(20));                              \
+    Sample cutoff = startHz / sampleRate;                                                          \
+    for (auto& flt : filters) {                                                                    \
+      flt.push(cutoff, gainAmp);                                                                   \
+      cutoff *= Sample(2);                                                                         \
+    }                                                                                              \
+    gainTarget = outputGain;                                                                       \
+  } else { /* Low shelf */                                                                         \
+    Sample gainAmp = std::pow(Sample(10), -slopeDecibel / Sample(20));                             \
+    Sample cutoff = startHz / sampleRate;                                                          \
+    for (auto& flt : filters) {                                                                    \
+      flt.push(cutoff, gainAmp);                                                                   \
+      cutoff *= Sample(0.5);                                                                       \
+    }                                                                                              \
+    gainTarget = outputGain * lowshelfGain();                                                      \
   }
 
-  void push(
-    Sample sampleRate,
-    Sample startHz,
-    Sample slopeDecibel,
-    Sample outputGain,
-    bool isHighshelf)
-  {
+  void push(Sample sampleRate, Sample startHz, Sample slopeDecibel, Sample outputGain,
+            bool isHighshelf) {
     SET_SLOPE_FILTER_PARAMETERS(push);
   }
 
-  void reset(
-    Sample sampleRate,
-    Sample startHz,
-    Sample slopeDecibel,
-    Sample outputGain,
-    bool isHighshelf)
-  {
+  void reset(Sample sampleRate, Sample startHz, Sample slopeDecibel, Sample outputGain,
+             bool isHighshelf) {
     SET_SLOPE_FILTER_PARAMETERS(reset);
     gainV = gainTarget;
   }
 
 #undef SET_SLOPE_FILTER_PARAMETERS
 
-  Sample process(Sample x0)
-  {
-    for (auto &flt : filters) x0 = flt.process(x0);
+  Sample process(Sample x0) {
+    for (auto& flt : filters) { x0 = flt.process(x0); }
 
     gainV += kp * (gainTarget - gainV);
     return gainV * x0;

@@ -21,17 +21,13 @@ constexpr double nyquist = 0.49998;
 constexpr double maxFlatK
   = double(1) / (std::numbers::sqrt2_v<double> - std::numeric_limits<double>::epsilon());
 
-template<typename T> inline T freqToG(T normalizedFreq)
-{
+template<typename T> inline T freqToG(T normalizedFreq) {
   return T(
-    std::tan(
-      std::clamp(double(normalizedFreq), minCutoff, nyquist)
-      * std::numbers::pi_v<double>));
+    std::tan(std::clamp(double(normalizedFreq), minCutoff, nyquist) * std::numbers::pi_v<double>));
 }
 
-template<typename T> inline T qToK(T Q)
-{
-  if (Q < std::numeric_limits<T>::epsilon()) Q = std::numeric_limits<T>::epsilon();
+template<typename T> inline T qToK(T Q) {
+  if (Q < std::numeric_limits<T>::epsilon()) { Q = std::numeric_limits<T>::epsilon(); }
   return T(1) / Q;
 }
 
@@ -42,8 +38,7 @@ private:
   Sample ic1eq = 0;
   Sample ic2eq = 0;
 
-  inline std::array<Sample, 2> processInternal(Sample v0, Sample g, Sample k)
-  {
+  inline std::array<Sample, 2> processInternal(Sample v0, Sample g, Sample k) {
     Sample v1 = (ic1eq + g * (v0 - ic2eq)) / (Sample(1) + g * (g + k));
     Sample v2 = ic2eq + g * v1;
     ic1eq = Sample(2) * v1 - ic1eq;
@@ -52,20 +47,17 @@ private:
   }
 
 public:
-  void reset()
-  {
+  void reset() {
     ic1eq = 0;
     ic2eq = 0;
   }
 
-  Sample lowpass(Sample v0, Sample g, Sample k)
-  {
+  Sample lowpass(Sample v0, Sample g, Sample k) {
     auto val = processInternal(v0, g, k);
     return val[1];
   }
 
-  Sample highpass(Sample v0, Sample g, Sample k)
-  {
+  Sample highpass(Sample v0, Sample g, Sample k) {
     auto val = processInternal(v0, g, k);
     return v0 - k * val[0] - val[1];
   }
@@ -73,9 +65,7 @@ public:
 
 // 3rd order Lagrange Interpolation.
 // Range of t is in [0, 1]. Interpolates between y1 and y2.
-template<typename Sample>
-inline Sample cubicInterp(const std::array<Sample, 4> &y, Sample t)
-{
+template<typename Sample> inline Sample cubicInterp(const std::array<Sample, 4>& y, Sample t) {
   auto u = 1 + t;
   auto d0 = y[0] - y[1];
   auto d1 = d0 - (y[1] - y[2]);
@@ -92,14 +82,12 @@ private:
   Sample y1 = 0;
 
 public:
-  void reset()
-  {
+  void reset() {
     x1 = 0;
     y1 = 0;
   }
 
-  void setCutoff(Sample sampleRate, Sample cutoffHz)
-  {
+  void setCutoff(Sample sampleRate, Sample cutoffHz) {
     constexpr Sample pi = std::numbers::pi_v<Sample>;
     auto k = std::tan(pi * cutoffHz / sampleRate);
     auto a0 = Sample(1) + Sample(1) / k;
@@ -107,17 +95,14 @@ public:
     a1 = (k - Sample(1)) / a0; // Negated.
   }
 
-  Sample process(Sample x0)
-  {
+  Sample process(Sample x0) {
     y0 = bn * (x0 + x1) + a1 * y1;
     x1 = x0;
     return y1 = y0;
   }
 };
 
-template<typename T>
-inline std::array<T, 2> secondToSvfParameters(T sampleRate, T seconds, T Q)
-{
+template<typename T> inline std::array<T, 2> secondToSvfParameters(T sampleRate, T seconds, T Q) {
   auto g = SVFTool::freqToG(T(1) / std::max(sampleRate * seconds, T(4)));
   auto d = T(1) / (T(1) + g * g + g / std::max(Q, std::numeric_limits<T>::epsilon()));
   return {g, d};
@@ -133,10 +118,9 @@ private:
   ExpSmoother<Sample> svfK;
 
 public:
-  SVFLP(const SmootherParameter<Sample> &smoo) : svfG(smoo), svfD(smoo), svfK(smoo) {}
+  SVFLP(const SmootherParameter<Sample>& smoo) : svfG(smoo), svfD(smoo), svfK(smoo) {}
 
-  void reset(Sample sampleRate, Sample seconds, Sample Q)
-  {
+  void reset(Sample sampleRate, Sample seconds, Sample Q) {
     ic1eq = 0;
     ic2eq = 0;
 
@@ -146,16 +130,14 @@ public:
     svfK.reset(Sample(1) / Q);
   }
 
-  void push(Sample sampleRate, Sample seconds, Sample Q)
-  {
+  void push(Sample sampleRate, Sample seconds, Sample Q) {
     auto prm = secondToSvfParameters(sampleRate, seconds, Q);
     svfG.push(prm[0]);
     svfD.push(prm[1]);
     svfK.push(Sample(1) / Q);
   }
 
-  Sample process(Sample v0)
-  {
+  Sample process(Sample v0) {
     const Sample g = svfG.process();
     const Sample d = svfD.process();
 
@@ -166,10 +148,9 @@ public:
     return v2;
   }
 
-  Sample processMod(Sample v0, Sample gMod, Sample resoMod)
-  {
-    const Sample g = std::clamp(
-      svfG.process() * std::exp2(std::min(gMod, Sample(16))), Sample(0), Sample(3000));
+  Sample processMod(Sample v0, Sample gMod, Sample resoMod) {
+    const Sample g
+      = std::clamp(svfG.process() * std::exp2(std::min(gMod, Sample(16))), Sample(0), Sample(3000));
     const Sample k = resoMod * svfK.process();
 
     Sample v1 = (ic1eq + g * (v0 - ic2eq)) / (Sample(1) + g * g + g * k);
@@ -187,29 +168,31 @@ public:
   size_t wptr = 0;
   std::vector<Sample> buf;
 
-  void resize(size_t maxDelaySample)
-  {
+  void resize(size_t maxDelaySample) {
     buf.resize(maxDelaySample < 4 ? 4 : maxDelaySample + 1);
     reset();
   }
 
   void reset() { std::fill(buf.begin(), buf.end(), Sample(0)); }
 
-  Sample process(Sample input, Sample timeInSample)
-  {
+  Sample process(Sample input, Sample timeInSample) {
     // Set delay time.
     Sample clamped = std::clamp(timeInSample, Sample(0), Sample(buf.size() - 1));
-    size_t &&timeInt = size_t(clamped);
+    size_t&& timeInt = size_t(clamped);
     Sample rFraction = clamped - Sample(timeInt);
 
     size_t rptr0 = wptr - timeInt;
     size_t rptr1 = rptr0 - 1;
-    if (rptr0 >= buf.size()) rptr0 += buf.size(); // Unsigned negative overflow case.
-    if (rptr1 >= buf.size()) rptr1 += buf.size(); // Unsigned negative overflow case.
+    if (rptr0 >= buf.size()) {
+      rptr0 += buf.size(); // Unsigned negative overflow case.
+    }
+    if (rptr1 >= buf.size()) {
+      rptr1 += buf.size(); // Unsigned negative overflow case.
+    }
 
     // Write to buffer.
     buf[wptr] = input;
-    if (++wptr >= buf.size()) wptr -= buf.size();
+    if (++wptr >= buf.size()) { wptr -= buf.size(); }
 
     // Read from buffer.
     return buf[rptr0] + rFraction * (buf[rptr1] - buf[rptr0]);
@@ -245,17 +228,13 @@ private:
   Delay<Sample> delay;
 
 public:
-  BadLimiter(const SmootherParameter<Sample> &smoo)
-    : amp(smoo), delayTimeSample(smoo), svf(smoo)
-  {
-  }
+  BadLimiter(const SmootherParameter<Sample>& smoo) : amp(smoo), delayTimeSample(smoo), svf(smoo) {}
 
   // size_t latency(size_t upfold) { return attackFrames / upfold; }
 
   void resize(size_t maxDelaySample) { delay.resize(maxDelaySample); }
 
-  void reset(Sample sampleRate, Sample holdSeconds, Sample Q, Sample characterAmp)
-  {
+  void reset(Sample sampleRate, Sample holdSeconds, Sample Q, Sample characterAmp) {
     holdValue = 0;
     counter = 0;
     holdSamples = size_t(sampleRate * holdSeconds);
@@ -269,15 +248,13 @@ public:
     delay.reset();
   }
 
-  void push(Sample sampleRate, Sample holdSeconds, Sample Q, Sample characterAmp)
-  {
+  void push(Sample sampleRate, Sample holdSeconds, Sample Q, Sample characterAmp) {
     amp.push(characterAmp);
     svf.push(sampleRate, holdSeconds, Q);
     delayTimeSample.push(sampleRate * holdSeconds);
   }
 
-  inline Sample poly(Sample x0, Sample ratio)
-  {
+  inline Sample poly(Sample x0, Sample ratio) {
     constexpr Sample a1 = Sample(0.761468168789663);
     constexpr Sample a2 = Sample(0.4497752742394532);
     constexpr Sample a3 = Sample(-0.520876400831698);
@@ -292,8 +269,7 @@ public:
     return std::copysign(x * (p1 + x * (p2 + x * (p3 + x * p4))), x0);
   }
 
-  inline Sample forwardHold(Sample absed, Sample spike)
-  {
+  inline Sample forwardHold(Sample absed, Sample spike) {
     ++counter;
     if (counter > holdSamples || holdValue < absed) {
       holdValue = absed - spike;
@@ -302,8 +278,7 @@ public:
     return counter ? holdValue : holdValue + spike;
   }
 
-  inline Sample forwardHoldSpike(Sample absed, Sample spike)
-  {
+  inline Sample forwardHoldSpike(Sample absed, Sample spike) {
     ++counter;
     if (counter > holdSamples || holdValue < absed) {
       holdValue = absed;
@@ -312,8 +287,7 @@ public:
     return counter ? holdValue : holdValue + spike;
   }
 
-  inline Sample forwardHoldSpikeCubic(Sample absed, Sample spike)
-  {
+  inline Sample forwardHoldSpikeCubic(Sample absed, Sample spike) {
     ++counter;
     if (counter > holdSamples || holdValue < absed) {
       holdValue = absed;
@@ -331,8 +305,7 @@ public:
     return holdValue + cubicInterp(cubicBuffer, fractionalDelay);
   }
 
-  inline Sample forwardHoldHardGate(Sample absed, Sample spike)
-  {
+  inline Sample forwardHoldHardGate(Sample absed, Sample spike) {
     ++counter;
     if (counter > holdSamples || holdValue < absed) {
       holdValue = absed - Sample(1000) * spike;
@@ -341,21 +314,18 @@ public:
     return holdValue;
   }
 
-  inline Sample getGainSigmoid(Sample peak)
-  {
-    if (peak < std::numeric_limits<Sample>::epsilon()) return 0;
+  inline Sample getGainSigmoid(Sample peak) {
+    if (peak < std::numeric_limits<Sample>::epsilon()) { return 0; }
     return Sample(1) + std::erf(peak) * (Sample(1) / peak - Sample(1));
   }
 
-  inline Sample getGainHardClip(Sample peak)
-  {
+  inline Sample getGainHardClip(Sample peak) {
     const auto th = amp.process();
-    if (peak > th) return th / peak;
+    if (peak > th) { return th / peak; }
     return Sample(1);
   }
 
-  Sample processImmediate(Sample x0)
-  {
+  Sample processImmediate(Sample x0) {
     Sample peak = forwardHold(std::abs(x0), amp.process());
     Sample gain = getGainSigmoid(peak);
     Sample smoothed = std::abs(svf.process(gain));
@@ -363,8 +333,7 @@ public:
     return output;
   }
 
-  Sample processHardGate(Sample x0)
-  {
+  Sample processHardGate(Sample x0) {
     Sample peak = forwardHoldHardGate(std::abs(x0), amp.process());
     Sample gain = getGainSigmoid(peak);
     Sample smoothed = std::abs(svf.process(gain));
@@ -372,8 +341,7 @@ public:
     return output;
   }
 
-  Sample processSpike(Sample x0)
-  {
+  Sample processSpike(Sample x0) {
     Sample peak = forwardHoldSpike(std::abs(x0), amp.process());
     Sample gain = getGainSigmoid(peak);
     Sample smoothed = std::abs(svf.process(gain));
@@ -381,8 +349,7 @@ public:
     return output;
   }
 
-  Sample processSpikeCubic(Sample x0)
-  {
+  Sample processSpikeCubic(Sample x0) {
     Sample peak = forwardHoldSpikeCubic(std::abs(x0), amp.process());
     Sample gain = getGainSigmoid(peak);
     Sample smoothed = std::abs(svf.process(gain));
@@ -390,8 +357,7 @@ public:
     return output;
   }
 
-  Sample processCutoffMod(Sample x0)
-  {
+  Sample processCutoffMod(Sample x0) {
     Sample peak = forwardHoldSpike(std::abs(x0), Sample(0));
     Sample gain = getGainSigmoid(peak);
     Sample smoothed = std::abs(svf.processMod(gain, x0 * amp.process(), Sample(1)));
@@ -399,8 +365,7 @@ public:
     return output;
   }
 
-  Sample processMatched(Sample x0)
-  {
+  Sample processMatched(Sample x0) {
     Sample peak = forwardHold(std::abs(x0), amp.process());
     Sample gain = getGainSigmoid(peak);
     Sample smoothed = std::abs(svf.process(gain));
@@ -409,8 +374,7 @@ public:
     return output;
   }
 
-  Sample processBadLimiter(Sample x0)
-  {
+  Sample processBadLimiter(Sample x0) {
     Sample peak = forwardHold(std::abs(x0), Sample(0));
     Sample gain = getGainHardClip(peak);
     Sample smoothed = std::abs(svf.process(gain));
@@ -419,8 +383,7 @@ public:
     return output;
   }
 
-  Sample processPolyDrive(Sample x0)
-  {
+  Sample processPolyDrive(Sample x0) {
     Sample peak = forwardHold(std::abs(x0), Sample(0));
     Sample smoothed = std::abs(svf.process(peak));
     Sample delayed = delay.process(x0, delayTimeSample.process());
@@ -444,14 +407,10 @@ private:
   SVFLP<Sample> svf;
 
 public:
-  AsymmetricDrive(const SmootherParameter<Sample> &smoo)
-    : decayP(smoo), decayN(smoo), exponentRange(smoo), svf(smoo)
-  {
-  }
+  AsymmetricDrive(const SmootherParameter<Sample>& smoo)
+      : decayP(smoo), decayN(smoo), exponentRange(smoo), svf(smoo) {}
 
-  void reset(
-    Sample sampleRate, Sample decaySecond, Sample decayBias, Sample Q, Sample expRange)
-  {
+  void reset(Sample sampleRate, Sample decaySecond, Sample decayBias, Sample Q, Sample expRange) {
     x1 = 0;
     accP = 0;
     accN = 0;
@@ -465,9 +424,7 @@ public:
     svf.reset(sampleRate, decaySecond, Q);
   }
 
-  void
-  push(Sample sampleRate, Sample decaySecond, Sample decayBias, Sample Q, Sample expRange)
-  {
+  void push(Sample sampleRate, Sample decaySecond, Sample decayBias, Sample Q, Sample expRange) {
     Sample inv_frames = Sample(1) / std::max(sampleRate * decaySecond, Sample(2));
     decayP.push(std::pow(eps, inv_frames));
     decayN.push(std::pow(eps, inv_frames * decayBias));
@@ -477,8 +434,7 @@ public:
     svf.push(sampleRate, decaySecond, Q);
   }
 
-  Sample process(Sample x0)
-  {
+  Sample process(Sample x0) {
     Sample d0 = x0 - x1;
     x1 = x0;
 

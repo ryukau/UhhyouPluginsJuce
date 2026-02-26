@@ -44,11 +44,11 @@ struct Metrics {
     labelY = int(f_labelY);
     sectionWidth = int(f_sectionWidth);
     totalWidth = int(2 * f_sectionWidth + 3 * f_uiMargin);
-    totalHeight = int(10 * (f_labelH + 2 * f_margin));
+    totalHeight = int(12 * f_labelY + f_labelH + 2 * f_uiMargin);
   }
 };
 
-const juce::String sAM{"Amplitude Modulator"};
+const juce::String sShaper{"Shaper"};
 
 Editor::Editor(Processor& processor)
     : EditorBase(processor, informationText, getLibraryLicenseText(), [&]() {
@@ -72,21 +72,16 @@ Editor::Editor(Processor& processor)
       }) {
   auto& s_ = processor.param.scale;
 
-  addComboBox(sAM, "amType", s_.amType,
-              {
-                "Double Side-band (DSB)",
-                "Upper Side-band (USB)",
-                "Lower Side-band (LSB)",
-                "DSB Upper AA",
-                "DSB Full AA",
-                "USB AA",
-                "LSB AA",
-              },
-              "Type");
+  addTextKnob(sShaper, "lowGain", s_.gain, {}, 5);
+  addTextKnob(sShaper, "highGain", s_.gain, {}, 5);
+  addTextKnob(sShaper, "crossoverHz", s_.cutoff, {}, 5);
+  addTextKnob(sShaper, "shaperDecaySecond", s_.decay, {}, 5);
+  addTextKnob(sShaper, "shaperRefreshRatio", s_.refreshRatio, {}, 5);
+  addTextKnob(sShaper, "shaperIntensity", s_.gain, {}, 5);
+  addTextKnob(sShaper, "shaperPostLowpassHz", s_.cutoff, {}, 5);
+  addToggleButton(sShaper, "oversampling", s_.boolean, "", "", LabeledWidget::expand);
 
-  addTextKnob(sAM, "carriorSideBandMix", s_.unipolar, {}, 5);
-  addTextKnob(sAM, "outputGain", s_.gain, {}, 5);
-  addToggleButton(sAM, "swapCarriorAndModulator", s_.boolean, "", "", LabeledWidget::expand);
+  registerInteractive(envelopeDisplay);
 
   // `setSize` must be called at last.
   const float scale = getStateTree().getProperty("windowScale", 1.0f);
@@ -117,7 +112,7 @@ void Editor::resized() {
   const int left1 = left0 + mt.sectionWidth + mt.uiMargin;
 
   int currentTop = top0;
-  if (auto sc = sections.find(sAM); sc != sections.end()) {
+  if (auto sc = sections.find(sShaper); sc != sections.end()) {
     currentTop = layoutVerticalSection(groupLabels, left0, currentTop, mt.sectionWidth, mt.labelH,
                                        mt.labelY, sc->first, sc->second);
   }
@@ -128,6 +123,9 @@ void Editor::resized() {
 
   pluginInfoButton.setBounds(Rect{left1, nameTop0, mt.sectionWidth, mt.labelH});
   pluginInfoButton.scale(scale);
+
+  envelopeDisplay.setBounds(
+    Rect{left1, nameTop0 + mt.labelY + mt.margin, mt.sectionWidth, 6 * mt.labelY - 2 * mt.margin});
 
   statusBar.setBounds(
     Rect{left0, bottom - mt.labelH - mt.uiMargin, mt.totalWidth - 2 * mt.uiMargin, mt.labelH});

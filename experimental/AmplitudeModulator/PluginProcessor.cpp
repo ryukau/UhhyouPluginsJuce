@@ -1,19 +1,15 @@
 // Copyright Takamitsu Endo (ryukau@gmail.com).
 // SPDX-License-Identifier: AGPL-3.0-only
 
-#include "PluginProcessor.h"
-#include "PluginEditor.h"
+#include "PluginProcessor.hpp"
+#include "PluginEditor.hpp"
 
 Processor::Processor()
-  : AudioProcessor(
-      BusesProperties()
-        .withInput("InputCarrior", juce::AudioChannelSet::stereo(), true)
-        .withInput("InputModulator", juce::AudioChannelSet::stereo(), true)
-        .withOutput("Output", juce::AudioChannelSet::stereo(), true))
-  , param(*this, &undoManager, juce::Identifier("Root"))
-  , dsp(param)
-{
-}
+    : AudioProcessor(BusesProperties()
+                       .withInput("InputCarrior", juce::AudioChannelSet::stereo(), true)
+                       .withInput("InputModulator", juce::AudioChannelSet::stereo(), true)
+                       .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
+      param(*this, &undoManager, juce::Identifier("Root")), dsp(param) {}
 
 Processor::~Processor() {}
 
@@ -26,10 +22,9 @@ int Processor::getNumPrograms() { return 1; }
 int Processor::getCurrentProgram() { return 0; }
 void Processor::setCurrentProgram(int) {}
 const juce::String Processor::getProgramName(int) { return {}; }
-void Processor::changeProgramName(int, const juce::String &) {}
+void Processor::changeProgramName(int, const juce::String&) {}
 
-void Processor::prepareToPlay(double sampleRate, int)
-{
+void Processor::prepareToPlay(double sampleRate, int) {
   std::lock_guard<std::mutex> guard(setupMutex);
 
   if (previousSampleRate != sampleRate) {
@@ -43,23 +38,19 @@ void Processor::prepareToPlay(double sampleRate, int)
 
 void Processor::releaseResources() {}
 
-bool Processor::isBusesLayoutSupported(const BusesLayout &layouts) const
-{
-  if (
-    layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
-    && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+bool Processor::isBusesLayoutSupported(const BusesLayout& layouts) const {
+  if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
+      && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
   {
     return false;
   }
 
-  if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet()) return false;
+  if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet()) { return false; }
 
   return true;
 }
 
-void Processor::processBlock(
-  juce::AudioBuffer<float> &buffer, juce::MidiBuffer & /*midi*/)
-{
+void Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& /*midi*/) {
   // Mutex shouldn't be used here. However, this is a mitigation of a crash on old version
   // of FL when refreshing a plugin. It seems like `prepareToPlay` and `processBlock`
   // might be called at the same time.
@@ -78,10 +69,10 @@ void Processor::processBlock(
       dsp.isPlaying = positionInfo->getIsPlaying();
 
       auto bpm = positionInfo->getBpm();
-      if (bpm) dsp.tempo = *bpm;
+      if (bpm) { dsp.tempo = *bpm; }
 
       auto beats = positionInfo->getPpqPosition();
-      if (beats) dsp.beatsElapsed = *beats;
+      if (beats) { dsp.beatsElapsed = *beats; }
 
       auto timeSignature = positionInfo->getTimeSignature();
       if (timeSignature) {
@@ -108,20 +99,15 @@ void Processor::processBlock(
 
 bool Processor::hasEditor() const { return true; }
 
-juce::AudioProcessorEditor *Processor::createEditor()
-{
-  return new Uhhyou::Editor(*this);
-}
+juce::AudioProcessorEditor* Processor::createEditor() { return new Uhhyou::Editor(*this); }
 
-void Processor::getStateInformation(juce::MemoryBlock &destData)
-{
+void Processor::getStateInformation(juce::MemoryBlock& destData) {
   auto state = param.tree.copyState();
   std::unique_ptr<juce::XmlElement> xml(state.createXml());
   copyXmlToBinary(*xml, destData);
 }
 
-void Processor::setStateInformation(const void *data, int sizeInBytes)
-{
+void Processor::setStateInformation(const void* data, int sizeInBytes) {
   std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
   if (xmlState.get() != nullptr) {
@@ -131,4 +117,4 @@ void Processor::setStateInformation(const void *data, int sizeInBytes)
   }
 }
 
-juce::AudioProcessor *JUCE_CALLTYPE createPluginFilter() { return new Processor(); }
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new Processor(); }

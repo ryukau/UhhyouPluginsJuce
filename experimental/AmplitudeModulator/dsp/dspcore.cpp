@@ -11,8 +11,7 @@
 
 namespace Uhhyou {
 
-void DSPCore::setup(double sampleRate_)
-{
+void DSPCore::setup(double sampleRate_) {
   sampleRate = double(sampleRate_);
 
   smoo.setTime(sampleRate, double(0.1));
@@ -23,25 +22,24 @@ void DSPCore::setup(double sampleRate_)
 
 size_t DSPCore::getLatency() { return 0; }
 
-#define ASSIGN_PARAMETER(METHOD)                                                         \
-  auto &pv = param.value;                                                                \
-                                                                                         \
-  amType = size_t(pv.amType->load());                                                    \
-  swapCarriorAndModulator = bool(pv.swapCarriorAndModulator->load());                    \
-  carriorSideBandMix.METHOD(pv.carriorSideBandMix->load());                              \
+#define ASSIGN_PARAMETER(METHOD)                                                                   \
+  auto& pv = param.value;                                                                          \
+                                                                                                   \
+  amType = size_t(pv.amType->load());                                                              \
+  swapCarriorAndModulator = bool(pv.swapCarriorAndModulator->load());                              \
+  carriorSideBandMix.METHOD(pv.carriorSideBandMix->load());                                        \
   outputGain.METHOD(pv.outputGain->load());
 
-void DSPCore::reset()
-{
+void DSPCore::reset() {
   ASSIGN_PARAMETER(reset);
 
-  for (auto &x : amNaive) x.reset();
-  for (auto &x : amUpperAA) x.reset();
-  for (auto &x : amFullAA) x.reset();
-  for (auto &x : amUsbNaive) x.reset();
-  for (auto &x : amLsbNaive) x.reset();
-  for (auto &x : amUsbAA) x.reset();
-  for (auto &x : amLsbAA) x.reset();
+  for (auto& x : amNaive) { x.reset(); }
+  for (auto& x : amUpperAA) { x.reset(); }
+  for (auto& x : amFullAA) { x.reset(); }
+  for (auto& x : amUsbNaive) { x.reset(); }
+  for (auto& x : amLsbNaive) { x.reset(); }
+  for (auto& x : amUsbAA) { x.reset(); }
+  for (auto& x : amLsbAA) { x.reset(); }
 
   startup();
 }
@@ -50,25 +48,18 @@ void DSPCore::startup() {}
 
 void DSPCore::setParameters() { ASSIGN_PARAMETER(push); }
 
-#define PROCESS_AM(PROCESSOR)                                                            \
-  for (size_t i = 0; i < length; ++i) {                                                  \
-    auto sideBand0 = PROCESSOR[0].process(inCar0[i], inMod0[i]);                         \
-    auto sideBand1 = PROCESSOR[1].process(inCar1[i], inMod1[i]);                         \
-    auto mix = carriorSideBandMix.process();                                             \
-    auto gain = outputGain.process();                                                    \
-    out0[i] = float(gain * std::lerp(double(inCar0[i]), sideBand0, mix));                \
-    out1[i] = float(gain * std::lerp(double(inCar1[i]), sideBand1, mix));                \
+#define PROCESS_AM(PROCESSOR)                                                                      \
+  for (size_t i = 0; i < length; ++i) {                                                            \
+    auto sideBand0 = PROCESSOR[0].process(inCar0[i], inMod0[i]);                                   \
+    auto sideBand1 = PROCESSOR[1].process(inCar1[i], inMod1[i]);                                   \
+    auto mix = carriorSideBandMix.process();                                                       \
+    auto gain = outputGain.process();                                                              \
+    out0[i] = float(gain * std::lerp(double(inCar0[i]), sideBand0, mix));                          \
+    out1[i] = float(gain * std::lerp(double(inCar1[i]), sideBand1, mix));                          \
   }
 
-void DSPCore::process(
-  const size_t length,
-  const float *inCar0,
-  const float *inCar1,
-  const float *inMod0,
-  const float *inMod1,
-  float *out0,
-  float *out1)
-{
+void DSPCore::process(const size_t length, const float* inCar0, const float* inCar1,
+                      const float* inMod0, const float* inMod1, float* out0, float* out1) {
   if (swapCarriorAndModulator) {
     std::swap(inCar0, inCar1);
     std::swap(inMod0, inMod1);

@@ -13,23 +13,21 @@ namespace Uhhyou {
 
 constexpr double limiterAttackSecond = 0.001;
 
-void DSPCore::setup(double sampleRate_)
-{
+void DSPCore::setup(double sampleRate_) {
   sampleRate = double(sampleRate_);
 
   auto maxRate = upFold * sampleRate;
-  for (auto &x : overDrive) {
+  for (auto& x : overDrive) {
     x.resize(size_t(maxRate * param.scale.overDriveHoldSecond.getMax()) + 1);
   }
-  for (auto &x : limiter) x.resize(size_t(maxRate * limiterAttackSecond) + 1);
+  for (auto& x : limiter) { x.resize(size_t(maxRate * limiterAttackSecond) + 1); }
 
   reset();
   startup();
 }
 
-size_t DSPCore::getLatency()
-{
-  auto &pv = param.value;
+size_t DSPCore::getLatency() {
+  auto& pv = param.value;
 
   size_t latency = 2; // Fixed 2 samples from CubicUpSampler.
 
@@ -40,56 +38,52 @@ size_t DSPCore::getLatency()
   return latency;
 }
 
-#define ASSIGN_PARAMETER(METHOD)                                                         \
-  auto &pv = param.value;                                                                \
-                                                                                         \
-  smoo.setTime(upRate, pv.parameterSmoothingSecond->load());                             \
-                                                                                         \
-  overDriveType = size_t(pv.overDriveType->load());                                      \
-  asymDriveEnabled = (pv.asymDriveEnabled->load()) != 0;                                 \
-  limiterEnabled = (pv.limiterEnabled->load()) != 0;                                     \
-                                                                                         \
-  preDriveGain.METHOD(pv.preDriveGain->load());                                          \
-  postDriveGain.METHOD(pv.postDriveGain->load());                                        \
-  limiterInputGain.METHOD(pv.limiterInputGain->load());                                  \
-                                                                                         \
-  for (auto &x : overDrive) {                                                            \
-    x.METHOD(                                                                            \
-      upRate, pv.overDriveHoldSecond->load(), pv.overDriveQ->load(),                     \
-      pv.overDriveCharacterAmp->load());                                                 \
-  }                                                                                      \
-                                                                                         \
-  for (auto &x : asymDrive) {                                                            \
-    x.METHOD(                                                                            \
-      upRate, pv.asymDriveDecaySecond->load(), pv.asymDriveDecayBias->load(),            \
-      pv.asymDriveQ->load(), pv.asymExponentRange->load());                              \
-  }                                                                                      \
-                                                                                         \
-  for (auto &x : limiter) {                                                              \
-    x.prepare(upRate, limiterAttackSecond, pv.limiterReleaseSecond->load(), double(1));  \
+#define ASSIGN_PARAMETER(METHOD)                                                                   \
+  auto& pv = param.value;                                                                          \
+                                                                                                   \
+  smoo.setTime(upRate, pv.parameterSmoothingSecond->load());                                       \
+                                                                                                   \
+  overDriveType = size_t(pv.overDriveType->load());                                                \
+  asymDriveEnabled = (pv.asymDriveEnabled->load()) != 0;                                           \
+  limiterEnabled = (pv.limiterEnabled->load()) != 0;                                               \
+                                                                                                   \
+  preDriveGain.METHOD(pv.preDriveGain->load());                                                    \
+  postDriveGain.METHOD(pv.postDriveGain->load());                                                  \
+  limiterInputGain.METHOD(pv.limiterInputGain->load());                                            \
+                                                                                                   \
+  for (auto& x : overDrive) {                                                                      \
+    x.METHOD(upRate, pv.overDriveHoldSecond->load(), pv.overDriveQ->load(),                        \
+             pv.overDriveCharacterAmp->load());                                                    \
+  }                                                                                                \
+                                                                                                   \
+  for (auto& x : asymDrive) {                                                                      \
+    x.METHOD(upRate, pv.asymDriveDecaySecond->load(), pv.asymDriveDecayBias->load(),               \
+             pv.asymDriveQ->load(), pv.asymExponentRange->load());                                 \
+  }                                                                                                \
+                                                                                                   \
+  for (auto& x : limiter) {                                                                        \
+    x.prepare(upRate, limiterAttackSecond, pv.limiterReleaseSecond->load(), double(1));            \
   }
 
 void DSPCore::updateUpRate() { upRate = double(sampleRate) * fold[oversampling]; }
 
-void DSPCore::reset()
-{
+void DSPCore::reset() {
   oversampling = size_t(param.value.oversampling->load());
   updateUpRate();
 
   ASSIGN_PARAMETER(reset);
 
-  for (auto &x : limiter) x.reset();
-  for (auto &x : upSampler) x.reset();
-  for (auto &x : decimationLowpass) x.reset();
-  for (auto &x : halfbandIir) x.reset();
+  for (auto& x : limiter) { x.reset(); }
+  for (auto& x : upSampler) { x.reset(); }
+  for (auto& x : decimationLowpass) { x.reset(); }
+  for (auto& x : halfbandIir) { x.reset(); }
 
   startup();
 }
 
 void DSPCore::startup() {}
 
-void DSPCore::setParameters()
-{
+void DSPCore::setParameters() {
   size_t newOversampling = size_t(param.value.oversampling->load());
   if (oversampling != newOversampling) {
     oversampling = newOversampling;
@@ -99,8 +93,7 @@ void DSPCore::setParameters()
   ASSIGN_PARAMETER(push);
 }
 
-std::array<double, 2> DSPCore::processFrame(const std::array<double, 2> &frame)
-{
+std::array<double, 2> DSPCore::processFrame(const std::array<double, 2>& frame) {
   preDriveGain.process();
   limiterInputGain.process();
   postDriveGain.process();
@@ -167,9 +160,8 @@ std::array<double, 2> DSPCore::processFrame(const std::array<double, 2> &frame)
   return {sig0, sig1};
 }
 
-void DSPCore::process(
-  const size_t length, const float *in0, const float *in1, float *out0, float *out1)
-{
+void DSPCore::process(const size_t length, const float* in0, const float* in1, float* out0,
+                      float* out1) {
   for (size_t i = 0; i < length; ++i) {
     upSampler[0].process(in0[i]);
     upSampler[1].process(in1[i]);
@@ -182,10 +174,10 @@ void DSPCore::process(
         upSampler[0].output[j] = decimationLowpass[0].output();
         upSampler[1].output[j] = decimationLowpass[1].output();
       }
-      out0[i] = float(halfbandIir[0].process(
-        {upSampler[0].output[0], upSampler[0].output[upFold / 2]}));
-      out1[i] = float(halfbandIir[1].process(
-        {upSampler[1].output[0], upSampler[1].output[upFold / 2]}));
+      out0[i]
+        = float(halfbandIir[0].process({upSampler[0].output[0], upSampler[0].output[upFold / 2]}));
+      out1[i]
+        = float(halfbandIir[1].process({upSampler[1].output[0], upSampler[1].output[upFold / 2]}));
     } else if (oversampling == 1) { // 2x.
       const size_t mid = upFold / 2;
       for (size_t j = 0; j < upFold; j += mid) {
@@ -193,10 +185,8 @@ void DSPCore::process(
         upSampler[0].output[j] = frame[0];
         upSampler[1].output[j] = frame[1];
       }
-      out0[i] = float(
-        halfbandIir[0].process({upSampler[0].output[0], upSampler[0].output[mid]}));
-      out1[i] = float(
-        halfbandIir[1].process({upSampler[1].output[0], upSampler[1].output[mid]}));
+      out0[i] = float(halfbandIir[0].process({upSampler[0].output[0], upSampler[0].output[mid]}));
+      out1[i] = float(halfbandIir[1].process({upSampler[1].output[0], upSampler[1].output[mid]}));
     } else { // 1x.
       auto frame = processFrame({upSampler[0].output[0], upSampler[1].output[0]});
       out0[i] = float(frame[0]);

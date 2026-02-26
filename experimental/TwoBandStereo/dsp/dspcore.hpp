@@ -16,9 +16,9 @@ namespace Uhhyou {
 
 class DSPCore {
 public:
-  DSPCore(ParameterStore &param) : param(param) {}
+  DSPCore(ParameterStore& param) : param(param) {}
 
-  ParameterStore &param;
+  ParameterStore& param;
   bool isPlaying = false;
   double tempo = double(120);
   double beatsElapsed = double(0);
@@ -30,8 +30,7 @@ public:
   void startup();
   size_t getLatency();
   void setParameters();
-  void process(
-    const size_t length, const float *in0, const float *in1, float *out0, float *out1);
+  void process(const size_t length, const float* in0, const float* in1, float* out0, float* out1);
 
 private:
   double sampleRate = 44100;

@@ -4,10 +4,9 @@
 #pragma once
 
 #include "../parameter.hpp"
-#include "./overdrive.hpp"
-#include "Uhhyou/dsp/basiclimiter.hpp"
 #include "Uhhyou/dsp/multirate.hpp"
 #include "Uhhyou/dsp/smoother.hpp"
+#include "transientshaper.hpp"
 
 #include <array>
 #include <cstdint>
@@ -35,30 +34,31 @@ public:
 
 private:
   void updateUpRate();
-  std::array<double, 2> processFrame(const std::array<double, 2>& frame);
+  std::array<double, 2> processSample(const std::array<double, 2> in);
 
-  static constexpr size_t upFold = 16;
-  static constexpr std::array<size_t, 3> fold{1, 2, upFold};
-
+  static constexpr unsigned upFold = 2;
+  unsigned overSampling = 2;
   double sampleRate = 44100;
-  double upRate = upFold * 44100;
+  double upRate = upFold * 44100.0;
 
-  size_t oversampling = 1;
-  size_t overDriveType = 0;
-  bool asymDriveEnabled = true;
-  bool limiterEnabled = true;
+  std::array<float, 2> inputPeakMax{};
+  std::array<float, 2> modEnvelopeOutMax{};
 
+  static constexpr double smootherTimeInSecond = double(0.2);
   SmootherParameter<double> smoo;
-  ExpSmoother<double> preDriveGain{smoo};
-  ExpSmoother<double> limiterInputGain{smoo};
-  ExpSmoother<double> postDriveGain{smoo};
+  ExpSmoother<double> crossoverCutoff{smoo};
+  ExpSmoother<double> shaperDecaySample{smoo};
+  ExpSmoother<double> shaperRefreshRatio{smoo};
+  ExpSmoother<double> shaperIntensity{smoo};
+  ExpSmoother<double> shaperPostLowpassCutoff{smoo};
+  ExpSmoother<double> lowGain{smoo};
+  ExpSmoother<double> highGain{smoo};
 
-  std::array<BadLimiter<double>, 2> overDrive{{{smoo}, {smoo}}};
-  std::array<AsymmetricDrive<double>, 2> asymDrive{{{smoo}, {smoo}}};
-  std::array<BasicLimiter<double>, 2> limiter;
+  std::array<BandSplitter<double, 63>, 2> splitter;
+  std::array<EnvelopeFollowerExpDecay<double>, 2> envelopeHigh;
+  std::array<Butterworth<double, 8>, 2> lowpass;
 
-  std::array<CubicUpSampler<double, upFold>, 2> upSampler;
-  std::array<DecimationLowpass<double, Sos16FoldFirstStage<double>>, 2> decimationLowpass;
+  std::array<std::array<double, 2>, 2> halfbandInput{};
   std::array<HalfBandIIR<double, HalfBandCoefficient<double>>, 2> halfbandIir;
 };
 

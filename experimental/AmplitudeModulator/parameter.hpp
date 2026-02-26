@@ -31,10 +31,10 @@ struct Scales {
 };
 
 struct ValueReceivers {
-  std::atomic<float> *amType{};
-  std::atomic<float> *carriorSideBandMix{};
-  std::atomic<float> *outputGain{};
-  std::atomic<float> *swapCarriorAndModulator{};
+  std::atomic<float>* amType{};
+  std::atomic<float>* carriorSideBandMix{};
+  std::atomic<float>* outputGain{};
+  std::atomic<float>* swapCarriorAndModulator{};
 
   // Internal values used for GUI.
 };
@@ -51,21 +51,18 @@ public:
 
 private:
   template<typename ParamType>
-  inline auto addParameter(
-    std::unique_ptr<juce::AudioProcessorParameterGroup> &group, ParamType param)
-  {
+  inline auto addParameter(std::unique_ptr<juce::AudioProcessorParameterGroup>& group,
+                           ParamType param) {
     auto atomRaw = param->getAtomicRaw();
     group->addChild(std::move(param));
     return atomRaw;
   }
 
-  inline auto createParameterGroup(juce::String name)
-  {
+  inline auto createParameterGroup(juce::String name) {
     return std::make_unique<juce::AudioProcessorParameterGroup>(name, name, "/");
   }
 
-  auto constructParameter()
-  {
+  auto constructParameter() {
     using Cat = juce::AudioProcessorParameter::Category;
     using Rep = ParameterTextRepresentation;
 
@@ -78,37 +75,34 @@ private:
     value.amType = addParameter(
       generalGroup,
       std::make_unique<ScaledParameter<Scales::UIntScl>>(
-        scale.amType.invmap(0), scale.amType, "amType", Cat::genericParameter, version0));
+        scale.amType.invmap(0), scale.amType, "amType", "Type", Cat::genericParameter, version0));
 
-    value.carriorSideBandMix = addParameter(
-      generalGroup,
-      std::make_unique<ScaledParameter<Scales::LinearScl>>(
-        0.5f, scale.unipolar, "carriorSideBandMix", Cat::genericParameter, version0, "",
-        Rep::raw));
-    value.outputGain = addParameter(
-      generalGroup,
-      std::make_unique<ScaledParameter<Scales::DecibelScl>>(
-        scale.gain.invmapDB(0.0f), scale.gain, "outputGain", Cat::genericParameter,
-        version0, "dB", Rep::display));
+    value.carriorSideBandMix
+      = addParameter(generalGroup,
+                     std::make_unique<ScaledParameter<Scales::LinearScl>>(
+                       0.5f, scale.unipolar, "carriorSideBandMix", "Side-band Mix",
+                       Cat::genericParameter, version0, "", Rep::raw));
 
-    value.swapCarriorAndModulator = addParameter(
-      generalGroup,
-      std::make_unique<ScaledParameter<Scales::UIntScl>>(
-        scale.boolean.invmap(0), scale.boolean, "swapCarriorAndModulator",
-        Cat::genericParameter, version0));
+    value.outputGain
+      = addParameter(generalGroup,
+                     std::make_unique<ScaledParameter<Scales::DecibelScl>>(
+                       scale.gain.invmapDB(0.0f), scale.gain, "outputGain", "Output Gain",
+                       Cat::genericParameter, version0, "dB", Rep::display));
+
+    value.swapCarriorAndModulator
+      = addParameter(generalGroup,
+                     std::make_unique<ScaledParameter<Scales::UIntScl>>(
+                       scale.boolean.invmap(0), scale.boolean, "swapCarriorAndModulator",
+                       "Swap Input", Cat::genericParameter, version0));
 
     layout.add(std::move(generalGroup));
     return layout;
   }
 
 public:
-  ParameterStore(
-    juce::AudioProcessor &processor,
-    juce::UndoManager *undoManager,
-    const juce::Identifier &id)
-    : scale(), value(), tree(processor, undoManager, id, constructParameter())
-  {
-  }
+  ParameterStore(juce::AudioProcessor& processor, juce::UndoManager* undoManager,
+                 const juce::Identifier& id)
+      : scale(), value(), tree(processor, undoManager, id, constructParameter()) {}
 };
 
 } // namespace Uhhyou

@@ -1,170 +1,125 @@
 // Copyright Takamitsu Endo (ryukau@gmail.com).
 // SPDX-License-Identifier: AGPL-3.0-only
 
-#include "PluginEditor.h"
-#include "PluginProcessor.h"
+#include "PluginEditor.hpp"
+#include "PluginProcessor.hpp"
 
 #include "./gui/popupinformationtext.hpp"
 #include "Uhhyou/librarylicense.hpp"
 
-#include <array>
 #include <random>
 #include <string>
 
-#define HEAD (*this), (palette), &(processor.undoManager)
-#define PARAMETER(id) processor.param.tree.getParameter(id)
-#define SCALE(name) processor.param.scale.name
-#define VALUE(name) processor.param.value.name
-#define TREE() processor.param.tree
-
-// Parameter related arguments.
-#define ACTION_BUTTON (*this), palette, statusBar, numberEditor
-#define PRM(id, scale) HEAD, PARAMETER(id), SCALE(scale), statusBar, numberEditor
-
 namespace Uhhyou {
 
-constexpr int defaultWidth = 2 * 210 + 2 * 20;
-constexpr int defaultHeight = 10 * 30;
+struct Metrics {
+  static constexpr int baseMargin = 5;
+  static constexpr int baseLabelHeight = 20;
+  static constexpr int baseLabelWidth = 100;
 
-inline juce::File getPresetDirectory(const juce::AudioProcessor &processor)
-{
-  auto appDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
-                  .getFullPathName();
-  auto sep = juce::File::getSeparatorString();
+  int margin{};
+  int labelH{};
+  int labelW{};
+  int uiMargin{};
+  int labelX{};
+  int labelY{};
+  int sectionWidth{};
+  int totalWidth{};
+  int totalHeight{};
 
-  juce::File presetDir(appDir + sep + "Uhhyou" + sep + processor.getName());
-  if (!(presetDir.exists() && presetDir.isDirectory())) presetDir.createDirectory();
-  return presetDir;
-}
+  Metrics(float scale) {
+    const float f_margin = scale * baseMargin;
+    const float f_labelH = scale * baseLabelHeight;
+    const float f_labelW = scale * baseLabelWidth;
+    const float f_uiMargin = 4 * f_margin;
+    const float f_labelX = f_labelW + 2 * f_margin;
+    const float f_labelY = f_labelH + 2 * f_margin;
+    const float f_sectionWidth = 2 * f_labelW + 2 * f_margin;
 
-template<size_t nParameter>
-inline auto constructParamArray(
-  juce::AudioProcessorValueTreeState &tree, std::string baseName, size_t indexOffset = 0)
-{
-  std::array<juce::RangedAudioParameter *, nParameter> params;
-  for (size_t idx = 0; idx < nParameter; ++idx) {
-    params[idx] = tree.getParameter(baseName + std::to_string(idx + indexOffset));
+    margin = int(f_margin);
+    labelH = int(f_labelH);
+    labelW = int(f_labelW);
+    uiMargin = int(f_uiMargin);
+    labelX = int(f_labelX);
+    labelY = int(f_labelY);
+    sectionWidth = int(f_sectionWidth);
+    totalWidth = int(2 * f_sectionWidth + 3 * f_uiMargin);
+    totalHeight = int(10 * (f_labelH + 2 * f_margin));
   }
-  return params;
-}
+};
 
-Editor::Editor(Processor &processor)
-  : AudioProcessorEditor(processor)
-  , processor(processor)
-  , statusBar(*this, palette)
-  , numberEditor(palette)
+const juce::String sSlopeFilter{"Slope Filter"};
 
-  , pluginNameButton(
-      *this, palette, processor.getName(), informationText, getLibraryLicenseText())
-  , undoButton(
-      ACTION_BUTTON,
-      "Undo",
-      [&]() {
-        if (processor.undoManager.canUndo()) processor.undoManager.undo();
-      })
-  , redoButton(
-      ACTION_BUTTON,
-      "Redo",
-      [&]() {
-        if (processor.undoManager.canRedo()) processor.undoManager.redo();
-      })
-  , randomizeButton(
-      ACTION_BUTTON,
-      "Randomize",
-      [&]() {
+Editor::Editor(Processor& processor)
+    : EditorBase(processor, informationText, getLibraryLicenseText(), [&]() {
         std::uniform_real_distribution<float> dist{0.0f, 1.0f};
         std::random_device dev;
         std::mt19937 rng(dev());
 
         auto params = processor.getParameters();
-        for (auto &prm : params) {
+        for (auto& prm : params) {
+          if (this->paramLocks.isLocked(prm)) { continue; }
+
+          float normalized = dist(rng);
+          if (auto it = this->randomizers.find(prm); it != this->randomizers.end()) {
+            normalized = it->second(normalized);
+          }
+
           prm->beginChangeGesture();
-          prm->setValueNotifyingHost(dist(rng));
+          prm->setValueNotifyingHost(normalized);
           prm->endChangeGesture();
         }
-      })
-  , presetManager((*this), (palette), &(processor.undoManager), processor.param.tree)
+      }) {
+  auto& s_ = processor.param.scale;
 
-  , shelvingType(PRM("shelvingType", shelvingType), {"Low Shelf", "High Shelf"})
-  , startHz(PRM("startHz", startHz), 5)
-  , slopeDecibel(PRM("slopeDecibel", slopeDecibel), 5)
-  , outputGain(PRM("outputGain", outputGain), 5)
-{
-  setDefaultColor(lookAndFeel, palette);
+  addComboBox(sSlopeFilter, "shelvingType", s_.boolean, {"Low Shelf", "High Shelf"}, "Type");
+  addTextKnob(sSlopeFilter, "startHz", s_.startHz, {}, 5, "Slope Start [Hz]");
+  addTextKnob(sSlopeFilter, "slopeDecibel", s_.slopeDecibel, {}, 5, "Slope [dB/oct]");
+  addTextKnob(sSlopeFilter, "outputGain", s_.outputGain, {}, 5, "Output [dB]");
 
-  setResizable(true, false);
-  getConstrainer()->setFixedAspectRatio(double(defaultWidth) / double(defaultHeight));
-  const float scale = getStateTree().getProperty("scale", 1.0f);
-  setSize(int(scale * defaultWidth), int(scale * defaultHeight));
+  // `setSize` must be called at last.
+  const float scale = getStateTree().getProperty("windowScale", 1.0f);
+  Metrics mt{scale};
+  getConstrainer()->setFixedAspectRatio(double(mt.totalWidth) / double(mt.totalHeight));
+  setSize(int(mt.totalWidth), int(mt.totalHeight));
+
+  addAndMakeVisible(focusOverlay);
+  focusOverlay.toFront(false);
 }
 
-Editor::~Editor() {}
+void Editor::resized() {
+  EditorBase<Processor>::resized();
 
-void Editor::paint(juce::Graphics &ctx)
-{
-  ctx.setColour(palette.background());
-  ctx.fillAll();
-
-  ctx.setColour(palette.foreground());
-  for (const auto &x : lines) x.paint(ctx);
-
-  ctx.setFont(palette.getFont(palette.textSizeUi()));
-  for (const auto &x : labels) x.paint(ctx);
-
-  auto groupLabelFont = palette.getFont(palette.textSizeUi());
-  auto groupLabelMarginWidth
-    = juce::GlyphArrangement::getStringWidth(groupLabelFont, "W");
-  for (const auto &x : groupLabels) {
-    x.paint(ctx, groupLabelFont, 2 * palette.borderThin(), groupLabelMarginWidth);
-  }
-}
-
-void Editor::resized()
-{
   using Rect = juce::Rectangle<int>;
 
-  const float scale = getDesktopScaleFactor() * getHeight() / float(defaultHeight);
-  getStateTree().setProperty("scale", scale, nullptr);
+  const int defaultHeight = Metrics{1.0f}.totalHeight;
+  const float scale = getHeight() / float(defaultHeight);
+  getStateTree().setProperty("windowScale", scale, nullptr);
   palette.resize(scale);
+  Metrics mt{scale};
 
-  lines.clear();
-  labels.clear();
   groupLabels.clear();
 
-  const int margin = int(5 * scale);
-  const int labelHeight = int(20 * scale);
-  const int labelWidth = int(100 * scale);
   const int bottom = int(scale * defaultHeight);
+  const int top0 = mt.uiMargin;
+  const int left0 = mt.uiMargin;
+  const int left1 = left0 + mt.sectionWidth + mt.uiMargin;
 
-  const int uiMargin = 4 * margin;
-  const int labelX = labelWidth + 2 * margin;
-  const int labelY = labelHeight + 2 * margin;
-  const int sectionWidth = 2 * labelWidth + 2 * margin;
+  int currentTop = top0;
+  if (auto sc = sections.find(sSlopeFilter); sc != sections.end()) {
+    currentTop = layoutVerticalSection(groupLabels, left0, currentTop, mt.sectionWidth, mt.labelH,
+                                       mt.labelY, sc->first, sc->second);
+  }
 
-  const int top0 = uiMargin;
-  const int left0 = uiMargin;
-  const int left1 = left0 + 2 * labelX;
+  const int nameTop0 = layoutActionSection(groupLabels, left1, top0, mt.sectionWidth, mt.labelW,
+                                           mt.labelX, mt.labelH, mt.labelY, undoButton, redoButton,
+                                           randomizeButton, presetManager);
 
-  layoutVerticalSection(
-    labels, groupLabels, left0, top0, sectionWidth, labelWidth, labelWidth, labelX,
-    labelHeight, labelY, "Slope Filter",
-    {
-      {"Type", shelvingType},
-      {"Slope Start [Hz]", startHz},
-      {"Slope [dB/oct]", slopeDecibel},
-      {"Output [dB]", outputGain},
-    });
-
-  const int nameTop0 = layoutActionSection(
-    groupLabels, left1, top0, sectionWidth, labelWidth, labelWidth, labelX, labelHeight,
-    labelY, undoButton, redoButton, randomizeButton, presetManager);
+  pluginInfoButton.setBounds(Rect{left1, nameTop0, mt.sectionWidth, mt.labelH});
+  pluginInfoButton.scale(scale);
 
   statusBar.setBounds(
-    Rect{left0, bottom - labelHeight - uiMargin, 2 * sectionWidth, labelHeight});
-
-  // Plugin name.
-  pluginNameButton.setBounds(Rect{left1, nameTop0, sectionWidth, labelHeight});
-  pluginNameButton.scale(scale);
+    Rect{left0, bottom - mt.labelH - mt.uiMargin, mt.totalWidth - 2 * mt.uiMargin, mt.labelH});
 }
 
 } // namespace Uhhyou
