@@ -10,56 +10,86 @@ env:
   package_path: UhhyouPluginsJuce_plugins
 
 jobs:
-  build-ubuntu:
+  setup-matrix:
     runs-on: ubuntu-latest
+    outputs:
+      plugins: ${{ steps.set-matrix.outputs.plugins }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Matrix from Directories
+        id: set-matrix
+        run: |
+          python -c '
+          import os, json
+          plugins = []
+          for folder in ["plugin", "experimental"]:
+              if os.path.exists(folder):
+                  plugins.extend([d for d in os.listdir(folder) if os.path.isdir(os.path.join(folder, d)) and not d.startswith(".")])
+          print(f"plugins={json.dumps(plugins)}")
+          ' >> $GITHUB_OUTPUT
+
+  build-ubuntu:
+    needs: setup-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJSON(needs.setup-matrix.outputs.plugins) }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: Run script
-      run: ci/ci_ubuntu.sh
+      run: ci/ci_ubuntu.sh ${{ matrix.plugin }}
     - name: Upload
-      # if: ${{ startsWith(github.ref, 'refs/tags/') }}
       uses: actions/upload-artifact@v4
       with:
-        name: plugins_ubuntu
+        name: plugins_ubuntu_${{ matrix.plugin }}
         path: plugins_ubuntu
 
   build-windows:
+    needs: setup-matrix
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJSON(needs.setup-matrix.outputs.plugins) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Run script
-        run: ci/ci_windows.ps1
+        run: ci/ci_windows.ps1 -Plugin ${{ matrix.plugin }}
       - name: Upload
-        # if: ${{ startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
-          name: plugins_windows
+          name: plugins_windows_${{ matrix.plugin }}
           path: plugins_windows
 
   build-macOS:
+    needs: setup-matrix
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJSON(needs.setup-matrix.outputs.plugins) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Run script
-        run: ci/ci_macOS.sh
+        run: ci/ci_macOS.sh ${{ matrix.plugin }}
       - name: Upload
-        # if: ${{ startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
-          name: plugins_macOS
+          name: plugins_macOS_${{ matrix.plugin }}
           path: plugins_macOS
 
   release-packaging:
-    needs: [build-ubuntu, build-windows, build-macOS]
+    needs:[build-ubuntu, build-windows, build-macOS]
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/UhhyouPluginsJuce') }}
     steps:
@@ -71,6 +101,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ${{ env.package_path }}
+          pattern: plugins_*
+          merge-multiple: true
       - name: Run package script
         run: |
           tree -an

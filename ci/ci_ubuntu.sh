@@ -7,6 +7,8 @@ set -e
 shopt -s globstar
 shopt -s nullglob
 
+PLUGIN=${1:-"ALL"}
+
 # Dependencies are based on `JUCE/docs/Linux Dependencies.md`.
 sudo apt update
 sudo apt install libasound2-dev libjack-jackd2-dev \
@@ -19,7 +21,12 @@ sudo apt install libasound2-dev libjack-jackd2-dev \
 
 cmake --version
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build
+
+if [ "$PLUGIN" = "ALL" ] ||[ -z "$PLUGIN" ]; then
+  cmake --build build -j --config Release
+else
+  cmake --build build -j --config Release --target "${PLUGIN}_All"
+fi
 
 echo "UhhyouDebug: Printing ./build"
 tree ./build

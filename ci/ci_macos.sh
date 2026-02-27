@@ -6,9 +6,16 @@
 set -e
 setopt NULL_GLOB
 
+PLUGIN=${1:-"ALL"}
+
 cmake --version
 cmake -S . -B build -GXcode -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j --config Release
+
+if [[ "$PLUGIN" == "ALL" || -z "$PLUGIN" ]]; then
+  cmake --build build -j --config Release
+else
+  cmake --build build -j --config Release --target "${PLUGIN}_All"
+fi
 
 echo "UhhyouDebug: Printing ./build structure"
 find ./build
@@ -27,7 +34,6 @@ function copyArtifact () {
         echo "UhhyouDebug: Copied artifacts from: $release_dir"
       fi
     fi
-
   done
 }
 copyArtifact ./build

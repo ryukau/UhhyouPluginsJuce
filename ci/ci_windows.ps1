@@ -2,13 +2,23 @@
 # Build script for GitHub Actions.
 #
 
+param (
+  [string]$Plugin = "ALL"
+)
+
 $ErrorActionPreference = "Stop"
 
 New-Item -Path build -ItemType "directory" -Force
 
 cmake --version
 cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j --config Release
+
+if ([string]::IsNullOrWhiteSpace($Plugin) -eq $false -and $Plugin -ne "ALL") {
+  cmake --build build -j --config Release --target "${Plugin}_All"
+}
+else {
+  cmake --build build -j --config Release
+}
 
 # https://gitlab.com/gitlab-org/gitlab-runner/issues/3194#note_196458158
 if (!$?) { Exit $LASTEXITCODE }

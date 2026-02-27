@@ -19,7 +19,7 @@ target_sources(ClickyTransient
   PluginProcessor.cpp)
 
 target_compile_definitions(ClickyTransient
-  PUBLIC
+  PRIVATE
   JUCE_WEB_BROWSER=0
   JUCE_USE_CURL=0
   JUCE_VST3_CAN_REPLACE_VST2=0)
@@ -28,7 +28,6 @@ target_link_libraries(ClickyTransient
   PRIVATE
   UhhyouCommon
   juce::juce_audio_utils
-  PUBLIC
   juce::juce_recommended_config_flags
   juce::juce_recommended_warning_flags
   additional_compiler_flag)
