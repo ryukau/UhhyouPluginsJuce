@@ -89,7 +89,7 @@ jobs:
           path: plugins_macOS
 
   release-packaging:
-    needs:[build-ubuntu, build-windows, build-macOS]
+    needs: [build-ubuntu, build-windows, build-macOS]
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/UhhyouPluginsJuce') }}
     steps:
