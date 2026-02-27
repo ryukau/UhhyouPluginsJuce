@@ -94,10 +94,13 @@ struct ValueReceivers {
   std::atomic<float>* lowpassCutoffHz{};
   std::atomic<float>* modulationTracking{};
   std::atomic<float>* crossModMode{};
+  std::atomic<float>* viscosityLowpassHz{};
   std::atomic<float>* crossModulationOctave0{};
   std::atomic<float>* crossModulationOctave1{};
   std::atomic<float>* lfoToDelayTimeOctave0{};
   std::atomic<float>* lfoToDelayTimeOctave1{};
+  std::atomic<float>* am0{};
+  std::atomic<float>* am1{};
 
   std::atomic<float>* noteReceive{};
   std::atomic<float>* notePitchRange{};
@@ -290,6 +293,11 @@ private:
                      std::make_unique<ScaledParameter<Scales::LinearScl>>(
                        scale.unipolar.invmap(0), scale.unipolar, "crossModMode", "S. Mod Mode",
                        Cat::genericParameter, version, "", Rep::raw));
+    value.viscosityLowpassHz
+      = addParameter(generalGroup,
+                     std::make_unique<ScaledParameter<Scales::DecibelScl>>(
+                       scale.cutoffHz.invmap(float(2000)), scale.cutoffHz, "viscosityLowpassHz",
+                       "Viscosity LP", Cat::genericParameter, version, "Hz", Rep::raw));
     value.lfoToDelayTimeOctave0 = addParameter(
       generalGroup,
       std::make_unique<ScaledParameter<Scales::BipolarDecibelScl>>(
@@ -310,6 +318,14 @@ private:
                      std::make_unique<ScaledParameter<Scales::BipolarDecibelScl>>(
                        scale.timeModOctave.invmap(0), scale.timeModOctave, "crossModulationOctave1",
                        "S. Mod 1", Cat::genericParameter, version, "", Rep::raw));
+    value.am0 = addParameter(generalGroup,
+                             std::make_unique<ScaledParameter<Scales::LinearScl>>(
+                               scale.unipolar.invmap(0), scale.unipolar, "am0", "AM 0",
+                               Cat::genericParameter, version, "", Rep::raw));
+    value.am1 = addParameter(generalGroup,
+                             std::make_unique<ScaledParameter<Scales::LinearScl>>(
+                               scale.unipolar.invmap(0), scale.unipolar, "am1", "AM 1",
+                               Cat::genericParameter, version, "", Rep::raw));
 
     value.noteReceive
       = addParameter(generalGroup,

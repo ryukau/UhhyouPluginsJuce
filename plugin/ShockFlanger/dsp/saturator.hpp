@@ -145,13 +145,12 @@ private:
   }
 
   template<int seg_idx> inline void process_segment(T x_a, T x_b, T& value) {
-    // `process_segment` computes a definite integral from `x_a` to `x_b` on hardcilp
-    // function. Gauss-Legendre quadrature is used.
+    // `process_segment` computes a definite integral from `x_a` to `x_b` on hardcilp function.
+    // Gauss-Legendre quadrature is used.
     //
-    // Gauss-Legendre quadrature is only valid for a polynomial. Hardclip is a piecewise
-    // function that has discontinuities at -1 and 1. So if the segment between `x_a` and
-    // `x_b` crosses the discontinuity, the quadrature must be computed separately for
-    // each region.
+    // Gauss-Legendre quadrature is only valid for polynomials. Hardclip is a piecewise function
+    // that has discontinuities at -1 and 1. If the segment between `x_a` and `x_b` crosses the
+    // discontinuity, the quadrature must be computed separately for each region.
 
     // Segment is in constant region above +1.
     const bool a_is_above = x_a > T(1);

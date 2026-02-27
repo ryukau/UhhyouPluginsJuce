@@ -68,6 +68,7 @@ template<typename Func> void DSPCore::applyToParameters(Func apply) {
   apply(delayTimeSample0, delayTime);
   apply(delayTimeSample1, L(pv.delayTimeRatio) * delayTime);
 
+  apply(viscosityCutoff, L(pv.viscosityLowpassHz) / upRate);
   apply(crossModMode, L(pv.crossModMode));
 
   const auto setMod = [&](Real invTime, Real mod, Real tracking) -> Real {
@@ -87,6 +88,8 @@ template<typename Func> void DSPCore::applyToParameters(Func apply) {
   apply(crossModOctave1, setMod(invTime1, cMod1, modTracking));
   apply(timeModOctave0, setMod(invTime0, L(pv.lfoToDelayTimeOctave0), modTracking));
   apply(timeModOctave1, setMod(invTime1, L(pv.lfoToDelayTimeOctave1), modTracking));
+  apply(am0, L(pv.am0));
+  apply(am1, L(pv.am1));
 
   const auto& cutoffMax = scl.cutoffHz.getMax();
   apply(lowpassCutoff, L(pv.lowpassCutoffHz) / upRate);
@@ -177,11 +180,14 @@ auto DSPCore::processSample(const std::array<Real, 2> in) -> std::array<Real, 2>
     .inputRatio = inputRatio.process(),
     .timeInSamples0 = delayTimeSample0.process() * ntPitch,
     .timeInSamples1 = delayTimeSample1.process() * ntPitch,
+    .viscosityCutoff = viscosityCutoff.process(),
     .crossModMode = crossModMode.process(),
     .crossModOctave0 = crossModOctave0.process(),
     .crossModOctave1 = crossModOctave1.process(),
     .timeModOctave0 = timeModOctave0.process(),
     .timeModOctave1 = timeModOctave1.process(),
+    .am0 = am0.process(),
+    .am1 = am1.process(),
     .highpassCutoff = highpassCutoff.process(),
     .highpassFade = highpassFade.process(fadeKp),
     .flangeMode = flangeMode.process(),

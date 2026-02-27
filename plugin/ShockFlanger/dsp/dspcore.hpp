@@ -80,11 +80,14 @@ private:
   RotaryExpSmoother<Real> lfoPhaseStereoOffset{smoo};
   ExpSmoother<Real> delayTimeSample0{smoo};
   ExpSmoother<Real> delayTimeSample1{smoo};
+  ExpSmoother<Real> viscosityCutoff{smoo};
   ExpSmoother<Real> crossModMode{smoo};
   ExpSmoother<Real> crossModOctave0{smoo};
   ExpSmoother<Real> crossModOctave1{smoo};
   ExpSmoother<Real> timeModOctave0{smoo};
   ExpSmoother<Real> timeModOctave1{smoo};
+  ExpSmoother<Real> am0{smoo};
+  ExpSmoother<Real> am1{smoo};
   ExpSmoother<Real> highpassCutoff{smoo};
   ExpSmootherLocal<Real> highpassFade;
   ExpSmoother<Real> flangeMode{smoo};

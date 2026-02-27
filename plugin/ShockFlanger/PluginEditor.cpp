@@ -95,12 +95,14 @@ Editor::Editor(Processor& processor)
   addXYPad(sXY0, "feedback0", "feedback1", {s_.feedback.invmap(0)}, {s_.feedback.invmap(0)});
   addXYPad(sXY0, "crossModulationOctave0", "crossModulationOctave1", {s_.timeModOctave.invmap(0)},
            {s_.timeModOctave.invmap(0)});
+  addXYPad(sXY0, "am0", "am1", {}, {});
 
   addXYPad(sXY1, "flangeMode", "saturationGain", {}, {s_.saturationGain.invmap(1.0f)});
   addXYPad(sXY1, "lfoToDelayTimeOctave0", "lfoToDelayTimeOctave1",
            {s_.lfoToDelayTimeOctave.invmap(0)}, {s_.lfoToDelayTimeOctave.invmap(0)});
   addXYPad(sXY1, "inputRatio", "modulationTracking", {s_.unipolar.invmap(0.5f)},
            {s_.unipolar.invmap(0.5f)});
+  addXYPad(sXY1, "crossModMode", "viscosityLowpassHz", {}, {});
 
   addTextKnob(sMix, "dryGain", s_.gain,
               {s_.gain.invmap(-1.0f), s_.gain.invmap(0), s_.gain.invmap(1.0f)}, 5);
@@ -121,6 +123,21 @@ Editor::Editor(Processor& processor)
     "Type");
   addTextKnob(sSat, "saturationGain", s_.saturationGain, {s_.saturationGain.invmapDB(0)}, 5,
               "Gain");
+
+  addTextKnob(sMod, "modulationTracking", s_.unipolar, {s_.unipolar.invmap(1.0f)}, 5);
+  addTextKnob(sMod, "crossModMode", s_.unipolar, {s_.unipolar.invmap(0.5f)}, 5);
+  addTextKnob(sMod, "viscosityLowpassHz", s_.cutoffHz,
+              {s_.cutoffHz.invmap(20.0f), s_.cutoffHz.invmap(200.0f), s_.cutoffHz.invmap(2000.0f),
+               s_.cutoffHz.invmap(20000.0f)},
+              5);
+  addTextKnob(sMod, "crossModulationOctave0", s_.timeModOctave, {s_.timeModOctave.invmap(0)}, 5);
+  addTextKnob(sMod, "crossModulationOctave1", s_.timeModOctave, {s_.timeModOctave.invmap(0)}, 5);
+  addTextKnob(sMod, "lfoToDelayTimeOctave0", s_.lfoToDelayTimeOctave,
+              {s_.lfoToDelayTimeOctave.invmap(0)}, 5);
+  addTextKnob(sMod, "lfoToDelayTimeOctave1", s_.lfoToDelayTimeOctave,
+              {s_.lfoToDelayTimeOctave.invmap(0)}, 5);
+  addTextKnob(sMod, "am0", s_.unipolar, {}, 5);
+  addTextKnob(sMod, "am1", s_.unipolar, {}, 5);
 
   addTextKnob(sDelay, "inputRatio", s_.unipolar, {s_.unipolar.invmap(0.5f)}, 5);
   addTextKnob(sDelay, "delayTimeMs", s_.delayTimeMs, {s_.delayTimeMs.invmap(1.0f)}, 5);
@@ -160,15 +177,6 @@ Editor::Editor(Processor& processor)
                s_.noteGainRange.invmap(float(30)), s_.noteGainRange.invmap(float(40)),
                s_.noteGainRange.invmap(float(50))},
               5);
-
-  addTextKnob(sMod, "modulationTracking", s_.unipolar, {s_.unipolar.invmap(1.0f)}, 5);
-  addTextKnob(sMod, "crossModMode", s_.unipolar, {s_.unipolar.invmap(0.5f)}, 5);
-  addTextKnob(sMod, "crossModulationOctave0", s_.timeModOctave, {s_.timeModOctave.invmap(0)}, 5);
-  addTextKnob(sMod, "crossModulationOctave1", s_.timeModOctave, {s_.timeModOctave.invmap(0)}, 5);
-  addTextKnob(sMod, "lfoToDelayTimeOctave0", s_.lfoToDelayTimeOctave,
-              {s_.lfoToDelayTimeOctave.invmap(0)}, 5);
-  addTextKnob(sMod, "lfoToDelayTimeOctave1", s_.lfoToDelayTimeOctave,
-              {s_.lfoToDelayTimeOctave.invmap(0)}, 5);
 
   // `setSize` must be called at last.
   const float scale = getStateTree().getProperty("windowScale", 1.0f);

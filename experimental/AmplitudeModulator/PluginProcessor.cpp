@@ -37,6 +37,7 @@ void Processor::prepareToPlay(double sampleRate, int) {
 }
 
 void Processor::releaseResources() {}
+void Processor::reset() { dsp.reset(); }
 
 bool Processor::isBusesLayoutSupported(const BusesLayout& layouts) const {
   if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()

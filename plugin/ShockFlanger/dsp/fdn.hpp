@@ -317,6 +317,26 @@ template<typename T> inline std::complex<T> boxToCircle(const std::complex<T>& z
   return z * (scale / r);
 }
 
+template<typename Real>
+inline Real butterworthNormalizationGain(Real cutoffNormalized, Real maxGain = Real(100)) {
+  constexpr Real pi = std::numbers::pi_v<Real>;
+  constexpr Real sqrt2 = std::numbers::sqrt2_v<Real>;
+  constexpr Real invSqrt2 = Real(1) / sqrt2;
+
+  const Real c = std::clamp(cutoffNormalized, Real(1e-6), Real(0.499));
+
+  const Real w = pi * c;
+  const Real g = tanForButterworth(w);
+  const Real g2 = g * g;
+
+  const Real num = g2 + sqrt2 * g + Real(1);
+  const Real den = g2 + invSqrt2 * g;
+
+  const Real gain = std::sqrt(num / den);
+
+  return std::min(gain, maxGain);
+}
+
 template<typename Real> class Fdn2 {
 private:
   static constexpr size_t fdnSize = 2;
@@ -328,6 +348,7 @@ private:
   std::array<ButterworthHighpass<Real>, fdnSize> safetyHighpass;
   std::array<DelayAntialiased<Real>, fdnSize> delay;
   std::array<ButterworthLowpass<Real, 4>, fdnSize> feedbackLowpass;
+  std::array<ButterworthLowpass<Real, 2>, fdnSize> viscosityLowpass;
 
 public:
   void setup(Real maxTimeSamples) {
@@ -343,6 +364,7 @@ public:
     inputSaturator.reset();
     for (auto& x : safetyHighpass) { x.reset(); }
     for (auto& x : feedbackLowpass) { x.reset(); }
+    for (auto& x : viscosityLowpass) { x.reset(); }
   }
 
   void reset() {
@@ -363,11 +385,14 @@ public:
     Real inputRatio;
     Real timeInSamples0;
     Real timeInSamples1;
+    Real viscosityCutoff;
     Real crossModMode;
     Real crossModOctave0;
     Real crossModOctave1;
     Real timeModOctave0;
     Real timeModOctave1;
+    Real am0;
+    Real am1;
     Real highpassCutoff;
     Real highpassFade;
     Real flangeMode;
@@ -406,8 +431,12 @@ public:
     const auto hp0 = safetyHighpass[0].process(delayIn0, p_.highpassCutoff);
     const auto hp1 = safetyHighpass[1].process(delayIn1, p_.highpassCutoff);
 
-    const auto crossModSig0 = std::lerp(inSat, sig0, p_.crossModMode);
-    const auto crossModSig1 = std::lerp(inSat, sig1, p_.crossModMode);
+    const auto viscosityGain = butterworthNormalizationGain(p_.viscosityCutoff, Real(1000));
+    const auto viscSig0 = viscosityLowpass[0].process(sig0, p_.viscosityCutoff) * viscosityGain;
+    const auto viscSig1 = viscosityLowpass[1].process(sig1, p_.viscosityCutoff) * viscosityGain;
+    const auto crossModSig0 = std::lerp(inSat, viscSig0, p_.crossModMode);
+    const auto crossModSig1 = std::lerp(inSat, viscSig1, p_.crossModMode);
+
     auto timeMod0 = p_.timeInSamples0
       * std::exp2(p_.timeModOctave0 * timeLfo + p_.crossModOctave0 * crossModSig0);
     auto timeMod1 = p_.timeInSamples1
@@ -418,8 +447,10 @@ public:
     displayTime.lower[0] = std::min(displayTime.lower[0], timeMod0);
     displayTime.lower[1] = std::min(displayTime.lower[1], timeMod1);
 
-    buffer[0] = delay[0].process(std::lerp(delayIn0, hp0, p_.highpassFade), timeMod0);
-    buffer[1] = delay[1].process(std::lerp(delayIn1, hp1, p_.highpassFade), timeMod1);
+    const auto am0 = std::clamp(std::lerp(Real(1), crossModSig0, p_.am0), Real(-2), Real(2));
+    const auto am1 = std::clamp(std::lerp(Real(1), crossModSig1, p_.am1), Real(-2), Real(2));
+    buffer[0] = delay[0].process(am0 * std::lerp(delayIn0, hp0, p_.highpassFade), timeMod0);
+    buffer[1] = delay[1].process(am1 * std::lerp(delayIn1, hp1, p_.highpassFade), timeMod1);
 
     buffer[0] = feedbackLowpass[0].process(buffer[0], p_.lowpassCutoff);
     buffer[1] = feedbackLowpass[1].process(buffer[1], p_.lowpassCutoff);
