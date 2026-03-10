@@ -36,12 +36,11 @@ private:
   Palette& pal;
   bool isMouseEntered = false;
   float padding{float(20)};
-
   std::function<void(void)> mouseDownCallback = nullptr;
 
 public:
   CloseInfoButton(Palette& palette, int popupInset, std::function<void(void)> mouseDownCallback)
-      : pal(palette), mouseDownCallback(mouseDownCallback), padding(float(popupInset)) {
+      : pal(palette), padding(float(popupInset)), mouseDownCallback(mouseDownCallback) {
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
     setWantsKeyboardFocus(true);
   }

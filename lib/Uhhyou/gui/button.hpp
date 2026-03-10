@@ -92,11 +92,11 @@ public:
 
     // Background.
     if constexpr (style == Style::accent) {
-      ctx.setColour(value ? pal.accent() : pal.surface());
+      ctx.setColour(value != 0 ? pal.accent() : pal.surface());
     } else if constexpr (style == Style::warning) {
-      ctx.setColour(value ? pal.warning() : pal.surface());
+      ctx.setColour(value != 0 ? pal.warning() : pal.surface());
     } else {
-      ctx.setColour(value ? pal.main() : pal.surface());
+      ctx.setColour(value != 0 ? pal.main() : pal.surface());
     }
     ctx.fillRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2);
 

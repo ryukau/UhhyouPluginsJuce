@@ -64,7 +64,7 @@ public:
   virtual ~ButtonArray() override {}
 
   virtual void paint(juce::Graphics& ctx) override {
-    const float lw1 = pal.borderThin(); // Border width.
+    const float lw1 = pal.borderWidth();
     const float lw2 = 2 * lw1;
     const float lwHalf = lw1 / 2;
     const float width = float(getWidth());
@@ -73,14 +73,14 @@ public:
     const float innerHeight = height - lw2;
 
     // Background and border.
-    ctx.setColour(pal.boxBackground());
+    ctx.setColour(pal.surface());
     ctx.fillRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2);
     ctx.setColour(pal.foreground());
     ctx.drawRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2, lw1);
 
     // Buttons.
     const float buttonWidth = innerWidth / value.size();
-    ctx.setColour(pal.highlightMain());
+    ctx.setColour(pal.main());
     for (size_t idx = 0; idx < value.size(); ++idx) {
       if (value[idx] != 0) {
         ctx.fillRoundedRectangle(idx * buttonWidth + lw2, lw2, buttonWidth - lw2, innerHeight - lw2,
@@ -91,7 +91,7 @@ public:
     // Highlight.
     const size_t valueIndex = getMousePosIndex();
     if (isMouseEntered && valueIndex < value.size()) {
-      ctx.setColour(pal.overlayHighlight());
+      ctx.setColour(pal.main().withAlpha(0.25f));
       ctx.fillRoundedRectangle(valueIndex * buttonWidth + lw1, lw1, buttonWidth, innerHeight, lw2);
     }
   }

@@ -216,7 +216,7 @@ public:
   ~FocusRingOverlay() override { juce::Desktop::getInstance().removeFocusChangeListener(this); }
 
   void globalFocusChanged(juce::Component*) override {
-    if (auto* p = getParentComponent()) { toFront(false); }
+    if (getParentComponent() != nullptr) { toFront(false); }
     repaint();
   }
 

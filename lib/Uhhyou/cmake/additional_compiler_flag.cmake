@@ -12,6 +12,7 @@ if((CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC"))
       INTERFACE
       $<$<CONFIG:Release>:
       /fp:fast
+      -Wno-float-equal
       -Wno-nan-infinity-disabled # JUCE 8
       -Wno-nontrivial-memcall # JUCE 8
       -Wno-deprecated-literal-operator # nlohmann::json
@@ -25,6 +26,7 @@ elseif((CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     INTERFACE
     $<$<CONFIG:Release>:
     -ffast-math
+    -Wno-float-equal
     -Wno-nan-infinity-disabled
     -Wno-deprecated-literal-operator>)
 endif()

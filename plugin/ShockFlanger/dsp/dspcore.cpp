@@ -103,7 +103,7 @@ template<typename Func> void DSPCore::applyToParameters(Func apply) {
   apply(flangePolarity, L(pv.flangePolarity) < Real(0.5) ? -flange : flange);
 
   apply(dryGain, L(pv.dryGain));
-  const auto wetSign = L(pv.wetInvert) ? Real(-1) : Real(1);
+  const auto wetSign = static_cast<bool>(L(pv.wetInvert)) ? Real(-1) : Real(1);
   apply(wetGain, std::copysign(L(pv.wetGain), wetSign));
 
   using SyncMode = TempoSyncedLfo<Real>::Synchronization;
@@ -227,7 +227,7 @@ auto DSPCore::processSample(const std::array<Real, 2> in) -> std::array<Real, 2>
   outputPeak[1] = std::max(std::abs(sig1), outputPeak[1]);
 
   return {sig0, sig1};
-};
+}
 
 void DSPCore::process(const size_t length, const float* in0, const float* in1, float* out0,
                       float* out1) {

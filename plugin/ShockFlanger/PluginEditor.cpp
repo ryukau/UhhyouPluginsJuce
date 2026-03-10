@@ -170,7 +170,6 @@ void Editor::resized() {
   const float scale = updateScale(defaultHeight);
   Metrics mt{scale};
 
-  const int bottom = int(scale * defaultHeight);
   const int top0 = mt.uiMargin;
 
   const int left0 = mt.uiMargin;
@@ -195,9 +194,6 @@ void Editor::resized() {
   meterPreSaturationPeak.setBounds(Rect{left0, meterTop0, mt.labelW, meterH});
   meterOutputPeak.setBounds(Rect{left0 + mt.labelX, meterTop0, mt.labelW, meterH});
 
-  statusBar.setBounds(
-    Rect{left1, bottom - mt.labelH - mt.uiMargin, mt.totalWidth - left1 - mt.uiMargin, mt.labelH});
-
   auto addSection = [&](int& top, int left, const juce::String& sectionTitle) {
     if (auto sc = sections.find(sectionTitle); sc != sections.end()) {
       top = layoutVerticalSection(groupLabels, left, top, mt.sectionWidth, mt.labelH, mt.labelY,
@@ -210,6 +206,7 @@ void Editor::resized() {
   addSection(currentTop, left1, sMix);
   addSection(currentTop, left1, sSat);
   addSection(currentTop, left1, sDelay);
+  statusBar.setBounds(Rect{left1, currentTop, mt.totalWidth - left1 - mt.uiMargin, mt.labelH});
 
   currentTop = top0;
   addSection(currentTop, left2, sLFO);

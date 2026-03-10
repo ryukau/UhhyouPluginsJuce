@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <limits>
 #include <random>
 #include <sstream>
@@ -122,15 +123,15 @@ public:
     using namespace juce;
     using RectF = juce::Rectangle<float>;
 
-    const float lw1 = pal.borderThin(); // Border width.
+    const float lw1 = pal.borderWidth(); // Border width.
     const float lw2 = 2 * lw1;
     const float lwHalf = lw1 / 2;
-    const float indexTextSize = pal.textSizeSmall() * float(1.25);
+    const float indexTextSize = pal.getFontHeight(TextSize::small) * float(1.25);
     const float width = float(getWidth());
     const float height = float(getHeight());
 
     // Background.
-    ctx.setColour(pal.boxBackground());
+    ctx.setColour(pal.surface());
     ctx.fillRoundedRectangle(0.0f, 0.0f, width, height, lw2);
 
     // Value bar.
@@ -141,8 +142,7 @@ public:
       auto top = height - value[i] * height;
       auto bottom = sliderZeroHeight;
       if (top > bottom) { std::swap(top, bottom); }
-      ctx.setColour(barState[i] == BarState::active ? pal.highlightMain()
-                                                    : pal.foregroundInactive());
+      ctx.setColour(barState[i] == BarState::active ? pal.main() : pal.border().withAlpha(0.3f));
       ctx.fillRect(left, top, barWidth, bottom - top);
     }
 
@@ -163,8 +163,10 @@ public:
     }
 
     // Additional index text for zoom in.
+    auto colorOverlayText = pal.foreground().withAlpha(0.25f);
+    auto colorOverlayMain = pal.main().withAlpha(0.25f);
     if (value.size() != size_t(indexRange)) {
-      ctx.setColour(pal.overlay());
+      ctx.setColour(colorOverlayText);
       std::string str = "<- #" + std::to_string(indexL);
       ctx.drawText(str.c_str(), RectF(2, 2, 10 * indexTextSize, 2 * indexTextSize),
                    Justification::centredLeft);
@@ -178,12 +180,12 @@ public:
     if (isMouseEntered) {
       size_t index = size_t(indexL + indexRange * mousePosition.x / width);
       if (index < value.size()) {
-        ctx.setColour(pal.overlayHighlight());
+        ctx.setColour(colorOverlayMain);
         ctx.fillRect((index - indexL) * sliderWidth, 0.0f, sliderWidth, height);
 
         // Index text.
         ctx.setFont(nameFont);
-        ctx.setColour(pal.overlay());
+        ctx.setColour(colorOverlayText);
         std::ostringstream os;
         os << "#" << std::to_string(index + indexOffset) << ": "
            << std::to_string(scale.map(value[index]));
@@ -199,19 +201,19 @@ public:
     } else {
       // Title.
       ctx.setFont(nameFont);
-      ctx.setColour(pal.overlay());
+      ctx.setColour(colorOverlayText);
       ctx.drawText(name.c_str(), RectF(0, 0, width, height), Justification::centred);
     }
 
     // Zero line.
     auto zeroLineHeight = height - sliderZero * height;
-    ctx.setColour(pal.overlay());
+    ctx.setColour(colorOverlayText);
     ctx.fillRect(0.0f, zeroLineHeight - lw1 / 2, width, lw1);
   }
 
   void resized() override {
-    indexFont = pal.getFont(pal.textSizeSmall());
-    nameFont = pal.getFont(pal.textSizeBig());
+    indexFont = pal.getFont(TextSize::small);
+    nameFont = pal.getFont(TextSize::large);
 
     refreshSliderWidth(float(getWidth()));
   }
