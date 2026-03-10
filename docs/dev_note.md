@@ -1,7 +1,8 @@
 # Developing on JUCE
 This text is based on JUCE 8.0.6.
 
-## Build Time
+## Build System (CMake)
+### Build Time
 Build time is slow. It seems that following sources are repeatedly built for each plugins.
 
 ```
@@ -34,3 +35,28 @@ Considerations if trying to bypass `juce_add_plugin()`:
 
 - `juce_add_plugin()` provides switches to toggle `#ifdef` in these sources. Instead, plugin sources should explicitly `#define` every switches.
 - One has to write own cmake to bundle each plugin formats.
+
+### Build Target
+`--target <PluginName>_All` can be used to build specific plugin.
+
+```cmake
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release --target ShockFlanger_All
+```
+
+## Accesibility
+JUCE 8 specific.
+
+### Screen Reader on Momentary Buttons
+It may be called command button.
+
+Narrator on Windows 11 does not read the state of momentary button (`juce::AccessibilityRole::button`). It stays silent on `juce::AccessibilityEvent::valueChanged`.
+
+Narrator also does not announce the value change on toggle button. In this repository, a hack is used to circumvent the limitation. For `juce::AccessibilityRole::toggleButton`, `juce::AccessibilityEvent::titleChanged` is used to announce value change. It feels not right because it reads up the entire title.
+
+On audio plugins, momentary button that sends gating signal may be treated as a slider that could only set the value 0 and 1. It is probably better not to implement this unless there's a user feedback.
+
+References that might be useful later:
+
+- [WAI-ARIA Button Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/button/)
+- [UIA Button Control Type](https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-supportbuttoncontroltype)

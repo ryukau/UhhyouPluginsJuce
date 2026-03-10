@@ -1,8 +1,7 @@
 // Copyright Takamitsu Endo (ryukau@gmail.com).
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Note that changing this source leads to slow compilation due to
-// nlohmann/json.hpp.
+// Note that changing this source leads to slow compilation due to nlohmann/json.hpp.
 
 #pragma once
 
@@ -15,117 +14,81 @@ namespace Uhhyou {
 
 enum class Style { common, accent, warning };
 enum class FontType { ui, monospace };
+enum class TextSize { small, normal, large, _count };
 
 class Palette {
-private:
-  using FontMap = std::unordered_map<unsigned, juce::Font>;
-
 public:
   Palette() { load(); }
   void load();
+  void updateSetting(const std::string& key, bool value);
+  void updateSetting(const std::string& key, float value);
 
-  const juce::Font& getFont(float size, FontType fontType = FontType::ui) {
-    auto findFont = [&](FontMap& fmap, const juce::String& name, const juce::String& style,
-                        std::vector<juce::String> fallbacks) -> juce::Font& {
-      auto key = unsigned(fontMapKeyScaling * size);
-      auto found = fmap.find(key);
-      if (found != fmap.end()) { return found->second; }
+  const juce::Font& getFont(TextSize size, FontType fontType = FontType::ui) const {
+    return fontType == FontType::monospace ? fontMonoArray[static_cast<size_t>(size)]
+                                           : fontUiArray[static_cast<size_t>(size)];
+  }
 
-      const auto height = key * scalingFactor / fontMapKeyScaling;
-      auto inserted = fmap.emplace(
-        key, juce::Font(juce::FontOptions{name, style, height}.withFallbacks(fallbacks)));
-
-      return inserted.first->second;
-    };
-
-    if (fontType == FontType::monospace) {
-      return findFont(fontMonoMap, fontMonoName(), fontMonoStyle(),
-                      {"Consolas", "Menlo", "DejaVu Sans Mono", "mono"});
-    }
-    return findFont(fontUiMap, fontUiName(), fontUiStyle(),
-                    {"Segoe UI", ".AppleSystemUIFont", "DejaVu Sans", "Verdana", "sans-serif"});
+  float getFontHeight(TextSize size, FontType fontType = FontType::ui) const {
+    return getFont(size, fontType).getHeight();
   }
 
   void resize(float scale) {
     scalingFactor = scale;
+    const float sizes[] = {10.0f, 14.0f, 20.0f};
 
-    auto reconstruct = [&](FontMap& fontMap, const juce::String& name, const juce::String& style) {
-      fontMap.clear();
-      std::vector<unsigned> sizes{
-        unsigned(textSizeSmall() * fontMapKeyScaling),
-        unsigned(textSizeUi() * fontMapKeyScaling),
-        unsigned(textSizeBig() * fontMapKeyScaling),
-      };
-      for (const auto& key : sizes) {
-        const auto height = key * scalingFactor / fontMapKeyScaling;
-        fontMap.emplace(key, juce::Font(juce::FontOptions{name, style, height}));
-      }
-    };
+    for (size_t i = 0; i < static_cast<size_t>(TextSize::_count); ++i) {
+      float h = sizes[i] * scalingFactor;
+      fontUiArray[i] = juce::Font(juce::FontOptions{fontUiName(), fontUiStyle(), h}.withFallbacks(
+        {"Segoe UI", ".AppleSystemUIFont", "DejaVu Sans", "Verdana", "sans-serif"}));
+      fontMonoArray[i]
+        = juce::Font(juce::FontOptions{fontMonoName(), fontMonoStyle(), h}.withFallbacks(
+          {"Consolas", "Menlo", "DejaVu Sans Mono", "mono"}));
+    }
 
-    reconstruct(fontUiMap, fontUiName(), fontUiStyle());
-    reconstruct(fontMonoMap, fontMonoName(), fontMonoStyle());
-
-    _borderThinScaled = scalingFactor * _borderThin;
-    _borderThickScaled = scalingFactor * _borderThick;
+    _borderWidthScaled = scalingFactor * _borderWidth;
   }
 
+  // Global GUI Settings.
+  bool keyboardFocusEnabled() const { return _keyboardFocusEnabled; }
+  float windowScale() const { return _windowScale; }
+
+  // Look and feel.
   const juce::String& fontUiName() const { return _fontUiName; }
   const juce::String& fontUiStyle() const { return _fontUiStyle; }
   const juce::String& fontMonoName() const { return _fontMonoName; }
   const juce::String& fontMonoStyle() const { return _fontMonoStyle; }
-  float textSizeSmall() const { return 10; }
-  float textSizeUi() const { return 14; }
-  float textSizeBig() const { return 20; }
-  float borderThin() const { return _borderThinScaled; }
-  float borderThick() const { return _borderThickScaled; }
+  float borderWidth() const { return _borderWidthScaled; }
   const juce::Colour& foreground() const { return _foreground; }
-  const juce::Colour& foregroundButtonOn() const { return _foregroundButtonOn; }
-  const juce::Colour& foregroundInactive() const { return _foregroundInactive; }
   const juce::Colour& background() const { return _background; }
-  const juce::Colour& boxBackground() const { return _boxBackground; }
+  const juce::Colour& surface() const { return _surface; }
   const juce::Colour& border() const { return _border; }
-  const juce::Colour& borderCheckbox() const { return _borderCheckbox; }
-  const juce::Colour& borderLabel() const { return _borderLabel; }
-  const juce::Colour& unfocused() const { return _unfocused; }
-  const juce::Colour& highlightMain() const { return _highlightMain; }
-  const juce::Colour& highlightAccent() const { return _highlightAccent; }
-  const juce::Colour& highlightButton() const { return _highlightButton; }
-  const juce::Colour& highlightWarning() const { return _highlightWarning; }
-  const juce::Colour& overlay() const { return _overlay; }
-  const juce::Colour& overlayHighlight() const { return _overlayHighlight; }
-  const juce::Colour& overlayFaint() const { return _overlayFaint; }
+  const juce::Colour& main() const { return _main; }
+  const juce::Colour& accent() const { return _accent; }
+  const juce::Colour& warning() const { return _warning; }
 
 private:
   static constexpr unsigned fontMapKeyScaling = 10;
   float scalingFactor = float(1);
-  FontMap fontUiMap;
-  FontMap fontMonoMap;
+  std::array<juce::Font, static_cast<size_t>(TextSize::_count)> fontUiArray;
+  std::array<juce::Font, static_cast<size_t>(TextSize::_count)> fontMonoArray;
 
-  float _borderThin = 1;
-  float _borderThick = 8;
-  float _borderThinScaled = _borderThin;
-  float _borderThickScaled = _borderThick;
+  float _borderWidth = 1;
+  float _borderWidthScaled = _borderWidth;
+
+  bool _keyboardFocusEnabled = true;
+  float _windowScale = 1.0f;
 
   juce::String _fontUiName{"Ubuntu"};
   juce::String _fontUiStyle{"Regular"};
   juce::String _fontMonoName{"Ubuntu Mono"};
   juce::String _fontMonoStyle{"Regular"};
   juce::Colour _foreground{juce::uint32{0xff000000}};
-  juce::Colour _foregroundButtonOn{juce::uint32{0xff000000}};
-  juce::Colour _foregroundInactive{juce::uint32{0xff8a8a8a}};
   juce::Colour _background{juce::uint32{0xffffffff}};
-  juce::Colour _boxBackground{juce::uint32{0xffffffff}};
-  juce::Colour _border{juce::uint32{0xff000000}};
-  juce::Colour _borderCheckbox{juce::uint32{0xff000000}};
-  juce::Colour _borderLabel{juce::uint32{0xff000000}};
-  juce::Colour _unfocused{juce::uint32{0xffdddddd}};
-  juce::Colour _highlightMain{juce::uint32{0xff0ba4f1}};
-  juce::Colour _highlightAccent{juce::uint32{0xff13c136}};
-  juce::Colour _highlightButton{juce::uint32{0xfffcc04f}};
-  juce::Colour _highlightWarning{juce::uint32{0xfffc8080}};
-  juce::Colour _overlay{juce::uint32{0x88000000}};
-  juce::Colour _overlayHighlight{juce::uint32{0x3300ff00}};
-  juce::Colour _overlayFaint{juce::uint32{0x0b000000}};
+  juce::Colour _surface{juce::uint32{0xfff8f8f8}};
+  juce::Colour _border{juce::uint32{0xff888888}};
+  juce::Colour _main{juce::uint32{0xfffcc04f}};
+  juce::Colour _accent{juce::uint32{0xff13c136}};
+  juce::Colour _warning{juce::uint32{0xfffc8080}};
 };
 
 } // namespace Uhhyou

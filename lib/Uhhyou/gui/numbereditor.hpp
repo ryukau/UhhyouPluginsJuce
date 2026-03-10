@@ -45,7 +45,7 @@ public:
   }
 
   void resized() override {
-    applyFontToAllText(pal.getFont(pal.textSizeUi()));
+    applyFontToAllText(pal.getFont(TextSize::normal));
     juce::TextEditor::resized();
   }
 
@@ -71,7 +71,7 @@ public:
 
     // Component settings.
     setVisible(true);
-    setWantsKeyboardFocus(true);
+    setWantsKeyboardFocus(false);
 
     // TextEditor settings.
     setCaretVisible(false);
@@ -86,14 +86,18 @@ public:
   void update(const juce::String& text) { setText(text); }
 
   void update(const juce::RangedAudioParameter* const parameter) {
-    setText(std::format(
-      "{}: {} {}", parameter->getName(256).toRawUTF8(),
-      parameter->getText(parameter->getValue(), std::numeric_limits<float>::digits10).toRawUTF8(),
-      parameter->getLabel().toRawUTF8()));
+    auto text = std::format(
+      "{}: {}", parameter->getName(256).toRawUTF8(),
+      parameter->getText(parameter->getValue(), std::numeric_limits<float>::digits10).toRawUTF8());
+
+    auto label = parameter->getLabel();
+    if (label.isNotEmpty()) { text += std::format("[{}]", label.toRawUTF8()); }
+
+    setText(text);
   }
 
-  virtual void resized() override {
-    applyFontToAllText(pal.getFont(pal.textSizeUi()));
+  void resized() override {
+    applyFontToAllText(pal.getFont(TextSize::normal));
     juce::TextEditor::resized();
   }
 };

@@ -25,7 +25,7 @@ enum class ParameterTextRepresentation {
   display,
 };
 
-inline std::string formatNumber(float value, int precision) {
+inline auto formatNumber(float value, int precision) {
   return std::format("{:.{}f}", value, precision);
 }
 
@@ -69,6 +69,7 @@ public:
 
   std::atomic<float>* getAtomicRaw() { return &raw; }
   Scale& getScale() { return scale; }
+  ParameterTextRepresentation getTextRepresentation() const { return textRep; }
 
   float rawToNormalized(float rawValue) const {
     return std::clamp(float(scale.invmap(rawValue)), float(0), float(1));
@@ -98,12 +99,12 @@ private:
     if (toTextFunc != nullptr) { return toTextFunc(normalized); }
 
     if (textRep == ParameterTextRepresentation::display) {
-      return juce::String(formatNumber(float(scale.toDisplay(normalized)), precision));
+      return formatNumber(float(scale.toDisplay(normalized)), precision);
     } else if (textRep == ParameterTextRepresentation::raw) {
-      return juce::String(formatNumber(float(scale.map(normalized)), precision));
+      return formatNumber(float(scale.map(normalized)), precision);
     }
     // `ParameterTextRepresentation::normalized` case.
-    return juce::String(formatNumber(normalized, precision));
+    return formatNumber(normalized, precision);
   }
 
   float getValueForText(const juce::String& text) const override {

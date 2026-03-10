@@ -5,71 +5,40 @@
 #include "PluginProcessor.hpp"
 
 #include "./gui/popupinformationtext.hpp"
-#include "Uhhyou/librarylicense.hpp"
 
-#include <random>
+#include <cmath>
 #include <string>
 
 namespace Uhhyou {
 
 struct Metrics {
-  static constexpr int baseMargin = 5;
-  static constexpr int baseLabelHeight = 20;
-  static constexpr int baseLabelWidth = 100;
+  int margin = 5;
+  int labelH = 20;
+  int labelW = 100;
+  int uiMargin = 4 * margin;
+  int labelX = labelW + 2 * margin;
+  int labelY = labelH + 2 * margin;
+  int sectionWidth = 2 * labelW + 2 * margin;
+  int totalWidth = 2 * sectionWidth + 3 * uiMargin;
+  int totalHeight = 10 * labelY;
 
-  int margin{};
-  int labelH{};
-  int labelW{};
-  int uiMargin{};
-  int labelX{};
-  int labelY{};
-  int sectionWidth{};
-  int totalWidth{};
-  int totalHeight{};
+  Metrics() = default;
 
-  Metrics(float scale) {
-    const float f_margin = scale * baseMargin;
-    const float f_labelH = scale * baseLabelHeight;
-    const float f_labelW = scale * baseLabelWidth;
-    const float f_uiMargin = 4 * f_margin;
-    const float f_labelX = f_labelW + 2 * f_margin;
-    const float f_labelY = f_labelH + 2 * f_margin;
-    const float f_sectionWidth = 2 * f_labelW + 2 * f_margin;
+  explicit Metrics(float scale) {
+    auto zoom = [scale](int val) { return static_cast<int>(std::lround(val * scale)); };
 
-    margin = int(f_margin);
-    labelH = int(f_labelH);
-    labelW = int(f_labelW);
-    uiMargin = int(f_uiMargin);
-    labelX = int(f_labelX);
-    labelY = int(f_labelY);
-    sectionWidth = int(f_sectionWidth);
-    totalWidth = int(2 * f_sectionWidth + 3 * f_uiMargin);
-    totalHeight = int(10 * (f_labelH + 2 * f_margin));
+    for (auto ptr : {&Metrics::margin, &Metrics::labelH, &Metrics::labelW, &Metrics::uiMargin,
+                     &Metrics::labelX, &Metrics::labelY, &Metrics::sectionWidth,
+                     &Metrics::totalWidth, &Metrics::totalHeight})
+    {
+      this->*ptr = zoom(this->*ptr);
+    }
   }
 };
 
 const juce::String sAM{"Amplitude Modulator"};
 
-Editor::Editor(Processor& processor)
-    : EditorBase(processor, informationText, getLibraryLicenseText(), [&]() {
-        std::uniform_real_distribution<float> dist{0.0f, 1.0f};
-        std::random_device dev;
-        std::mt19937 rng(dev());
-
-        auto params = processor.getParameters();
-        for (auto& prm : params) {
-          if (this->paramLocks.isLocked(prm)) { continue; }
-
-          float normalized = dist(rng);
-          if (auto it = this->randomizers.find(prm); it != this->randomizers.end()) {
-            normalized = it->second(normalized);
-          }
-
-          prm->beginChangeGesture();
-          prm->setValueNotifyingHost(normalized);
-          prm->endChangeGesture();
-        }
-      }) {
+Editor::Editor(Processor& processor) : EditorBase(processor, informationText) {
   auto& s_ = processor.param.scale;
 
   addComboBox(sAM, "amType", s_.amType,
@@ -89,13 +58,9 @@ Editor::Editor(Processor& processor)
   addToggleButton(sAM, "swapCarriorAndModulator", s_.boolean, "", "", LabeledWidget::expand);
 
   // `setSize` must be called at last.
-  const float scale = getStateTree().getProperty("windowScale", 1.0f);
+  const float scale = getWindowScale();
   Metrics mt{scale};
-  getConstrainer()->setFixedAspectRatio(double(mt.totalWidth) / double(mt.totalHeight));
-  setSize(int(mt.totalWidth), int(mt.totalHeight));
-
-  addAndMakeVisible(focusOverlay);
-  focusOverlay.toFront(false);
+  initWindow(mt.totalWidth, mt.totalHeight);
 }
 
 void Editor::resized() {
@@ -104,12 +69,8 @@ void Editor::resized() {
   using Rect = juce::Rectangle<int>;
 
   const int defaultHeight = Metrics{1.0f}.totalHeight;
-  const float scale = getHeight() / float(defaultHeight);
-  getStateTree().setProperty("windowScale", scale, nullptr);
-  palette.resize(scale);
+  const float scale = updateScale(defaultHeight);
   Metrics mt{scale};
-
-  groupLabels.clear();
 
   const int bottom = int(scale * defaultHeight);
   const int top0 = mt.uiMargin;
@@ -122,12 +83,8 @@ void Editor::resized() {
                                        mt.labelY, sc->first, sc->second);
   }
 
-  const int nameTop0 = layoutActionSection(groupLabels, left1, top0, mt.sectionWidth, mt.labelW,
-                                           mt.labelX, mt.labelH, mt.labelY, undoButton, redoButton,
-                                           randomizeButton, presetManager);
-
-  pluginInfoButton.setBounds(Rect{left1, nameTop0, mt.sectionWidth, mt.labelH});
-  pluginInfoButton.scale(scale);
+  layoutActionSectionAndPluginInfo(left1, top0, mt.sectionWidth, mt.labelW, mt.labelX, mt.labelH,
+                                   mt.labelY, scale);
 
   statusBar.setBounds(
     Rect{left0, bottom - mt.labelH - mt.uiMargin, mt.totalWidth - 2 * mt.uiMargin, mt.labelH});

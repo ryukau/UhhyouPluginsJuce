@@ -38,8 +38,8 @@ public:
                   std::array<std::atomic<float>, nChannel>& meterInput,
                   std::array<std::atomic<float>, nChannel>& meterEnvelope)
       : pal(palette), meterInput(meterInput), meterEnvelope(meterEnvelope),
-        font(palette.getFont(palette.textSizeUi())),
-        lineStrokeType(palette.borderThin(), juce::PathStrokeType::JointStyle::curved,
+        font(palette.getFont(TextSize::normal)),
+        lineStrokeType(palette.borderWidth(), juce::PathStrokeType::JointStyle::curved,
                        juce::PathStrokeType::EndCapStyle::rounded) {
     setSynchroniseToVBlank(true);
     parent.addAndMakeVisible(*this, 0);
@@ -48,10 +48,10 @@ public:
   virtual ~EnvelopeDisplay() override {}
 
   virtual void resized() override {
-    font = pal.getFont(pal.textSizeUi());
-    lineStrokeType.setStrokeThickness(pal.borderThin());
+    font = pal.getFont(TextSize::normal);
+    lineStrokeType.setStrokeThickness(pal.borderWidth());
 
-    const auto size = size_t(getWidth() - 2 * pal.borderThin());
+    const auto size = size_t(getWidth() - 2 * pal.borderWidth());
     for (auto& x : inPeak) { x.resize(size, float(1)); }
     for (auto& x : envelope) { x.resize(size, float(1)); }
   }
@@ -69,19 +69,19 @@ public:
   }
 
   virtual void paint(juce::Graphics& ctx) override {
-    const float lw1 = pal.borderThin(); // Border width.
+    const float lw1 = pal.borderWidth(); // Border width.
     const float lw2 = 2 * lw1;
     const float lwHalf = lw1 / 2;
     const float width = float(getWidth());
     const float height = float(getHeight());
-    const float lineOffsetX = pal.borderThin();
+    const float lineOffsetX = pal.borderWidth();
 
     // Background.
-    ctx.setColour(pal.boxBackground());
+    ctx.setColour(pal.surface());
     ctx.fillRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2);
 
     // Input.
-    ctx.setColour(pal.highlightMain());
+    ctx.setColour(pal.main());
     for (const auto& pk : inPeak) {
       if (pk.size() < 2) { continue; }
       juce::Path line;
@@ -104,7 +104,7 @@ public:
     }
 
     // Border.
-    ctx.setColour(isMouseEntered ? pal.highlightAccent() : pal.border());
+    ctx.setColour(isMouseEntered ? pal.main() : pal.border());
     ctx.drawRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2, lw1);
   }
 

@@ -976,29 +976,34 @@ private:
   }
 
 public:
+// TODO: C++26 static reflection can be used to replace X-Macros below.
+#define UHHYOU_SATURATOR_FUNCTIONS(X)                                                              \
+  X(hardclip_cleaner)    /* Hardclip. 4th order ADAA. Default. */                                  \
+  X(hardclip)            /* Hardclip. 1st order ADAA. */                                           \
+  X(softsign)            /* Softsign. */                                                           \
+  X(softsign3)           /* Softsign modified. x^3 / (1 + |x^3|). */                               \
+  X(chebyshev_trig)      /* Chebyshev polynomial using trig functions. accepts fractional `A`. */  \
+  X(tanh)                /* tanh. */                                                               \
+  X(atan)                /* atan. */                                                               \
+  X(expm1)               /* expm1 sigmoid. */                                                      \
+  X(log1p)               /* log1p. Mildly unbounded. */                                            \
+  X(triangle_cleaner)    /* Triangle */                                                            \
+  X(triangle)            /* Triangle */                                                            \
+  X(modulo_sqrt)         /* (sqrt(x) mod 1). */                                                    \
+  X(modulo_linear)       /* (x mod 1). */                                                          \
+  X(modulo_linear2)      /* (x mod 1)^2. */                                                        \
+  X(modulo_quad_cleaner) /* (x^2 mod 1). 4th order ADAA. */                                        \
+  X(modulo_quad)         /* (x^2 mod 1). 1st order ADAA. */                                        \
+  X(sin_expm1)           /* sin(expm1(x)). */                                                      \
+  X(sin_growing)         /* Growing sine: x * sin(x). Unbounded. */                                \
+  X(sin_growing2)        /* x + x * sin(x). Unbounded. */                                          \
+  X(sin_stairs)          /* Soft stairs: x + sin(x). Unbounded. */                                 \
+  X(versinc)             /* versinc. */
+
   enum class Function : unsigned {
-    hardclip_cleaner,    // Hardclip. 4th order ADAA. Default.
-    hardclip,            // Hardclip. 1st order ADAA.
-    softsign,            // Softsign.
-    softsign3,           // Softsign modified. x^3 / (1 + |x^3|).
-    chebyshev_trig,      // Chebyshev polynomial using trig functions. accepts fractional `A`.
-    chebyshev_clenshaw,  // Chebyshev polynomial using Clenshaw algorithm.
-    tanh,                // tanh.
-    atan,                // atan.
-    expm1,               // expm1 sigmoid.
-    log1p,               // log1p. Mildly unbounded.
-    triangle_cleaner,    // Triangle
-    triangle,            // Triangle
-    modulo_sqrt,         // (sqrt(x) mod 1).
-    modulo_linear,       // (x mod 1).
-    modulo_linear2,      // (x mod 1)^2.
-    modulo_quad_cleaner, // (x^2 mod 1). 4th order ADAA.
-    modulo_quad,         // (x^2 mod 1). 1st order ADAA.
-    sin_expm1,           // sin(expm1(x)).
-    sin_growing,         // Growing sine: x * sin(x). Unbounded.
-    sin_growing2,        // x + x * sin(x). Unbounded.
-    sin_stairs,          // Soft stairs: x + sin(x). Unbounded.
-    versinc,             // versinc.
+#define X(name) name,
+    UHHYOU_SATURATOR_FUNCTIONS(X)
+#undef X
   };
 
   void reset() {
@@ -1022,6 +1027,8 @@ public:
         return processInternal<Softsign<Real>>(input);
       case Function::softsign3:
         return processInternal<Softsign3<Real>>(input);
+      case Function::chebyshev_trig:
+        return processInternal<ChebyshevTrig<Real>>(input);
       case Function::tanh:
         return processInternal<Tanh<Real>>(input);
       case Function::atan:
@@ -1054,10 +1061,6 @@ public:
         return processInternal<SinStairs<Real>>(input);
       case Function::versinc:
         return processInternal<Versinc<Real>>(input);
-      case Function::chebyshev_trig:
-        return processInternal<ChebyshevTrig<Real>>(input);
-      case Function::chebyshev_clenshaw:
-        return processInternal<ChebyshevClenshaw<Real>>(input);
     }
   }
 };

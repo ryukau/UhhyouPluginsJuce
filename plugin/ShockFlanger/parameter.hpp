@@ -33,6 +33,7 @@ struct Scales {
   LinearScl bipolar{float(-1), float(1)};
   UIntScl seed{16777215};
 
+  UIntScl lfoSyncType{2};
   UIntScl saturationType{1023};
   DecibelScl saturationGain{float(-60), float(60), false};
   DecibelScl gain{float(-60), float(60), true};
@@ -77,11 +78,11 @@ struct ValueReceivers {
   std::atomic<float>* saturationType{};
   std::atomic<float>* saturationGain{};
 
-  std::atomic<float>* inputRatio{};
+  std::atomic<float>* inputBlend{};
   std::atomic<float>* delayTimeMs{};
   std::atomic<float>* delayTimeRatio{};
-  std::atomic<float>* flangeMode{};
-  std::atomic<float>* safeFlange{};
+  std::atomic<float>* flangeBlend{};
+  std::atomic<float>* flangePolarity{};
   std::atomic<float>* safeFeedback{};
   std::atomic<float>* feedbackGate{};
   std::atomic<float>* feedback0{};
@@ -90,17 +91,18 @@ struct ValueReceivers {
   std::atomic<float>* lfoPhaseInitial{};
   std::atomic<float>* lfoPhaseStereoOffset{};
   std::atomic<float>* lfoPhaseReset{};
+  std::atomic<float>* lfoSyncType{};
   std::atomic<float>* highpassCutoffHz{};
   std::atomic<float>* lowpassCutoffHz{};
   std::atomic<float>* modulationTracking{};
-  std::atomic<float>* crossModMode{};
+  std::atomic<float>* sigModMode{};
   std::atomic<float>* viscosityLowpassHz{};
-  std::atomic<float>* crossModulationOctave0{};
-  std::atomic<float>* crossModulationOctave1{};
-  std::atomic<float>* lfoToDelayTimeOctave0{};
-  std::atomic<float>* lfoToDelayTimeOctave1{};
-  std::atomic<float>* am0{};
-  std::atomic<float>* am1{};
+  std::atomic<float>* sigTimeMod0{};
+  std::atomic<float>* sigTimeMod1{};
+  std::atomic<float>* lfoTimeMod0{};
+  std::atomic<float>* lfoTimeMod1{};
+  std::atomic<float>* sigAmpMod0{};
+  std::atomic<float>* sigAmpMod1{};
 
   std::atomic<float>* noteReceive{};
   std::atomic<float>* notePitchRange{};
@@ -176,28 +178,30 @@ private:
                                           scale.saturationGain, "saturationGain", "Saturation Gain",
                                           Cat::genericParameter, version, "dB", Rep::display));
 
-    value.inputRatio = addParameter(generalGroup,
+    value.inputBlend = addParameter(generalGroup,
                                     std::make_unique<ScaledParameter<Scales::LinearScl>>(
-                                      scale.unipolar.invmap(float(0)), scale.unipolar, "inputRatio",
-                                      "Input Ratio", Cat::genericParameter, version, "", Rep::raw));
+                                      scale.unipolar.invmap(float(0)), scale.unipolar, "inputBlend",
+                                      "Input Blend", Cat::genericParameter, version, "", Rep::raw));
     value.delayTimeMs
       = addParameter(generalGroup,
                      std::make_unique<ScaledParameter<Scales::DecibelScl>>(
-                       scale.delayTimeMs.invmap(1), scale.delayTimeMs, "delayTimeMs", "Time",
-                       Cat::genericParameter, version, "ms", Rep::raw));
+                       scale.delayTimeMs.invmap(1), scale.delayTimeMs, "delayTimeMs",
+                       "Delay Time 0", Cat::genericParameter, version, "ms", Rep::raw));
     value.delayTimeRatio
       = addParameter(generalGroup,
                      std::make_unique<ScaledParameter<Scales::LinearScl>>(
                        scale.unipolar.invmap(float(0.75)), scale.unipolar, "delayTimeRatio",
-                       "Time Ratio", Cat::genericParameter, version, "", Rep::raw));
-    value.flangeMode = addParameter(generalGroup,
-                                    std::make_unique<ScaledParameter<Scales::LinearScl>>(
-                                      scale.unipolar.invmap(float(0)), scale.unipolar, "flangeMode",
-                                      "Mode", Cat::genericParameter, version, "", Rep::raw));
-    value.safeFlange = addParameter(generalGroup,
-                                    std::make_unique<ScaledParameter<Scales::UIntScl>>(
-                                      scale.boolean.invmap(1), scale.boolean, "safeFlange",
-                                      "Safe Flange", Cat::genericParameter, version, "", Rep::raw));
+                       "Delay Time 1", Cat::genericParameter, version, "ratio", Rep::raw));
+    value.flangeBlend
+      = addParameter(generalGroup,
+                     std::make_unique<ScaledParameter<Scales::LinearScl>>(
+                       scale.unipolar.invmap(float(0)), scale.unipolar, "flangeBlend",
+                       "Flange Blend", Cat::genericParameter, version, "", Rep::raw));
+    value.flangePolarity
+      = addParameter(generalGroup,
+                     std::make_unique<ScaledParameter<Scales::UIntScl>>(
+                       scale.boolean.invmap(1), scale.boolean, "flangePolarity", "Flange Polarity",
+                       Cat::genericParameter, version, "", Rep::raw));
     value.safeFeedback
       = addParameter(generalGroup,
                      std::make_unique<ScaledParameter<Scales::UIntScl>>(
@@ -271,6 +275,11 @@ private:
                      std::make_unique<ScaledParameter<Scales::UIntScl>>(
                        scale.boolean.invmap(0), scale.boolean, "lfoPhaseReset", "Reset LFO Phase",
                        Cat::genericParameter, version, "", Rep::raw));
+    value.lfoSyncType
+      = addParameter(generalGroup,
+                     std::make_unique<ScaledParameter<Scales::UIntScl>>(
+                       scale.lfoSyncType.invmap(0), scale.lfoSyncType, "lfoSyncType", "Sync. Type",
+                       Cat::genericParameter, version, "", Rep::raw));
 
     value.lowpassCutoffHz
       = addParameter(generalGroup,
@@ -288,44 +297,44 @@ private:
                      std::make_unique<ScaledParameter<Scales::LinearScl>>(
                        scale.unipolar.invmap(1), scale.unipolar, "modulationTracking", "Tracking",
                        Cat::genericParameter, version, "", Rep::raw));
-    value.crossModMode
+    value.sigModMode
       = addParameter(generalGroup,
                      std::make_unique<ScaledParameter<Scales::LinearScl>>(
-                       scale.unipolar.invmap(0), scale.unipolar, "crossModMode", "S. Mod Mode",
+                       scale.unipolar.invmap(0), scale.unipolar, "sigModMode", "Sig. Mod Mode",
                        Cat::genericParameter, version, "", Rep::raw));
     value.viscosityLowpassHz
       = addParameter(generalGroup,
                      std::make_unique<ScaledParameter<Scales::DecibelScl>>(
                        scale.cutoffHz.invmap(float(2000)), scale.cutoffHz, "viscosityLowpassHz",
                        "Viscosity LP", Cat::genericParameter, version, "Hz", Rep::raw));
-    value.lfoToDelayTimeOctave0 = addParameter(
-      generalGroup,
-      std::make_unique<ScaledParameter<Scales::BipolarDecibelScl>>(
-        scale.lfoToDelayTimeOctave.invmap(0), scale.lfoToDelayTimeOctave, "lfoToDelayTimeOctave0",
-        "LFO Mod. 0", Cat::genericParameter, version, "", Rep::raw));
-    value.lfoToDelayTimeOctave1 = addParameter(
-      generalGroup,
-      std::make_unique<ScaledParameter<Scales::BipolarDecibelScl>>(
-        scale.lfoToDelayTimeOctave.invmap(0), scale.lfoToDelayTimeOctave, "lfoToDelayTimeOctave1",
-        "LFO Mod. 1", Cat::genericParameter, version, "", Rep::raw));
-    value.crossModulationOctave0
+    value.lfoTimeMod0
       = addParameter(generalGroup,
                      std::make_unique<ScaledParameter<Scales::BipolarDecibelScl>>(
-                       scale.timeModOctave.invmap(0), scale.timeModOctave, "crossModulationOctave0",
-                       "S. Mod 0", Cat::genericParameter, version, "", Rep::raw));
-    value.crossModulationOctave1
+                       scale.lfoToDelayTimeOctave.invmap(0), scale.lfoToDelayTimeOctave,
+                       "lfoTimeMod0", "LFO Time 0", Cat::genericParameter, version, "", Rep::raw));
+    value.lfoTimeMod1
       = addParameter(generalGroup,
                      std::make_unique<ScaledParameter<Scales::BipolarDecibelScl>>(
-                       scale.timeModOctave.invmap(0), scale.timeModOctave, "crossModulationOctave1",
-                       "S. Mod 1", Cat::genericParameter, version, "", Rep::raw));
-    value.am0 = addParameter(generalGroup,
-                             std::make_unique<ScaledParameter<Scales::LinearScl>>(
-                               scale.unipolar.invmap(0), scale.unipolar, "am0", "AM 0",
-                               Cat::genericParameter, version, "", Rep::raw));
-    value.am1 = addParameter(generalGroup,
-                             std::make_unique<ScaledParameter<Scales::LinearScl>>(
-                               scale.unipolar.invmap(0), scale.unipolar, "am1", "AM 1",
-                               Cat::genericParameter, version, "", Rep::raw));
+                       scale.lfoToDelayTimeOctave.invmap(0), scale.lfoToDelayTimeOctave,
+                       "lfoTimeMod1", "LFO Time 1", Cat::genericParameter, version, "", Rep::raw));
+    value.sigTimeMod0
+      = addParameter(generalGroup,
+                     std::make_unique<ScaledParameter<Scales::BipolarDecibelScl>>(
+                       scale.timeModOctave.invmap(0), scale.timeModOctave, "sigTimeMod0",
+                       "Sig. Time 0", Cat::genericParameter, version, "", Rep::raw));
+    value.sigTimeMod1
+      = addParameter(generalGroup,
+                     std::make_unique<ScaledParameter<Scales::BipolarDecibelScl>>(
+                       scale.timeModOctave.invmap(0), scale.timeModOctave, "sigTimeMod1",
+                       "Sig. Time 1", Cat::genericParameter, version, "", Rep::raw));
+    value.sigAmpMod0 = addParameter(generalGroup,
+                                    std::make_unique<ScaledParameter<Scales::LinearScl>>(
+                                      scale.unipolar.invmap(0), scale.unipolar, "sigAmpMod0",
+                                      "Sig. AM 0", Cat::genericParameter, version, "", Rep::raw));
+    value.sigAmpMod1 = addParameter(generalGroup,
+                                    std::make_unique<ScaledParameter<Scales::LinearScl>>(
+                                      scale.unipolar.invmap(0), scale.unipolar, "sigAmpMod1",
+                                      "Sig. AM 1", Cat::genericParameter, version, "", Rep::raw));
 
     value.noteReceive
       = addParameter(generalGroup,

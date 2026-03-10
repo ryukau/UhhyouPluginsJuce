@@ -87,7 +87,7 @@ private:
 public:
   LabeledWidget(ParameterLockRegistry& locks, Palette& palette, StatusBar& statusBar,
                 const juce::String& label, juce::Component& widget,
-                const juce::AudioProcessorParameter* const parameter,
+                const juce::RangedAudioParameter* const parameter,
                 Layout option = Layout::showLabel)
       : pal(palette), option(option), widget(widget),
         lockLabel(locks, palette, statusBar, label, parameter, juce::Justification::centredLeft,
@@ -117,10 +117,10 @@ public:
     if (option == showLabel) {
       auto r = getLocalBounds();
       r.removeFromRight(r.getWidth() / 2);
-      r.removeFromLeft(int(pal.textSizeUi()));
+      r.removeFromLeft(int(pal.getFontHeight(TextSize::normal)));
 
       ctx.setColour(pal.border().withAlpha(float(0.25)));
-      ctx.drawLine({r.getBottomLeft().toFloat(), r.getBottomRight().toFloat()}, pal.borderThin());
+      ctx.drawLine({r.getBottomLeft().toFloat(), r.getBottomRight().toFloat()}, pal.borderWidth());
     }
   }
 };
@@ -153,7 +153,7 @@ inline int layoutActionSection(std::vector<GroupLabel>& groupLabels, int left, i
                                int sectionWidth, int labelWidth, int labelXIncrement,
                                int labelHeight, int labelYIncrement, juce::Component& undoButton,
                                juce::Component& redoButton, juce::Component& randomizeButton,
-                               juce::Component& presetManager) {
+                               juce::Component& presetManager, juce::Component& settingsButton) {
   using Rect = juce::Rectangle<int>;
 
   groupLabels.emplace_back("Action", Rect{left, top, sectionWidth, labelHeight});
@@ -168,10 +168,13 @@ inline int layoutActionSection(std::vector<GroupLabel>& groupLabels, int left, i
   randomizeButton.setBounds(Rect{left, top, sectionWidth, labelHeight});
 
   top += labelYIncrement;
-  groupLabels.emplace_back("Preset", Rect{left, top, sectionWidth, labelHeight});
+  groupLabels.emplace_back("Preset & GUI", Rect{left, top, sectionWidth, labelHeight});
 
   top += labelYIncrement;
   presetManager.setBounds(Rect{left, top, sectionWidth, labelHeight});
+
+  top += labelYIncrement;
+  settingsButton.setBounds(Rect{left, top, sectionWidth, labelHeight});
 
   return top + labelYIncrement;
 }

@@ -5,23 +5,27 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
+#include "Uhhyou/librarylicense.hpp"
 #include "widgets.hpp"
 
 #include <functional>
 #include <memory>
+#include <random>
 #include <unordered_map>
 #include <vector>
 
 namespace Uhhyou {
 
 template<typename ProcessorType>
-class EditorBase : public juce::AudioProcessorEditor, private juce::FocusChangeListener {
+class EditorBase : public juce::AudioProcessorEditor,
+                   private juce::FocusChangeListener,
+                   private juce::Timer {
 public:
-  EditorBase(ProcessorType& p, const juce::String& infoText, const juce::String& licenseText,
-             std::function<void(void)> randomizeButtonOnClick)
+  EditorBase(ProcessorType& p, const juce::String& infoText)
       : AudioProcessorEditor(p), processor(p), focusOverlay(palette), numberEditor(palette),
-        statusBar(*this, palette), pluginInfoButton(*this, palette, statusBar, navManager,
-                                                    processor.getName(), infoText, licenseText),
+        statusBar(*this, palette),
+        pluginInfoButton(*this, palette, statusBar, navManager, processor.getName(), infoText,
+                         getLibraryLicenseText()),
         undoButton(*this, palette, statusBar, numberEditor, "Undo", "",
                    [&]() {
                      if (processor.undoManager.canUndo()) { processor.undoManager.undo(); }
@@ -31,21 +35,47 @@ public:
                      if (processor.undoManager.canRedo()) { processor.undoManager.redo(); }
                    }),
         randomizeButton(*this, palette, statusBar, numberEditor, "Randomize",
-                        "Undo/Redo to revert.", randomizeButtonOnClick),
-        presetManager(*this, palette, statusBar, &(processor.undoManager), processor.param.tree) {
+                        "Undo/Redo to revert.", [this]() { performRandomize(); }),
+        presetManager(*this, palette, statusBar, &(processor.undoManager), processor.param.tree),
+        settingsButton(
+          *this, palette, statusBar, numberEditor, "GUI Settings", "Open settings menu", [this]() {
+            juce::PopupMenu menu;
+
+            bool focus
+              = getStateTree().getProperty("KeyboardFocusEnabled", palette.keyboardFocusEnabled());
+            menu.addItem("Keyboard Navigation (Steals host shortcuts)", true, focus,
+                         [this, focus]() {
+                           setGlobalKeyboardFocus(!focus);
+                           palette.updateSetting("keyboardFocusEnabled", !focus);
+                         });
+
+            menu.addItem("Reset Window Size to 100%", [this]() {
+              float currentScale = getStateTree().getProperty("windowScale", palette.windowScale());
+              if (currentScale > 0.0f) {
+                setSize(juce::roundToInt(getWidth() / currentScale),
+                        juce::roundToInt(getHeight() / currentScale));
+              }
+            });
+
+            menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&settingsButton));
+          }) {
     juce::Desktop::getInstance().addFocusChangeListener(this);
 
+    bool initialFocus
+      = getStateTree().getProperty("KeyboardFocusEnabled", palette.keyboardFocusEnabled());
     setResizable(true, false);
-    setWantsKeyboardFocus(true);
-    setMouseClickGrabsKeyboardFocus(true);
+    setWantsKeyboardFocus(initialFocus);
+    setMouseClickGrabsKeyboardFocus(initialFocus);
 
     navManager.pushScope(this, &mainScope);
+    mainScope.setKeyboardFocusEnabled(initialFocus);
 
     tooltipWindow.setOpaque(false);
     registerInteractive(undoButton);
     registerInteractive(redoButton);
     registerInteractive(randomizeButton);
     registerInteractive(presetManager);
+    registerInteractive(settingsButton);
     registerInteractive(pluginInfoButton);
 
     auto savedLocks = getStateTree().getProperty("ParamLocks").toString();
@@ -68,22 +98,34 @@ public:
   void resized() override {
     focusOverlay.setBounds(getLocalBounds());
     focusOverlay.toFront(false);
+
+    // A mitigation to disable mouse events while resizing. See `mouseEnter` for details.
+    setInterceptsMouseClicks(false, false);
+    startTimer(100);
+  }
+
+  void timerCallback() override {
+    // Inheritance of juce::Timer and `timerCallback` is a mitigation to disable mouse events while
+    // resizing. See `mouseEnter` for details.
+    stopTimer();
+    setInterceptsMouseClicks(true, true);
   }
 
   void paint(juce::Graphics& ctx) override {
     ctx.setColour(palette.background());
     ctx.fillAll();
 
-    auto groupLabelFont = palette.getFont(palette.textSizeUi());
+    auto groupLabelFont = palette.getFont(TextSize::normal);
     ctx.setColour(palette.foreground());
     ctx.setFont(groupLabelFont);
     for (const auto& x : groupLabels) {
-      x.paint(ctx, groupLabelFont, 2 * palette.borderThin(), palette.textSizeUi());
+      x.paint(ctx, groupLabelFont, 2 * palette.borderWidth(),
+              palette.getFontHeight(TextSize::normal));
     }
   }
 
   void paintOverChildren(juce::Graphics& ctx) override {
-    int shadowSize = int(palette.borderThin());
+    int shadowSize = std::max(1, int(palette.borderWidth()));
     juce::DropShadow shadow(palette.foreground(), 4 * shadowSize, {0, shadowSize});
 
     auto drawShadowIfHovered = [&](juce::Component& cmp) -> bool {
@@ -104,12 +146,26 @@ public:
   }
 
   virtual void mouseDown(const juce::MouseEvent& event) override {
-    if (event.originalComponent == this) { this->grabKeyboardFocus(); }
+    if (event.originalComponent == this && this->getWantsKeyboardFocus()) {
+      this->grabKeyboardFocus();
+    }
     numberEditor.setVisible(false);
   }
 
-  void mouseEnter(const juce::MouseEvent&) override { repaint(); }
-  void mouseExit(const juce::MouseEvent&) override { repaint(); }
+  void mouseEnter(const juce::MouseEvent& event) override {
+    // `enableUnboundedMouseMovement(false)` is a mitigation. At least on Windows 11, when resizing
+    // a plugin window, it seems like a hidden cursor remains in the initial position where resizing
+    // is started while dragging the edge. The issue is that the hidden cursor fires mouse events.
+    // Same for `mouseExit`.
+    event.source.enableUnboundedMouseMovement(false);
+    repaint();
+  }
+
+  void mouseExit(const juce::MouseEvent& event) override {
+    event.source.enableUnboundedMouseMovement(false);
+    repaint();
+  }
+
   void globalFocusChanged(juce::Component*) override { repaint(); }
 
   bool keyPressed(const juce::KeyPress& key) override {
@@ -153,6 +209,7 @@ protected:
   ActionButton<> redoButton;
   ActionButton<> randomizeButton;
   PresetManager presetManager;
+  ActionButton<> settingsButton;
   PluginInfoButton pluginInfoButton;
   std::vector<GroupLabel> groupLabels;
 
@@ -166,8 +223,70 @@ protected:
   using RandomizeFn = std::function<float(float)>;
   std::unordered_map<const juce::AudioProcessorParameter*, RandomizeFn> randomizers;
 
+  virtual void performRandomize() {
+    std::uniform_real_distribution<float> dist{0.0f, 1.0f};
+    std::random_device dev;
+    std::mt19937 rng(dev());
+
+    auto params = processor.getParameters();
+    for (auto& prm : params) {
+      if (this->paramLocks.isLocked(prm)) { continue; }
+
+      float normalized = dist(rng);
+      if (auto it = this->randomizers.find(prm); it != this->randomizers.end()) {
+        normalized = it->second(normalized);
+      }
+
+      prm->beginChangeGesture();
+      prm->setValueNotifyingHost(normalized);
+      prm->endChangeGesture();
+    }
+  }
+
   inline juce::ValueTree getStateTree() {
     return processor.param.tree.state.getOrCreateChildWithName("GUI", nullptr);
+  }
+
+  float getWindowScale() { return getStateTree().getProperty("windowScale", 1.0f); }
+
+  void initWindow(int scaledWidth, int scaledHeight) {
+    getConstrainer()->setFixedAspectRatio(double(scaledWidth) / double(scaledHeight));
+    setSize(scaledWidth, scaledHeight);
+
+    addAndMakeVisible(focusOverlay);
+    focusOverlay.toFront(false);
+  }
+
+  float updateScale(int defaultHeight) {
+    const float scale = getHeight() / float(defaultHeight);
+    getStateTree().setProperty("windowScale", scale, nullptr);
+    palette.resize(scale);
+    groupLabels.clear();
+    statusBar.setText("Window Scale: " + juce::String(juce::roundToInt(scale * 100.0f)) + "%");
+    return scale;
+  }
+
+  int layoutActionSectionAndPluginInfo(int left, int top, int sectionWidth, int labelW, int labelX,
+                                       int labelH, int labelY, float scale) {
+    const int nameTop0
+      = layoutActionSection(groupLabels, left, top, sectionWidth, labelW, labelX, labelH, labelY,
+                            undoButton, redoButton, randomizeButton, presetManager, settingsButton);
+    pluginInfoButton.setBounds(juce::Rectangle<int>{left, nameTop0, sectionWidth, labelH});
+    pluginInfoButton.scale(scale);
+    return nameTop0;
+  }
+
+  void setGlobalKeyboardFocus(bool enable) {
+    getStateTree().setProperty("KeyboardFocusEnabled", enable, nullptr);
+
+    setWantsKeyboardFocus(enable);
+    setMouseClickGrabsKeyboardFocus(enable);
+
+    mainScope.setKeyboardFocusEnabled(enable);
+
+    if (!enable) {
+      juce::MessageManager::callAsync([]() { juce::Component::unfocusAllComponents(); });
+    }
   }
 
   void saveParamLocks() {
@@ -180,7 +299,14 @@ protected:
 
   // Registers a component for interaction (Focus, Shadows, Mouse events). Does not take ownership.
   void registerInteractive(juce::Component& widget) {
-    if (mainScope.add(widget)) { widget.addMouseListener(this, true); }
+    if (mainScope.add(widget)) {
+      widget.addMouseListener(this, true);
+
+      bool focusEnabled
+        = getStateTree().getProperty("KeyboardFocusEnabled", palette.keyboardFocusEnabled());
+      widget.setWantsKeyboardFocus(focusEnabled);
+      widget.setMouseClickGrabsKeyboardFocus(focusEnabled);
+    }
   }
 
   void registerParameterId(const juce::String& id, const juce::AudioProcessorParameter* prm) {
@@ -200,8 +326,7 @@ protected:
 
   // Helper to compose a LabeledWidget, register it, and store ownership.
   void addToSection(const juce::String& sectionTitle, const juce::String& label,
-                    juce::Component& component,
-                    const juce::AudioProcessorParameter* const parameter,
+                    juce::Component& component, const juce::RangedAudioParameter* const parameter,
                     LabeledWidget::Layout option = LabeledWidget::showLabel) {
     auto widget = std::make_shared<LabeledWidget>(paramLocks, palette, statusBar, label, component,
                                                   parameter, option);

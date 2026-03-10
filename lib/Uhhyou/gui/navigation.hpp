@@ -30,6 +30,15 @@ struct FocusScope {
 
   bool contains(juce::Component* c) const { return componentSet.contains(c); }
 
+  void setKeyboardFocusEnabled(bool enable) {
+    for (auto& safePtr : components) {
+      if (auto* cmp = safePtr.getComponent()) {
+        cmp->setWantsKeyboardFocus(enable);
+        cmp->setMouseClickGrabsKeyboardFocus(enable);
+      }
+    }
+  }
+
 private:
   JUCE_DECLARE_WEAK_REFERENCEABLE(FocusScope)
 };
@@ -107,7 +116,7 @@ public:
 
     if (auto* owner = stack.back().owner.getComponent()) {
       bool handled = owner->keyPressed(juce::KeyPress(juce::KeyPress::escapeKey));
-      if (!handled) { owner->grabKeyboardFocus(); }
+      if (!handled && owner->getWantsKeyboardFocus()) { owner->grabKeyboardFocus(); }
       return true;
     }
 
@@ -220,7 +229,7 @@ public:
 
     if (focused != parent && parent->isParentOf(focused)) {
       auto bounds = getLocalArea(focused, focused->getLocalBounds()).toFloat();
-      float thickness = pal.borderThin() * float(3);
+      float thickness = pal.borderWidth() * float(3);
       auto ringBounds = bounds.expanded(thickness);
       ctx.setColour(pal.foreground().withAlpha(float(0.5)));
       ctx.drawRect(ringBounds, thickness);

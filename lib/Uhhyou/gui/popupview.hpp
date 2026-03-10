@@ -12,8 +12,10 @@
 #include "tabview.hpp"
 
 #include <algorithm>
+#include <cstring>
 #include <functional>
 #include <iterator>
+#include <string>
 #include <vector>
 
 namespace Uhhyou {
@@ -52,7 +54,7 @@ public:
     return std::make_unique<CloseInfoButtonAccessibilityHandler>(*this, std::move(actions));
   }
 
-  virtual void resized() override { padding = 20 * pal.borderThin(); }
+  virtual void resized() override { padding = 20 * pal.borderWidth(); }
 
   virtual void paint(juce::Graphics& ctx) override {
     auto bounds = getLocalBounds().toFloat();
@@ -60,7 +62,7 @@ public:
     bool highlight = isMouseEntered || hasKeyboardFocus(false);
 
     // Background.
-    const auto& bgColor = highlight ? pal.highlightButton() : pal.background();
+    const auto& bgColor = highlight ? pal.main() : pal.background();
     ctx.fillAll(bgColor.withAlpha(float(0.875)));
 
     // Hint text.
@@ -71,7 +73,7 @@ public:
     // decorated as a clickable button.
     //
     ctx.setColour(highlight ? pal.foreground() : pal.foreground().withAlpha(0.5f));
-    ctx.setFont(pal.getFont(pal.textSizeUi()));
+    ctx.setFont(pal.getFont(TextSize::normal));
     juce::String hintText = "Click margin to close (Esc)";
     const auto& justification = juce::Justification::centred;
     ctx.drawText(hintText, bounds.withBottom(padding), justification);
@@ -107,23 +109,156 @@ public:
 };
 
 class NavigableCodeEditor : public juce::CodeEditorComponent {
+private:
+  Palette& pal;
+  juce::String originalSource;
+  int currentWrapLimit = 0;
+
+  juce::ScrollBar* getVerticalScrollBar() {
+    for (auto* child : getChildren()) {
+      if (auto* sb = dynamic_cast<juce::ScrollBar*>(child)) {
+        if (sb->isVertical()) { return sb; }
+      }
+    }
+    return nullptr;
+  }
+
+  static juce::String prepareManualText(juce::String rawText) {
+#if JUCE_MAC
+    const juce::String modKey = "Cmd";
+#else
+    const juce::String modKey = "Ctrl";
+#endif
+
+    // Replace token. Do this BEFORE applyLineWrap so the character limits
+    // calculate the exact rendered string length accurately.
+    return rawText.replace("@MOD@", modKey);
+  }
+
+  static juce::String applyLineWrap(const juce::String& text, int limit) {
+    if (text.isEmpty() || limit <= 0) { return text; }
+
+    const char* p = text.toRawUTF8();
+    const char* const end = p + text.getNumBytesAsUTF8();
+
+    std::string out;
+    out.reserve(static_cast<size_t>(end - p) * 2); // Preallocate 200% to avoid resizing
+
+    while (p < end) {
+      const char* lineEnd = static_cast<const char*>(std::memchr(p, '\n', end - p));
+      if (!lineEnd) { lineEnd = end; }
+
+      int lineChars = 0;
+      for (const char* s = p; s < lineEnd; ++s) {
+        if ((static_cast<uint8_t>(*s) & 0xC0) != 0x80) { lineChars++; }
+      }
+
+      if (lineChars <= limit) {
+        out.append(p, lineEnd - p + (lineEnd < end ? 1 : 0));
+        p = lineEnd + 1;
+        continue;
+      }
+
+      const char* scan = p;
+      int indentLen = 0;
+      while (scan < lineEnd && (*scan == ' ' || *scan == '\t')) {
+        indentLen++;
+        scan++;
+      }
+
+      const int hangingLen = std::max(0, std::min(limit - 10, indentLen + 4));
+      out.append(p, scan - p);
+      int currentChars = indentLen;
+
+      while (scan < lineEnd) {
+        const char* spaceStart = scan;
+        while (scan < lineEnd && (*scan == ' ' || *scan == '\t')) { scan++; }
+
+        if (int spaceChars = static_cast<int>(scan - spaceStart);
+            spaceChars > 0 && currentChars < limit)
+        {
+          int writeChars = std::min(spaceChars, limit - currentChars);
+          out.append(spaceStart, writeChars);
+          currentChars += writeChars;
+        }
+
+        if (scan == lineEnd) { break; }
+
+        const char* wordStart = scan;
+        int wordChars = 0;
+        while (scan < lineEnd && *scan != ' ' && *scan != '\t') {
+          if ((static_cast<uint8_t>(*scan) & 0xC0) != 0x80) { wordChars++; }
+          scan++;
+        }
+
+        if (currentChars > indentLen && currentChars + wordChars > limit) {
+          out += '\n';
+          out.append(hangingLen, ' ');
+          currentChars = hangingLen;
+        }
+
+        out.append(wordStart, scan - wordStart);
+        currentChars += wordChars;
+      }
+
+      if (lineEnd < end) { out += '\n'; }
+      p = lineEnd + 1;
+    }
+
+    return juce::String::fromUTF8(out.data(), static_cast<int>(out.size()));
+  }
+
 public:
-  NavigableCodeEditor(juce::CodeDocument& doc, juce::CodeTokeniser* tok, Palette& pal,
+  NavigableCodeEditor(juce::CodeDocument& doc, juce::CodeTokeniser* tok, Palette& palette,
                       const juce::String& source)
-      : juce::CodeEditorComponent(doc, tok) {
+      : juce::CodeEditorComponent(doc, tok), pal(palette), originalSource(source) {
     setReadOnly(false);
 
     using ColorId = juce::CodeEditorComponent::ColourIds;
     setColour(ColorId::backgroundColourId, pal.background());
     setColour(ColorId::defaultTextColourId, pal.foreground());
-    setColour(ColorId::highlightColourId, pal.overlayHighlight());
+    setColour(ColorId::highlightColourId, pal.main().withAlpha(0.3f));
     setColour(ColorId::lineNumberBackgroundId, pal.background());
     setColour(ColorId::lineNumberTextId, pal.foreground().withAlpha(0.5f));
 
-    loadContent(source);
     setLineNumbersShown(false);
     setWantsKeyboardFocus(true);
     setMouseClickGrabsKeyboardFocus(true);
+
+    loadContent(originalSource);
+  }
+
+  void updateWrapLimit() {
+    auto monospace = pal.getFont(TextSize::normal, FontType::monospace);
+    float characterWidth = juce::GlyphArrangement::getStringWidth(monospace, "M");
+    if (characterWidth <= 0.0f) { characterWidth = 8.0f; } // Fallback.
+
+    constexpr float scrollBarMargin = 32.0f;
+    float availableWidth = static_cast<float>(getWidth()) - scrollBarMargin;
+    int limit = static_cast<int>(availableWidth / characterWidth);
+    if (limit < 20) { limit = 20; }
+
+    if (limit != currentWrapLimit) {
+      currentWrapLimit = limit;
+
+      double scrollRatio = 0.0;
+      if (auto* sb = getVerticalScrollBar()) {
+        double total = sb->getMaximumRangeLimit() - sb->getMinimumRangeLimit();
+        if (total > 0.0) { scrollRatio = sb->getCurrentRangeStart() / total; }
+      }
+      juce::String wrappedText = applyLineWrap(prepareManualText(originalSource), limit);
+      loadContent(wrappedText);
+
+      if (auto* sb = getVerticalScrollBar()) {
+        double newTotal = sb->getMaximumRangeLimit() - sb->getMinimumRangeLimit();
+        sb->setCurrentRangeStart(scrollRatio * newTotal);
+      }
+    }
+  }
+
+  void resized() override {
+    juce::CodeEditorComponent::resized();
+    updateWrapLimit();
   }
 
   void insertTextAtCaret(const juce::String&) override {}
@@ -215,10 +350,13 @@ private:
     navManager.popScope(this);
     closeButton.setVisible(false);
     tabView.setVisible(false);
-    this->grabKeyboardFocus();
+    if (getWantsKeyboardFocus()) { this->grabKeyboardFocus(); }
   }
 
   void displayPopup() {
+    bool wantsFocus = getWantsKeyboardFocus();
+    popupScope.setKeyboardFocusEnabled(wantsFocus);
+
     closeButton.setVisible(true);
     tabView.setVisible(true);
 
@@ -226,14 +364,14 @@ private:
     tabView.toFront(true);
 
     navManager.pushScope(this, &popupScope);
-    tabView.grabKeyboardFocus();
+    if (wantsFocus) { tabView.grabKeyboardFocus(); }
   }
 
 public:
   PluginInfoButton(Component& parent, Palette& palette, StatusBar& statusBar,
                    NavigationManager& navigationManager, const juce::String& label,
                    const juce::String& infoText, const juce::String& licenseText)
-      : popupInset(std::min(int(20 * palette.borderThin()), 20)),
+      : popupInset(std::min(int(20 * palette.borderWidth()), 20)),
         closeButton(palette, popupInset, [&]() { this->dismissPopup(); }),
         tabView(palette, {"Information", "License"}),
         infoDisplay(infoDocument, nullptr, palette, infoText),
@@ -277,19 +415,17 @@ public:
   }
 
   virtual void resized() override {
-    font = pal.getFont(pal.textSizeBig(), FontType::ui);
+    font = pal.getFont(TextSize::large, FontType::ui);
 
-    popupInset = int(20 * pal.borderThin());
+    popupInset = int(20 * pal.borderWidth());
     closeButton.setBoundsInset(juce::BorderSize<int>{0});
     tabView.setBoundsInset(juce::BorderSize<int>{popupInset});
 
     auto innerBounds = tabView.getInnerBounds();
-
     infoDisplay.setBounds(innerBounds);
-    infoDisplay.setFont(pal.getFont(pal.textSizeUi(), FontType::monospace));
-
+    infoDisplay.setFont(pal.getFont(TextSize::normal, FontType::monospace));
     licenseDisplay.setBounds(innerBounds);
-    licenseDisplay.setFont(pal.getFont(pal.textSizeUi(), FontType::monospace));
+    licenseDisplay.setFont(pal.getFont(TextSize::normal, FontType::monospace));
 
     tabView.refreshTab();
   }
@@ -299,18 +435,18 @@ public:
   }
 
   virtual void paint(juce::Graphics& ctx) override {
-    const float lw1 = pal.borderThin(); // Border width.
+    const float lw1 = pal.borderWidth(); // Border width.
     const float lw2 = 2 * lw1;
     const float lwHalf = lw1 / 2;
-    const float width = float(getWidth());
-    const float height = float(getHeight());
+    const float width = std::floor(float(getWidth()));
+    const float height = std::floor(float(getHeight()));
 
     // Background.
-    ctx.setColour(pal.boxBackground());
+    ctx.setColour(pal.surface());
     ctx.fillRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2);
 
     // Border.
-    ctx.setColour(isMouseEntered ? pal.highlightButton() : pal.border());
+    ctx.setColour(isMouseEntered ? pal.main() : pal.border());
     ctx.drawRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2, lw1);
 
     // Text.

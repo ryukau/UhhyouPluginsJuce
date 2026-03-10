@@ -58,7 +58,7 @@ template<typename Func> void DSPCore::applyToParameters(Func apply) {
 
   const auto satGain = L(pv.saturationGain);
   apply(saturationGain, satGain);
-  apply(inputRatio, L(pv.inputRatio));
+  apply(inputBlend, L(pv.inputBlend));
   apply(feedback0, L(pv.feedback0));
   apply(feedback1, L(pv.feedback1));
   apply(lfoPhaseInitial, L(pv.lfoPhaseInitial));
@@ -69,7 +69,7 @@ template<typename Func> void DSPCore::applyToParameters(Func apply) {
   apply(delayTimeSample1, L(pv.delayTimeRatio) * delayTime);
 
   apply(viscosityCutoff, L(pv.viscosityLowpassHz) / upRate);
-  apply(crossModMode, L(pv.crossModMode));
+  apply(sigModMode, L(pv.sigModMode));
 
   const auto setMod = [&](Real invTime, Real mod, Real tracking) -> Real {
     constexpr auto invLn2 = Real(1) / std::numbers::ln2_v<Real>;
@@ -82,14 +82,14 @@ template<typename Func> void DSPCore::applyToParameters(Func apply) {
   const auto invTime1 = weakScalar / std::max(Real(1), delayTimeSample1.target());
   const auto modTracking = L(pv.modulationTracking);
   const auto modAdjust = (satGain >= Real(1)) ? Real(1) : satGain;
-  const auto cMod0 = L(pv.crossModulationOctave0) / modAdjust;
-  const auto cMod1 = L(pv.crossModulationOctave1) / modAdjust;
-  apply(crossModOctave0, setMod(invTime0, cMod0, modTracking));
-  apply(crossModOctave1, setMod(invTime1, cMod1, modTracking));
-  apply(timeModOctave0, setMod(invTime0, L(pv.lfoToDelayTimeOctave0), modTracking));
-  apply(timeModOctave1, setMod(invTime1, L(pv.lfoToDelayTimeOctave1), modTracking));
-  apply(am0, L(pv.am0));
-  apply(am1, L(pv.am1));
+  const auto cMod0 = L(pv.sigTimeMod0) / modAdjust;
+  const auto cMod1 = L(pv.sigTimeMod1) / modAdjust;
+  apply(sigTimeMod0, setMod(invTime0, cMod0, modTracking));
+  apply(sigTimeMod1, setMod(invTime1, cMod1, modTracking));
+  apply(lfoTimeMod0, setMod(invTime0, L(pv.lfoTimeMod0), modTracking));
+  apply(lfoTimeMod1, setMod(invTime1, L(pv.lfoTimeMod1), modTracking));
+  apply(sigAmpMod0, L(pv.sigAmpMod0));
+  apply(sigAmpMod1, L(pv.sigAmpMod1));
 
   const auto& cutoffMax = scl.cutoffHz.getMax();
   apply(lowpassCutoff, L(pv.lowpassCutoffHz) / upRate);
@@ -97,20 +97,22 @@ template<typename Func> void DSPCore::applyToParameters(Func apply) {
   apply(highpassCutoff, L(pv.highpassCutoffHz) / upRate);
   apply(highpassFade, (L(pv.highpassCutoffHz) <= 0) ? Real(0) : Real(1));
 
-  const auto flange = L(pv.flangeMode);
-  apply(flangeMode, flange);
+  const auto flange = L(pv.flangeBlend);
+  apply(flangeBlend, flange);
   apply(safeFeedback, L(pv.safeFeedback) * flange);
-  apply(safeFlange, L(pv.safeFlange) < Real(0.5) ? -flange : flange);
+  apply(flangePolarity, L(pv.flangePolarity) < Real(0.5) ? -flange : flange);
 
   apply(dryGain, L(pv.dryGain));
   const auto wetSign = L(pv.wetInvert) ? Real(-1) : Real(1);
   apply(wetGain, std::copysign(L(pv.wetGain), wetSign));
 
-  const auto upper = Real(1);
-  const auto lower = Real(1);
+  using SyncMode = TempoSyncedLfo<Real>::Synchronization;
+  SyncMode mode = static_cast<SyncMode>(L(pv.lfoSyncType));
+  constexpr auto upper = Real(1);
+  constexpr auto lower = Real(1);
   const auto lfoBeat = std::max(Real(L(pv.lfoBeat)), eps);
   const auto lfoRate = lfoBeat >= scl.lfoBeat.getMax() ? 0 : Real(1) / lfoBeat;
-  lfo.update(tempo, lfoRate, upper, lower, upRate);
+  lfo.update(mode, tempo, lfoRate, upper, lower, upRate);
 
   isResettingLfoPhase = L(pv.lfoPhaseReset) >= Real(0.5);
 }
@@ -176,25 +178,25 @@ auto DSPCore::processSample(const std::array<Real, 2> in) -> std::array<Real, 2>
     .feedbackGateThreshold = gateThresholdAdjusted,
     .feedback0 = feedback0.process(),
     .feedback1 = feedback1.process(),
-    .saturatorType = saturatorType,
-    .inputRatio = inputRatio.process(),
+    .inputBlend = inputBlend.process(),
     .timeInSamples0 = delayTimeSample0.process() * ntPitch,
     .timeInSamples1 = delayTimeSample1.process() * ntPitch,
     .viscosityCutoff = viscosityCutoff.process(),
-    .crossModMode = crossModMode.process(),
-    .crossModOctave0 = crossModOctave0.process(),
-    .crossModOctave1 = crossModOctave1.process(),
-    .timeModOctave0 = timeModOctave0.process(),
-    .timeModOctave1 = timeModOctave1.process(),
-    .am0 = am0.process(),
-    .am1 = am1.process(),
+    .sigModMode = sigModMode.process(),
+    .sigTimeMod0 = sigTimeMod0.process(),
+    .sigTimeMod1 = sigTimeMod1.process(),
+    .lfoTimeMod0 = lfoTimeMod0.process(),
+    .lfoTimeMod1 = lfoTimeMod1.process(),
+    .sigAmpMod0 = sigAmpMod0.process(),
+    .sigAmpMod1 = sigAmpMod1.process(),
     .highpassCutoff = highpassCutoff.process(),
     .highpassFade = highpassFade.process(fadeKp),
-    .flangeMode = flangeMode.process(),
+    .flangeBlend = flangeBlend.process(),
     .safeFeedback = safeFeedback.process(),
-    .flangeSign = safeFlange.process(),
+    .flangeSign = flangePolarity.process(),
     .lowpassCutoff = lowpassCutoff.process(),
     .lowpassFade = lowpassFade.process(fadeKp),
+    .saturatorType = saturatorType,
   };
 
   const auto gain = noteGain.process(noteKp) * saturationGain.value();
@@ -295,9 +297,9 @@ void DSPCore::noteOn(int noteId, Real pitchSemitone, Real velocity) {
   if (!noteReceive) { return; }
 
   noteIdStack.push_back({
-    .noteId = noteId,
     .pitch = semitoneToRatio(notePitchScalar, pitchSemitone),
     .gain = ScaleTools::dbToAmp(noteGainScalar * Real(velocity)),
+    .noteId = noteId,
   });
   notePitch.push(noteIdStack.back().pitch);
   noteGain.push(noteIdStack.back().gain);

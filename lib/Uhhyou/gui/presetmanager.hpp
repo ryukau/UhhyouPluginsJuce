@@ -284,7 +284,7 @@ public:
   }
 
   void resized() override {
-    font = pal.getFont(pal.textSizeUi());
+    font = pal.getFont(TextSize::normal);
 
     const int width = getWidth();
     const int height = getHeight();
@@ -295,17 +295,17 @@ public:
   }
 
   void paint(juce::Graphics& ctx) override {
-    const float lw = pal.borderThin();
+    const float lw = pal.borderWidth();
     const float corner = float(2) * lw;
     const float height = float(getHeight());
     const auto bounds = getLocalBounds().toFloat().reduced(lw * float(0.5));
 
-    ctx.setColour(pal.boxBackground());
+    ctx.setColour(pal.surface());
     ctx.fillRoundedRectangle(bounds, corner);
 
     // Highlight
     if (isMouseEntered) {
-      ctx.setColour(pal.highlightButton());
+      ctx.setColour(pal.main());
       if (previousButtonRegion.contains(mousePosition)) {
         ctx.fillRoundedRectangle(previousButtonRegion.toFloat(), corner);
       } else if (nextButtonRegion.contains(mousePosition)) {

@@ -27,8 +27,8 @@ private:
   static constexpr float historyMs = float(2000);
   static constexpr float fadeDurationMs = float(500);
 
-  Palette &pal;
-  ValueReceivers &pv;
+  Palette& pal;
+  ValueReceivers& pv;
 
   juce::Font fontLabel;
   juce::Font fontSmall;
@@ -46,39 +46,33 @@ private:
   std::array<std::array<std::array<float, 2>, 2>, nChannel> limitWarnings{};
 
 public:
-  DelayTimeDisplay(Component &parent, Palette &palette, ValueReceivers &valueReceiver)
-    : pal(palette)
-    , pv(valueReceiver)
-    , fontLabel(palette.getFont(palette.textSizeUi()))
-    , fontSmall(palette.getFont(palette.textSizeSmall()))
-  {
+  DelayTimeDisplay(Component& parent, Palette& palette, ValueReceivers& valueReceiver)
+      : pal(palette), pv(valueReceiver), fontLabel(palette.getFont(TextSize::normal)),
+        fontSmall(palette.getFont(TextSize::small)) {
     setSynchroniseToVBlank(true);
     parent.addAndMakeVisible(*this, 0);
   }
 
   virtual ~DelayTimeDisplay() override {}
 
-  virtual void resized() override
-  {
-    fontLabel = pal.getFont(pal.textSizeUi());
-    fontSmall = pal.getFont(pal.textSizeSmall());
+  virtual void resized() override {
+    fontLabel = pal.getFont(TextSize::normal);
+    fontSmall = pal.getFont(TextSize::small);
   }
 
-  virtual void update() override
-  {
+  virtual void update() override {
     // Clamp dt to reasonable bounds to prevent instability.
-    const float dt = std::clamp(
-      static_cast<float>(getMillisecondsSinceLastUpdate()), float(1), float(100));
+    const float dt
+      = std::clamp(static_cast<float>(getMillisecondsSinceLastUpdate()), float(1), float(100));
     const float decay = dt / fadeDurationMs;
 
-    auto updateLane = [&](TraceDeque &trail, const std::atomic<float> &source)
-    {
+    auto updateLane = [&](TraceDeque& trail, const std::atomic<float>& source) {
       trail.push_back({source.load(std::memory_order_relaxed), dt});
 
       // Lazy pruning: only check if size gets large.
       if (trail.size() > 20) {
         float total = float(0);
-        for (const auto &pt : trail) total += pt.ms;
+        for (const auto& pt : trail) { total += pt.ms; }
 
         while (total > historyMs && !trail.empty()) {
           total -= trail.front().ms;
@@ -92,23 +86,22 @@ public:
         updateLane(trailUpper[i][j], pv.displayDelayTimeUpper[i][j]);
         updateLane(trailLower[i][j], pv.displayDelayTimeLower[i][j]);
 
-        auto &warnings = limitWarnings[i][j];
+        auto& warnings = limitWarnings[i][j];
 
         warnings[0] = std::max(float(0), warnings[0] - decay);
         warnings[1] = std::max(float(0), warnings[1] - decay);
 
         if (!trailLower[i][j].empty()) {
-          if (trailLower[i][j].back().value <= float(0)) warnings[0] = float(1);
+          if (trailLower[i][j].back().value <= float(0)) { warnings[0] = float(1); }
         }
         if (!trailUpper[i][j].empty()) {
-          if (trailUpper[i][j].back().value >= float(10)) warnings[1] = float(1);
+          if (trailUpper[i][j].back().value >= float(10)) { warnings[1] = float(1); }
         }
       }
     }
   }
 
-  virtual void paint(juce::Graphics &ctx) override
-  {
+  virtual void paint(juce::Graphics& ctx) override {
     const auto fullBounds = getLocalBounds().toFloat();
     const float headerHeight = fontSmall.getHeight();
     const float sideLabelWidth = 3 * fontSmall.getHeight();
@@ -119,7 +112,7 @@ public:
     auto graphBounds = remainingBounds;
 
     // Background.
-    ctx.setColour(pal.boxBackground());
+    ctx.setColour(pal.background());
     ctx.fillAll();
 
     // Grid & Ticks.
@@ -130,8 +123,7 @@ public:
     constexpr float maxLog10 = float(4);
     constexpr float logRange = maxLog10 - minLog10;
 
-    auto timeToGraphX = [&](float seconds) -> float
-    {
+    auto timeToGraphX = [&](float seconds) -> float {
       const auto s = std::max(seconds, float(0.00001));
       const auto ms = float(1000) * s;
       const auto logVal = std::log10(ms);
@@ -143,7 +135,7 @@ public:
     ctx.setFont(fontSmall);
     ctx.setColour(pal.border());
 
-    const float gridLineWidth = float(0.125) * pal.borderThin();
+    const float gridLineWidth = float(0.125) * pal.borderWidth();
     for (size_t i = 0; i < tickMs.size(); ++i) {
       float ms = tickMs[i];
       float x = timeToGraphX(ms / float(1000));
@@ -154,23 +146,22 @@ public:
 
       // Label.
       juce::String labelText = std::format("{}", ms);
-      const float margin = float(4) * pal.borderThin();
+      const float margin = float(4) * pal.borderWidth();
       const float textW = juce::GlyphArrangement::getStringWidth(fontSmall, labelText);
       juce::Rectangle<float> labelRect(0, 0, textW + margin, headerBounds.getHeight());
 
       if (i == tickMs.size() - 1 || ms >= float(10)) {
         // Last tick is right aligned to stay in bounds.
-        labelRect.setRight(x - 2 * pal.borderThin());
-        ctx.drawText(labelText, labelRect, juce::Justification::centredRight, false);
+        labelRect.setRight(x - 2 * pal.borderWidth());
+        ctx.drawText(labelText, labelRect.toNearestInt(), juce::Justification::centredRight, false);
       } else {
         labelRect.setCentre(x, headerBounds.getCentreY());
-        ctx.drawText(labelText, labelRect, juce::Justification::centred, false);
+        ctx.drawText(labelText, labelRect.toNearestInt(), juce::Justification::centred, false);
       }
     }
 
     // Side labels.
-    std::array<std::array<juce::String, 2>, nChannel> labelNames{
-      {{"L0", "L1"}, {"R0", "R1"}}};
+    std::array<std::array<juce::String, 2>, nChannel> labelNames{{{"L0", "L1"}, {"R0", "R1"}}};
     const float laneHeight = graphBounds.getHeight() / float(nChannel * 2);
 
     ctx.setColour(pal.foreground());
@@ -178,28 +169,27 @@ public:
     for (size_t i = 0; i < nChannel; ++i) {
       for (size_t j = 0; j < 2; ++j) {
         auto area = currentSideBounds.removeFromTop(laneHeight);
-        ctx.drawText(labelNames[i][j], area, juce::Justification::centred);
+        ctx.drawText(labelNames[i][j], area.toNearestInt(), juce::Justification::centred);
       }
     }
 
     // Waterfall graph.
     auto currentGraphBounds = graphBounds;
-    auto minTrailWidth = pal.borderThin();
-    auto minReticleWidth = pal.borderThin();
+    auto minTrailWidth = pal.borderWidth();
+    auto minReticleWidth = pal.borderWidth();
     for (size_t i = 0; i < nChannel; ++i) {
       for (size_t j = 0; j < 2; ++j) {
         auto laneArea = currentGraphBounds.removeFromTop(laneHeight);
 
         ctx.setColour(pal.border());
-        ctx.drawLine(
-          laneArea.getX(), laneArea.getY(), fullBounds.getRight(), laneArea.getY(),
-          gridLineWidth);
+        ctx.drawLine(laneArea.getX(), laneArea.getY(), fullBounds.getRight(), laneArea.getY(),
+                     gridLineWidth);
 
         juce::Graphics::ScopedSaveState stateSaver(ctx);
         ctx.reduceClipRegion(laneArea.toNearestInt());
 
-        const auto &tLower = trailLower[i][j];
-        const auto &tUpper = trailUpper[i][j];
+        const auto& tLower = trailLower[i][j];
+        const auto& tUpper = trailUpper[i][j];
 
         float currentY = laneArea.getBottom();
         float accumMs = float(0);
@@ -209,8 +199,8 @@ public:
 
         for (size_t k = 0; k < count; ++k) {
           size_t idx = count - 1 - k;
-          const auto &ptL = tLower[idx];
-          const auto &ptR = tUpper[idx];
+          const auto& ptL = tLower[idx];
+          const auto& ptR = tUpper[idx];
 
           float segmentHeight = (ptL.ms / historyMs) * laneArea.getHeight();
           float yBottom = currentY;
@@ -225,14 +215,13 @@ public:
           float progress = accumMs / historyMs;
           float alpha = std::clamp(float(1) - progress * progress, float(0), float(1));
 
-          ctx.setColour(pal.highlightButton().withAlpha(alpha));
-          ctx.fillRect(
-            screenX1, yTop, drawWidth, yBottom - yTop + float(0.5) * minTrailWidth);
+          ctx.setColour(pal.main().withAlpha(alpha));
+          ctx.fillRect(screenX1, yTop, drawWidth, yBottom - yTop + float(0.5) * minTrailWidth);
 
           currentY = yTop;
           accumMs += ptL.ms;
 
-          if (currentY < laneArea.getY()) break;
+          if (currentY < laneArea.getY()) { break; }
         }
 
         // Current value reticle.
@@ -259,14 +248,14 @@ public:
         float alphaMax = limitWarnings[i][j][1];
         if (alphaMin > float(0) || alphaMax > float(0)) {
           const float indH = laneArea.getHeight();
-          const float indW = 3 * pal.borderThin();
+          const float indW = 3 * pal.borderWidth();
           const float indY = laneArea.getBottom() - indH;
           if (alphaMin > float(0)) {
-            ctx.setColour(pal.highlightWarning().withAlpha(alphaMin));
+            ctx.setColour(pal.warning().withAlpha(alphaMin));
             ctx.fillRect(laneArea.getX(), indY, indW, indH);
           }
           if (alphaMax > float(0)) {
-            ctx.setColour(pal.highlightWarning().withAlpha(alphaMax));
+            ctx.setColour(pal.warning().withAlpha(alphaMax));
             ctx.fillRect(laneArea.getRight() - indW, indY, indW, indH);
           }
         }
@@ -275,9 +264,8 @@ public:
 
     ctx.setColour(pal.border());
     const float bottomLineY = fullBounds.getBottom() - float(0.5) * gridLineWidth;
-    ctx.drawLine(
-      currentGraphBounds.getX(), bottomLineY, fullBounds.getRight(), bottomLineY,
-      gridLineWidth);
+    ctx.drawLine(currentGraphBounds.getX(), bottomLineY, fullBounds.getRight(), bottomLineY,
+                 gridLineWidth);
   }
 };
 

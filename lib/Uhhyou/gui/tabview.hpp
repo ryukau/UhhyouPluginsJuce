@@ -117,8 +117,8 @@ public:
   }
 
   virtual void resized() override {
-    tabHeight = float(2) * pal.textSizeUi();
-    font = pal.getFont(pal.textSizeUi());
+    tabHeight = float(2) * pal.getFontHeight(TextSize::normal);
+    font = pal.getFont(TextSize::normal);
 
     if (tabs.size() <= 0) { return; }
     const float tabWidth = float(getWidth()) / float(tabs.size());
@@ -134,7 +134,7 @@ public:
   }
 
   virtual void paint(juce::Graphics& ctx) override {
-    const float lw1 = pal.borderThin(); // Border width.
+    const float lw1 = pal.borderWidth(); // Border width.
     const float lwHalf = std::ceil(lw1 / 2);
     const float width = float(getWidth());
     const float height = float(getHeight());
@@ -148,10 +148,10 @@ public:
       if (idx == activeTabIndex) { continue; }
       const auto& tab = tabs[idx];
 
-      ctx.setColour(pal.boxBackground());
+      ctx.setColour(pal.surface());
       ctx.fillRect(tab.rect);
       if (tab.isMouseEntered) {
-        ctx.setColour(pal.overlayHighlight());
+        ctx.setColour(pal.main().withAlpha(0.3f));
         ctx.fillRect(tab.rect);
       }
 
@@ -169,8 +169,8 @@ public:
       ctx.setColour(pal.border());
       ctx.strokePath(path, borderStroke);
 
-      ctx.setColour(pal.foregroundInactive());
-      ctx.drawText(tab.label, tab.rect, juce::Justification::centred);
+      ctx.setColour(pal.foreground().withAlpha(0.5f));
+      ctx.drawText(tab.label, tab.rect.toNearestInt(), juce::Justification::centred);
     }
 
     // Active tab.
@@ -195,13 +195,13 @@ public:
 
     ctx.setColour(pal.foreground());
     ctx.strokePath(path, borderStroke);
-    ctx.drawText(activeTab.label, activeTab.rect, juce::Justification::centred);
+    ctx.drawText(activeTab.label, activeTab.rect.toNearestInt(), juce::Justification::centred);
 
     tabs[activeTabIndex].paint(ctx);
 
     if (hasKeyboardFocus(false)) {
       auto focusBounds = tabs[activeTabIndex].rect.reduced(float(3));
-      ctx.drawRect(focusBounds, pal.borderThin() * float(2));
+      ctx.drawRect(focusBounds, pal.borderWidth() * float(2));
     }
   }
 

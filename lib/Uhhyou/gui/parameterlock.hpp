@@ -81,14 +81,14 @@ private:
   ParameterLockRegistry& locks;
   Palette& pal;
   StatusBar& statusBar;
-  const juce::AudioProcessorParameter* const parameter;
+  const juce::RangedAudioParameter* const parameter;
   juce::String labelText;
   juce::Justification justification;
   Orientation orientation;
   bool isHovering = false;
 
   void updateStatusBar() {
-    statusBar.setText(std::format("{}: Randomization {}", labelText.toRawUTF8(),
+    statusBar.setText(std::format("{}: Randomize {}", parameter->getName(256).toRawUTF8(),
                                   locks.isLocked(parameter) ? "OFF" : "ON"));
   }
 
@@ -105,7 +105,7 @@ private:
 
 public:
   LockableLabel(ParameterLockRegistry& locks, Palette& palette, StatusBar& statusBar,
-                const juce::String& label, const juce::AudioProcessorParameter* const parameter,
+                const juce::String& label, const juce::RangedAudioParameter* const parameter,
                 juce::Justification justification,
                 Orientation orientation = Orientation::horizontal)
       : locks(locks), pal(palette), statusBar(statusBar), parameter(parameter), labelText(label),
@@ -124,7 +124,7 @@ public:
   void paint(juce::Graphics& ctx) override {
     auto bounds = getLocalBounds().toFloat();
     if (justification.testFlags(juce::Justification::left)) {
-      bounds.removeFromLeft(pal.textSizeUi());
+      bounds.removeFromLeft(std::floor(pal.getFontHeight(TextSize::normal)));
     }
 
     if (orientation == Orientation::vertical) {
@@ -135,13 +135,13 @@ public:
 
       float h = bounds.getHeight();
       float w = bounds.getWidth();
-      bounds.setSize(h, w);
-      bounds.setCentre(cx, cy);
+      bounds.setSize(std::floor(h), std::floor(w));
+      bounds.setCentre(std::floor(cx), std::floor(cy));
     }
 
     // Draw Text
-    ctx.setFont(pal.getFont(pal.textSizeUi()));
-    ctx.setColour(locks.isLocked(parameter) ? pal.foregroundInactive() : pal.foreground());
+    ctx.setFont(pal.getFont(TextSize::normal));
+    ctx.setColour(locks.isLocked(parameter) ? pal.foreground().withAlpha(0.5f) : pal.foreground());
     ctx.drawText(labelText, bounds, justification);
   }
 

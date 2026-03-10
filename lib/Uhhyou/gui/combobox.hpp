@@ -166,7 +166,7 @@ public:
                                       },
                                       undoManager),
         defaultIndex(int(scale.map(parameter->getDefaultValue()))),
-        font(palette.getFont(palette.textSizeUi())), items(menuItems) {
+        font(palette.getFont(TextSize::normal)), items(menuItems) {
     attachment.sendInitialUpdate();
     editor.addAndMakeVisible(*this, 0);
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
@@ -176,34 +176,31 @@ public:
 
   std::unique_ptr<juce::AccessibilityHandler> createAccessibilityHandler() override {
     juce::AccessibilityActions actions;
-    // Standard screen reader "press" -> Opens dropdown
     actions.addAction(juce::AccessibilityActionType::press, [this]() { invokeMenu(); });
-    // Standard screen reader "context menu" -> Opens host context menu
     actions.addAction(juce::AccessibilityActionType::showMenu, [this]() { showHostMenuJuce(); });
-
     return std::make_unique<ComboBoxAccessibilityHandler>(*this, std::move(actions));
   }
 
-  virtual void resized() override { font = pal.getFont(pal.textSizeUi()); }
+  virtual void resized() override { font = pal.getFont(TextSize::normal); }
 
   virtual void paint(juce::Graphics& ctx) override {
-    const float lw1 = pal.borderThin(); // Border width.
+    const float lw1 = pal.borderWidth(); // Border width.
     const float lw2 = 2 * lw1;
     const float lwHalf = lw1 / 2;
     const float width = float(getWidth());
     const float height = float(getHeight());
 
     // Background.
-    ctx.setColour(pal.boxBackground());
+    ctx.setColour(pal.surface());
     ctx.fillRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2);
 
     // Border.
     if constexpr (style == Uhhyou::Style::accent) {
-      ctx.setColour(isMouseEntered ? pal.highlightAccent() : pal.border());
+      ctx.setColour(isMouseEntered ? pal.accent() : pal.border());
     } else if constexpr (style == Uhhyou::Style::warning) {
-      ctx.setColour(isMouseEntered ? pal.highlightWarning() : pal.border());
+      ctx.setColour(isMouseEntered ? pal.warning() : pal.border());
     } else {
-      ctx.setColour(isMouseEntered ? pal.highlightButton() : pal.border());
+      ctx.setColour(isMouseEntered ? pal.main() : pal.border());
     }
     ctx.drawRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2, lw1);
 

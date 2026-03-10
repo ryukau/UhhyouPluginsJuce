@@ -306,12 +306,12 @@ public:
     const float height = static_cast<float>(getHeight());
 
     // Background.
-    ctx.setColour(pal.boxBackground());
+    ctx.setColour(pal.surface());
     ctx.fillAll();
 
     // Grid.
-    const float dotRadius = 2 * pal.borderThin();
-    ctx.setColour(pal.foregroundInactive());
+    const float dotRadius = 2 * pal.borderWidth();
+    ctx.setColour(pal.foreground().withAlpha(0.5f));
     for (size_t ix = 1; ix < nGrid; ++ix) {
       for (size_t iy = 1; iy < nGrid; ++iy) {
         auto cx = std::floor(ix * width / nGrid);
@@ -322,25 +322,25 @@ public:
 
     // Mouse Cursor Crosshair.
     if (isMouseEntered) {
-      ctx.setColour(pal.highlightMain());
-      ctx.drawLine(float(0), mousePosition.y, width, mousePosition.y, pal.borderThin());
-      ctx.drawLine(mousePosition.x, float(0), mousePosition.x, height, pal.borderThin());
+      ctx.setColour(pal.main());
+      ctx.drawLine(float(0), mousePosition.y, width, mousePosition.y, pal.borderWidth());
+      ctx.drawLine(mousePosition.x, float(0), mousePosition.x, height, pal.borderWidth());
     }
 
     // Value Indicator.
     auto valueX = std::floor(value[0] * width);
     auto valueY = std::floor((float(1) - value[1]) * height);
-    const float valR = 8 * pal.borderThin();
+    const float valR = 8 * pal.borderWidth();
     ctx.setColour(pal.foreground());
 
     ctx.drawEllipse(valueX - valR, valueY - valR, valR * 2, valR * 2, float(2));
 
-    ctx.drawLine(float(0), valueY, width, valueY, pal.borderThin());
-    ctx.drawLine(valueX, float(0), valueX, height, pal.borderThin());
+    ctx.drawLine(float(0), valueY, width, valueY, pal.borderWidth());
+    ctx.drawLine(valueX, float(0), valueX, height, pal.borderWidth());
 
     // Border.
-    ctx.setColour((isMouseEntered || isEditing) ? pal.highlightMain() : pal.border());
-    ctx.drawRect(float(0), float(0), width, height, pal.borderThin());
+    ctx.setColour((isMouseEntered || isEditing) ? pal.main() : pal.border());
+    ctx.drawRect(float(0), float(0), width, height, pal.borderWidth());
   }
 
   void mouseEnter(const juce::MouseEvent& event) override {
@@ -565,15 +565,15 @@ private:
     void paint(juce::Graphics& ctx) override {
       auto bounds = getLocalBounds().toFloat();
       ctx.setColour(pal.border());
-      ctx.drawRect(bounds, pal.borderThin());
+      ctx.drawRect(bounds, pal.borderWidth());
 
       if (state) {
-        ctx.setColour(pal.highlightButton());
-        ctx.fillRect(bounds.reduced(4 * pal.borderThin()));
+        ctx.setColour(pal.main());
+        ctx.fillRect(bounds.reduced(4 * pal.borderWidth()));
       }
 
       if (hasKeyboardFocus(false)) {
-        ctx.setColour(pal.highlightMain().withAlpha(0.5f));
+        ctx.setColour(pal.main().withAlpha(0.5f));
         ctx.drawRect(bounds, 2.0f);
       }
     }
@@ -619,8 +619,8 @@ private:
 public:
   LabeledXYPad(ParameterLockRegistry& locks, Palette& palette, StatusBar& statusBar, XYPad& pad,
                const juce::String& labelX, const juce::String& labelY,
-               const juce::AudioProcessorParameter* const parameterX,
-               const juce::AudioProcessorParameter* const parameterY, bool initialSnapState = true,
+               const juce::RangedAudioParameter* const parameterX,
+               const juce::RangedAudioParameter* const parameterY, bool initialSnapState = true,
                std::function<void(bool)> onSnapChange = nullptr)
       : pal(palette), pad(pad), toggle(palette, statusBar, initialSnapState,
                                        [this, onSnapChange](bool state) {
@@ -640,7 +640,7 @@ public:
   }
 
   void resized() override {
-    int stripSize = static_cast<int>(pal.getFont(pal.textSizeUi()).getHeight() * float(1.5));
+    int stripSize = static_cast<int>(pal.getFontHeight(TextSize::normal) * float(1.5));
     auto r = getLocalBounds();
     toggle.setBounds(0, 0, stripSize, stripSize);
     labelXComp.setBounds(stripSize, 0, r.getWidth() - stripSize, stripSize);

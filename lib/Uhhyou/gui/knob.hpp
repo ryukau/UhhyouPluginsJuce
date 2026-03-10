@@ -114,6 +114,18 @@ protected:
     }
   }
 
+  float getFlooredInternalValue(float normalizedValue) const {
+    if (auto* scaled = dynamic_cast<const ScaledParameter<Scale>*>(this->parameter)) {
+      auto textRep = scaled->getTextRepresentation();
+      if (textRep == ParameterTextRepresentation::raw) {
+        return this->scale.invmap(std::floor(this->scale.map(normalizedValue)));
+      } else if (textRep == ParameterTextRepresentation::normalized) {
+        return std::floor(normalizedValue);
+      }
+    }
+    return this->scale.fromDisplay(std::floor(this->scale.toDisplay(normalizedValue)));
+  }
+
   // Centralized method to update value and notify accessibility.
   void setInternalValue(float newValue) {
     if (value == newValue) { return; }
@@ -221,9 +233,9 @@ public:
                                       },
                                       undoManager),
         defaultValue(parameter->getDefaultValue()),
-        arcStrokeType(palette.borderThick(), juce::PathStrokeType::JointStyle::curved,
+        arcStrokeType(palette.borderWidth() * 8.0f, juce::PathStrokeType::JointStyle::curved,
                       juce::PathStrokeType::EndCapStyle::rounded),
-        handStrokeType(palette.borderThick() / 4, juce::PathStrokeType::JointStyle::curved,
+        handStrokeType(palette.borderWidth() * 2.0f, juce::PathStrokeType::JointStyle::curved,
                        juce::PathStrokeType::EndCapStyle::rounded) {
     editor.addAndMakeVisible(*this, 0);
     attachment.sendInitialUpdate();
@@ -254,8 +266,8 @@ public:
   void setSnapDistance(float pixels) { snapDistancePixel = pixels; }
 
   virtual void resized() override {
-    arcStrokeType.setStrokeThickness(pal.borderThick());
-    handStrokeType.setStrokeThickness(pal.borderThick() / 4);
+    arcStrokeType.setStrokeThickness(pal.borderWidth() * 8.0f);
+    handStrokeType.setStrokeThickness(pal.borderWidth() * 2.0f);
   }
 
   virtual void mouseEnter(const juce::MouseEvent&) override {
@@ -280,7 +292,7 @@ public:
       const auto oldValue = value;
 
       if (event.mods.isShiftDown()) {
-        setInternalValue(this->scale.fromDisplay(std::floor(this->scale.toDisplay(value))));
+        setInternalValue(getFlooredInternalValue(value));
       } else {
         cycleUpValue();
       }
@@ -382,7 +394,7 @@ public:
         setInternalValue(defaultValue);
         return updateValue();
       } else if (mods.isShiftDown()) {
-        setInternalValue(this->scale.fromDisplay(std::floor(this->scale.toDisplay(value))));
+        setInternalValue(getFlooredInternalValue(value));
         return updateValue();
       }
     }
@@ -428,11 +440,12 @@ public:
 
     // Arc.
     if constexpr (style == Style::accent) {
-      ctx.setColour(this->isMouseEntered ? this->pal.highlightAccent() : this->pal.unfocused());
+      ctx.setColour(this->isMouseEntered ? this->pal.accent() : this->pal.border().withAlpha(0.3f));
     } else if constexpr (style == Style::warning) {
-      ctx.setColour(this->isMouseEntered ? this->pal.highlightWarning() : this->pal.unfocused());
+      ctx.setColour(this->isMouseEntered ? this->pal.warning()
+                                         : this->pal.border().withAlpha(0.3f));
     } else {
-      ctx.setColour(this->isMouseEntered ? this->pal.highlightMain() : this->pal.unfocused());
+      ctx.setColour(this->isMouseEntered ? this->pal.main() : this->pal.border().withAlpha(0.3f));
     }
     constexpr auto twopi = 2 * std::numbers::pi_v<float>;
     const auto radius = center.x > center.y ? center.y : center.x;
@@ -442,7 +455,7 @@ public:
     ctx.strokePath(arc, this->arcStrokeType);
 
     // Mark for default value. Sharing color and style with hand.
-    const float arcLineWidth = this->pal.borderThick();
+    const float arcLineWidth = this->pal.borderWidth() * 8.0f;
     const auto headLength = arcLineWidth / 2 - radius;
     juce::Path mark;
     mark.startNewSubPath(this->mapValueToHand(this->defaultValue, headLength / 2));
@@ -480,11 +493,12 @@ public:
 
     // Arc.
     if constexpr (style == Style::accent) {
-      ctx.setColour(this->isMouseEntered ? this->pal.highlightAccent() : this->pal.unfocused());
+      ctx.setColour(this->isMouseEntered ? this->pal.accent() : this->pal.border().withAlpha(0.3f));
     } else if constexpr (style == Style::warning) {
-      ctx.setColour(this->isMouseEntered ? this->pal.highlightWarning() : this->pal.unfocused());
+      ctx.setColour(this->isMouseEntered ? this->pal.warning()
+                                         : this->pal.border().withAlpha(0.3f));
     } else {
-      ctx.setColour(this->isMouseEntered ? this->pal.highlightMain() : this->pal.unfocused());
+      ctx.setColour(this->isMouseEntered ? this->pal.main() : this->pal.border().withAlpha(0.3f));
     }
     const auto radius = center.x > center.y ? center.y : center.x;
     const auto rHalf = radius / 2;
@@ -493,7 +507,7 @@ public:
     ctx.strokePath(arc, this->arcStrokeType);
 
     // Mark for default value. Sharing color and style with hand.
-    const float arcLineWidth = this->pal.borderThick();
+    const float arcLineWidth = this->pal.borderWidth() * 8.0f;
     const auto headLength = arcLineWidth / 2 - radius;
     juce::Path mark;
     mark.startNewSubPath(this->mapValueToHand(this->defaultValue, headLength / 2));
@@ -529,19 +543,18 @@ public:
                   Scale& scale, StatusBar& statusBar, NumberEditor& numberEditor, int precision = 0)
       : KnobBase<Scale, knobType>(editor, palette, undoManager, parameter, scale, statusBar,
                                   numberEditor),
-        font(palette.getFont(palette.textSizeUi())), precision(precision) {
+        font(palette.getFont(TextSize::normal)), precision(precision) {
     this->sensitivity = float(0.002);
     this->lowSensitivity = this->sensitivity / float(10);
   }
 
   virtual void resized() override {
-    font = this->pal.getFont(this->pal.textSizeUi());
-
+    font = this->pal.getFont(TextSize::normal);
     KnobBase<Scale, knobType>::resized();
   }
 
   virtual void paint(juce::Graphics& ctx) override {
-    const float lw1 = this->pal.borderThin(); // Border width.
+    const float lw1 = this->pal.borderWidth(); // Border width.
     const float lw2 = 2 * lw1;
     const float lwHalf = lw1 / 2;
     const float width = float(this->getWidth());
@@ -550,17 +563,17 @@ public:
     const juce::Rectangle<float> bounds{lwHalf, lwHalf, width - lw1, height - lw1};
 
     // Background.
-    ctx.setColour(this->pal.boxBackground());
+    ctx.setColour(this->pal.surface());
     ctx.fillRoundedRectangle(bounds, lw2);
 
     // Border.
     const auto& colorBorder = [&]() {
       if constexpr (style == Uhhyou::Style::accent) {
-        return this->isMouseEntered ? this->pal.highlightAccent() : this->pal.border();
+        return this->isMouseEntered ? this->pal.accent() : this->pal.border();
       } else if constexpr (style == Uhhyou::Style::warning) {
-        return this->isMouseEntered ? this->pal.highlightWarning() : this->pal.border();
+        return this->isMouseEntered ? this->pal.warning() : this->pal.border();
       } else {
-        return this->isMouseEntered ? this->pal.highlightMain() : this->pal.border();
+        return this->isMouseEntered ? this->pal.main() : this->pal.border();
       }
     }();
     ctx.setColour(colorBorder);

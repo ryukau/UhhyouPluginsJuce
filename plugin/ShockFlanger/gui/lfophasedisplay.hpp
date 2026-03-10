@@ -26,60 +26,49 @@ private:
 
   static constexpr size_t trailLength = 64; // frames.
 
-  Palette &pal;
-  std::array<std::atomic<float>, nChannel> &phase;
+  Palette& pal;
+  std::array<std::atomic<float>, nChannel>& phase;
 
   juce::Font font;
   juce::PathStrokeType stroke;
   std::array<std::deque<float>, nChannel> trails;
 
 public:
-  LfoPhaseDisplay(
-    Component &parent,
-    Palette &palette,
-    std::array<std::atomic<float>, nChannel> &lfoPhase)
-    : pal(palette)
-    , phase(lfoPhase)
-    , font(palette.getFont(palette.textSizeSmall()))
-    , stroke(
-        4 * palette.borderThin(),
-        juce::PathStrokeType::JointStyle::curved,
-        juce::PathStrokeType::EndCapStyle::rounded)
-
-  {
+  LfoPhaseDisplay(Component& parent, Palette& palette,
+                  std::array<std::atomic<float>, nChannel>& lfoPhase)
+      : pal(palette), phase(lfoPhase), font(palette.getFont(TextSize::small)),
+        stroke(4 * palette.borderWidth(), juce::PathStrokeType::JointStyle::curved,
+               juce::PathStrokeType::EndCapStyle::rounded) {
     setSynchroniseToVBlank(true);
     parent.addAndMakeVisible(*this, 0);
 
-    for (auto &x : trails) x.resize(trailLength, float(0));
+    for (auto& x : trails) { x.resize(trailLength, float(0)); }
   }
 
   virtual ~LfoPhaseDisplay() override {}
 
-  virtual void resized() override
-  {
-    font = pal.getFont(pal.textSizeSmall());
-    stroke.setStrokeThickness(4 * pal.borderThin());
+  virtual void resized() override {
+    font = pal.getFont(TextSize::small);
+    stroke.setStrokeThickness(4 * pal.borderWidth());
   }
 
-  virtual void update() override
-  {
+  virtual void update() override {
     for (size_t i = 0; i < trails.size(); ++i) {
       trails[i].push_back(phase[i].load(std::memory_order_relaxed));
       trails[i].pop_front();
     }
   }
 
-  virtual void paint(juce::Graphics &ctx) override
-  {
+  virtual void paint(juce::Graphics& ctx) override {
     constexpr float twopi = float(2) * std::numbers::pi_v<float>;
     constexpr float halfpi = float(0.5) * std::numbers::pi_v<float>;
 
-    const float lw1 = pal.borderThin();
+    const float lw1 = pal.borderWidth();
     const float w = float(getWidth());
     const float h = float(getHeight());
 
     // Background.
-    ctx.setColour(pal.boxBackground());
+    ctx.setColour(pal.background());
     ctx.fillRect(float(0), float(0), w, h);
 
     // Geometry.
@@ -94,7 +83,7 @@ public:
     ctx.drawEllipse(cx - radius, cy - radius, diameter, diameter, lw1);
 
     // Labels.
-    const std::array colors{pal.foreground(), pal.highlightButton()};
+    const std::array colors{pal.foreground(), pal.main()};
     {
       const float side = font.getHeight();
       const float y = h - side;
@@ -102,17 +91,17 @@ public:
 
       juce::Rectangle<float> labelBoundsL{float(0), y, side, side};
       ctx.setColour(colors[0]);
-      ctx.drawText("L", labelBoundsL, juce::Justification::centred);
+      ctx.drawText("L", labelBoundsL.toNearestInt(), juce::Justification::centred);
 
       juce::Rectangle<float> labelBoundsR{side, y, side, side};
       ctx.setColour(colors[1]);
-      ctx.drawText("R", labelBoundsR, juce::Justification::centred);
+      ctx.drawText("R", labelBoundsR.toNearestInt(), juce::Justification::centred);
     }
 
     // Phase trails.
     for (size_t ch = trails.size() - 1; ch < trails.size(); --ch) {
-      const auto &trail = trails[ch];
-      if (trail.empty()) continue;
+      const auto& trail = trails[ch];
+      if (trail.empty()) { continue; }
 
       const auto color = colors[ch % colors.size()];
       auto strk = stroke;

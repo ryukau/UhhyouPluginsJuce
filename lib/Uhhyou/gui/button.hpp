@@ -76,7 +76,7 @@ public:
     setTitle(label);
   }
 
-  virtual void resized() override { font = pal.getFont(pal.textSizeUi()); }
+  virtual void resized() override { font = pal.getFont(TextSize::normal); }
 
   std::unique_ptr<juce::AccessibilityHandler> createAccessibilityHandler() override {
     return std::make_unique<ButtonAccessibilityHandler>(*this, juce::AccessibilityRole::button,
@@ -84,29 +84,29 @@ public:
   }
 
   virtual void paint(juce::Graphics& ctx) override {
-    const float lw1 = pal.borderThin();
+    const float lw1 = pal.borderWidth();
     const float lw2 = 2 * lw1;
     const float lwHalf = lw1 / 2;
-    const float width = float(getWidth());
-    const float height = float(getHeight());
+    const float width = std::floor(static_cast<float>(getWidth()));
+    const float height = std::floor(static_cast<float>(getHeight()));
 
     // Background.
     if constexpr (style == Style::accent) {
-      ctx.setColour(value ? pal.highlightAccent() : pal.boxBackground());
+      ctx.setColour(value ? pal.accent() : pal.surface());
     } else if constexpr (style == Style::warning) {
-      ctx.setColour(value ? pal.highlightWarning() : pal.boxBackground());
+      ctx.setColour(value ? pal.warning() : pal.surface());
     } else {
-      ctx.setColour(value ? pal.highlightButton() : pal.boxBackground());
+      ctx.setColour(value ? pal.main() : pal.surface());
     }
     ctx.fillRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2);
 
     // Border.
     if constexpr (style == Style::accent) {
-      ctx.setColour(isMouseEntered ? pal.highlightAccent() : pal.border());
+      ctx.setColour(isMouseEntered ? pal.accent() : pal.border());
     } else if constexpr (style == Style::warning) {
-      ctx.setColour(isMouseEntered ? pal.highlightWarning() : pal.border());
+      ctx.setColour(isMouseEntered ? pal.warning() : pal.border());
     } else {
-      ctx.setColour(isMouseEntered ? pal.highlightButton() : pal.border());
+      ctx.setColour(isMouseEntered ? pal.main() : pal.border());
     }
     ctx.drawRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2, lw1);
 

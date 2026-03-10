@@ -101,9 +101,8 @@ public:
           },
           undoManager),
         name(name), barIndices(constructBarIndices()),
-        defaultValue(constructDefaultValue(parameter)),
-        indexFont(palette.getFont(palette.textSizeSmall())),
-        nameFont(palette.getFont(palette.textSizeBig())) {
+        defaultValue(constructDefaultValue(parameter)), indexFont(palette.getFont(TextSize::small)),
+        nameFont(palette.getFont(TextSize::large)) {
     setWantsKeyboardFocus(true);
 
     setViewRange(0, 1);
@@ -121,7 +120,7 @@ public:
 
   virtual void paint(juce::Graphics& ctx) override {
     using namespace juce;
-    using RectF = Rectangle<float>;
+    using RectF = juce::Rectangle<float>;
 
     const float lw1 = pal.borderThin(); // Border width.
     const float lw2 = 2 * lw1;
