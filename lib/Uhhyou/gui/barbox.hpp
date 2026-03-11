@@ -637,7 +637,7 @@ private:
       if (barState[i] != BarState::active) { continue; }
       result[i] = 0;
       for (int32_t j = -range; j <= range; ++j) {
-        size_t index = i + j; // Note that index is unsigned.
+        size_t index = i + static_cast<size_t>(j); // Note that index is unsigned.
         if (index >= value.size()) { continue; }
         result[i] += value[index] - sliderZero;
       }

@@ -101,8 +101,8 @@ public:
       nextIndex = (currentIndex + direction + count) % count;
     }
 
-    if (focusable[nextIndex]) {
-      focusable[nextIndex]->grabKeyboardFocus();
+    if (auto* c = focusable[static_cast<size_t>(nextIndex)]) {
+      c->grabKeyboardFocus();
       return true;
     }
 

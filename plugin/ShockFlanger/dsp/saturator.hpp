@@ -127,7 +127,7 @@ private:
     const T center = t0 + half_width;
 
     T sum = T(0);
-    for (int k = 0; k < nPoints; ++k) {
+    for (size_t k = 0; k < nPoints; ++k) {
       const T t_node = center + half_width * nodes[k];
 
       T value;

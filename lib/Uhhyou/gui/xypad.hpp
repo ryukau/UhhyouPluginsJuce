@@ -39,7 +39,8 @@ private:
 
     void setValue(double newValue) override {
       pad.attachment.setValueAsCompleteGesture(
-        pad.lastActiveAxis, pad.parameter[pad.lastActiveAxis]->convertFrom0to1(float(newValue)));
+        static_cast<int>(pad.lastActiveAxis),
+        pad.parameter[pad.lastActiveAxis]->convertFrom0to1(float(newValue)));
     }
 
     juce::String getCurrentValueAsString() const override {
@@ -90,7 +91,7 @@ private:
   juce::Point<float> mousePosition{float(-1), float(-1)};
   bool isMouseEntered = false;
   bool isEditing = false;
-  int lastActiveAxis = 0; // Tracks whether X (0) or Y (1) was last updated
+  size_t lastActiveAxis = 0; // Tracks whether X (0) or Y (1) was last updated
 
   std::array<std::vector<float>, 2> snaps;
   std::array<bool, 2> isSnapping{false, false};
@@ -130,7 +131,7 @@ private:
                                  parameter[1]->getText(parameter[1]->getValue(), 5).toRawUTF8()));
   }
 
-  void setInternalValue(int index, float newValue) {
+  void setInternalValue(size_t index, float newValue) {
     if (value[index] == newValue) { return; }
     value[index] = newValue;
     lastActiveAxis = index;
@@ -170,7 +171,7 @@ private:
     if (isUpdated) { updateStatusBar(); }
   }
 
-  void moveValueWithSnap(int axis, float deltaPixel, float rangePixels) {
+  void moveValueWithSnap(size_t axis, float deltaPixel, float rangePixels) {
     if (rangePixels <= 0) { return; }
 
     if (snappingEnabled && isSnapping[axis]) {
@@ -214,12 +215,13 @@ private:
   void resetValue(AxisLock lock = AxisLock::none) {
     isSnapping = {false, false};
 
-    for (int i = 0; i < 2; ++i) {
+    for (size_t i = 0; i < 2; ++i) {
       if ((i == 0 && lock == AxisLock::x) || (i == 1 && lock == AxisLock::y)) { continue; }
 
       float defaultNorm = parameter[i]->getDefaultValue();
       setInternalValue(i, defaultNorm);
-      attachment.setValueAsCompleteGesture(i, parameter[i]->convertFrom0to1(defaultNorm));
+      attachment.setValueAsCompleteGesture(static_cast<int>(i),
+                                           parameter[i]->convertFrom0to1(defaultNorm));
     }
     updateStatusBar();
   }
@@ -227,25 +229,25 @@ private:
   void cycleUpValue(size_t index) {
     float v = value[index];
     if (v >= float(1)) {
-      setInternalValue(static_cast<int>(index), float(0));
+      setInternalValue(index, float(0));
       return;
     }
 
     const auto& snp = snaps[index];
     auto it = std::ranges::upper_bound(snp, v);
-    setInternalValue(static_cast<int>(index), (it != snp.end()) ? *it : float(1));
+    setInternalValue(index, (it != snp.end()) ? *it : float(1));
   }
 
   void cycleDownValue(size_t index) {
     float v = value[index];
     if (v <= 0) {
-      setInternalValue(static_cast<int>(index), float(1));
+      setInternalValue(index, float(1));
       return;
     }
 
     const auto& snp = snaps[index];
     auto it = std::ranges::lower_bound(snp, v);
-    setInternalValue(static_cast<int>(index), (it != snp.begin()) ? *std::prev(it) : float(0));
+    setInternalValue(index, (it != snp.begin()) ? *std::prev(it) : float(0));
   }
 
 public:
@@ -256,8 +258,9 @@ public:
           parameters,
           [&](int index, float rawValue) {
             if (index < 0 || index >= 2) { return; }
-            float normalized = parameter[index]->convertTo0to1(rawValue);
-            setInternalValue(index, normalized);
+            size_t idx = static_cast<size_t>(index);
+            float normalized = parameter[idx]->convertTo0to1(rawValue);
+            setInternalValue(idx, normalized);
           },
           undoManager) {
     editor.addAndMakeVisible(*this, 0);
@@ -291,11 +294,11 @@ public:
 
   void setSnappingEnabled(bool shouldSnap) { snappingEnabled = shouldSnap; }
 
-  void setSnaps(const std::vector<float>& snapsX_, const std::vector<float>& snapsY_) {
-    snaps[0] = snapsX_;
+  void setSnaps(const std::vector<float>& snapsX, const std::vector<float>& snapsY) {
+    snaps[0] = snapsX;
     if (!snaps[0].empty()) { std::sort(snaps[0].begin(), snaps[0].end()); }
 
-    snaps[1] = snapsY_;
+    snaps[1] = snapsY;
     if (!snaps[1].empty()) { std::sort(snaps[1].begin(), snaps[1].end()); }
   }
 
@@ -314,8 +317,8 @@ public:
     ctx.setColour(pal.foreground().withAlpha(0.5f));
     for (size_t ix = 1; ix < nGrid; ++ix) {
       for (size_t iy = 1; iy < nGrid; ++iy) {
-        auto cx = std::floor(ix * width / nGrid);
-        auto cy = std::floor(iy * height / nGrid);
+        auto cx = std::floor(static_cast<float>(ix) * width / nGrid);
+        auto cy = std::floor(static_cast<float>(iy) * height / nGrid);
         ctx.fillEllipse(cx - dotRadius, cy - dotRadius, dotRadius * 2, dotRadius * 2);
       }
     }
@@ -438,16 +441,17 @@ public:
 
   void mouseWheelMove(const juce::MouseEvent& event,
                       const juce::MouseWheelDetails& wheel) override {
-    if (wheel.deltaY == 0) { return; }
+    if (std::abs(wheel.deltaY) <= std::numeric_limits<float>::epsilon()) { return; }
 
-    int index = event.mods.isShiftDown() ? 1 : 0;
+    size_t index = event.mods.isShiftDown() ? 1 : 0;
 
     float updated = value[index] + float(wheel.deltaY * wheelSensitivity);
     updated = std::clamp(updated, float(0), float(1));
     if (value[index] == updated) { return; }
 
     setInternalValue(index, updated);
-    attachment.setValueAsCompleteGesture(index, parameter[index]->convertFrom0to1(value[index]));
+    attachment.setValueAsCompleteGesture(static_cast<int>(index),
+                                         parameter[index]->convertFrom0to1(value[index]));
 
     updateStatusBar();
   }
@@ -472,17 +476,18 @@ public:
       }
     }
 
-    auto updateValue = [&](int index) {
-      attachment.setValueAsCompleteGesture(index, parameter[index]->convertFrom0to1(value[index]));
+    auto updateValue = [&](size_t index) {
+      attachment.setValueAsCompleteGesture(static_cast<int>(index),
+                                           parameter[index]->convertFrom0to1(value[index]));
       updateStatusBar();
       return true;
     };
 
-    auto increaseValue = [&](int index, float delta) {
+    auto increaseValue = [&](size_t index, float delta) {
       setInternalValue(index, std::clamp(value[index] + delta, float(0), float(1)));
     };
 
-    auto handleMove = [&](int index, const int increamentKey, const int decrementKey,
+    auto handleMove = [&](size_t index, const int increamentKey, const int decrementKey,
                           const int cycleUpKey, const int cycleDownKey) {
       const float sensitivity = mods.isShiftDown() ? float(0.0078125 / 5) : float(0.0078125);
 

@@ -122,6 +122,7 @@ private:
     return nullptr;
   }
 
+  // `prepareManualText` must be called before `applyLineWrap` for correct line wrap.
   static juce::String prepareManualText(juce::String rawText) {
 #if JUCE_MAC
     const juce::String modKey = "Cmd";
@@ -129,8 +130,6 @@ private:
     const juce::String modKey = "Ctrl";
 #endif
 
-    // Replace token. Do this BEFORE applyLineWrap so the character limits
-    // calculate the exact rendered string length accurately.
     return rawText.replace("@MOD@", modKey);
   }
 
@@ -144,7 +143,8 @@ private:
     out.reserve(static_cast<size_t>(end - p) * 2); // Preallocate 200% to avoid resizing
 
     while (p < end) {
-      const char* lineEnd = static_cast<const char*>(std::memchr(p, '\n', end - p));
+      const char* lineEnd
+        = static_cast<const char*>(std::memchr(p, '\n', static_cast<size_t>(end - p)));
       if (!lineEnd) { lineEnd = end; }
 
       int lineChars = 0;
@@ -153,7 +153,7 @@ private:
       }
 
       if (lineChars <= limit) {
-        out.append(p, lineEnd - p + (lineEnd < end ? 1 : 0));
+        out.append(p, static_cast<size_t>(lineEnd - p) + (lineEnd < end ? 1 : 0));
         p = lineEnd + 1;
         continue;
       }
@@ -166,7 +166,7 @@ private:
       }
 
       const int hangingLen = std::max(0, std::min(limit - 10, indentLen + 4));
-      out.append(p, scan - p);
+      out.append(p, static_cast<size_t>(scan - p));
       int currentChars = indentLen;
 
       while (scan < lineEnd) {
@@ -177,7 +177,7 @@ private:
             spaceChars > 0 && currentChars < limit)
         {
           int writeChars = std::min(spaceChars, limit - currentChars);
-          out.append(spaceStart, writeChars);
+          out.append(spaceStart, static_cast<size_t>(writeChars));
           currentChars += writeChars;
         }
 
@@ -192,11 +192,11 @@ private:
 
         if (currentChars > indentLen && currentChars + wordChars > limit) {
           out += '\n';
-          out.append(hangingLen, ' ');
+          out.append(static_cast<size_t>(hangingLen), ' ');
           currentChars = hangingLen;
         }
 
-        out.append(wordStart, scan - wordStart);
+        out.append(wordStart, static_cast<size_t>(scan - wordStart));
         currentChars += wordChars;
       }
 

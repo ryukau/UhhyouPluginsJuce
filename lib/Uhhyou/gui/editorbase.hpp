@@ -205,12 +205,12 @@ protected:
   FocusRingOverlay focusOverlay;
   NumberEditor numberEditor;
   StatusBar statusBar;
+  PluginInfoButton pluginInfoButton;
   ActionButton<> undoButton;
   ActionButton<> redoButton;
   ActionButton<> randomizeButton;
   PresetManager presetManager;
   ActionButton<> settingsButton;
-  PluginInfoButton pluginInfoButton;
   std::vector<GroupLabel> groupLabels;
 
   using ComponentSharedPtr = std::shared_ptr<juce::Component>;

@@ -101,7 +101,7 @@ void Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&
   auto processAudioUntil = [&](int target_pos) {
     const int count = target_pos - offset;
     if (count <= 0) { return; }
-    dsp.process(count, in0 + offset, in1 + offset, out0 + offset, out1 + offset);
+    dsp.process(size_t(count), in0 + offset, in1 + offset, out0 + offset, out1 + offset);
     offset = target_pos;
   };
 

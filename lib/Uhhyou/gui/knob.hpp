@@ -253,8 +253,8 @@ public:
     return std::make_unique<KnobAccessibilityHandler>(*this, std::move(actions));
   }
 
-  void setSnaps(const std::vector<float>& snaps_) {
-    snaps = snaps_;
+  void setSnaps(const std::vector<float>& source) {
+    snaps = source;
     if (snaps.empty()) { return; }
     std::sort(snaps.begin(), snaps.end());
 

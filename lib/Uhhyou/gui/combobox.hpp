@@ -32,29 +32,27 @@ protected:
 
     bool isReadOnly() const override { return false; }
 
-    double getCurrentValue() const override { return double(comboBox.itemIndex); }
+    double getCurrentValue() const override { return static_cast<double>(comboBox.itemIndex); }
 
     void setValue(double newValue) override {
-      comboBox.attachment.setValueAsCompleteGesture(float(newValue));
+      comboBox.attachment.setValueAsCompleteGesture(static_cast<float>(newValue));
     }
 
     juce::String getCurrentValueAsString() const override {
-      if (comboBox.itemIndex >= 0 && comboBox.itemIndex < int(comboBox.items.size())) {
-        return comboBox.items[size_t(comboBox.itemIndex)];
-      }
+      if (comboBox.itemIndex < comboBox.items.size()) { return comboBox.items[comboBox.itemIndex]; }
       return {};
     }
 
     void setValueAsString(const juce::String& newValue) override {
       auto it = std::find(comboBox.items.begin(), comboBox.items.end(), newValue);
       if (it != comboBox.items.end()) {
-        auto index = std::distance(comboBox.items.begin(), it);
-        comboBox.attachment.setValueAsCompleteGesture(float(index));
+        auto index = static_cast<size_t>(std::distance(comboBox.items.begin(), it));
+        comboBox.attachment.setValueAsCompleteGesture(static_cast<float>(index));
       }
     }
 
     AccessibleValueRange getRange() const override {
-      return {{0.0, double(comboBox.items.size() - 1)}, 0.0};
+      return {{0.0, static_cast<double>(comboBox.items.size() - 1)}, 0.0};
     }
 
   private:
@@ -89,8 +87,8 @@ protected:
 
   juce::PopupMenu menu;
 
-  int itemIndex{};
-  int defaultIndex{};
+  size_t itemIndex{};
+  size_t defaultIndex{};
 
   bool isMouseEntered = false;
   juce::Font font;
@@ -119,8 +117,8 @@ protected:
                                   items[itemIndex].toRawUTF8(), itemIndex + 1, items.size()));
   }
 
-  void setInternalValue(int newIndex) {
-    if (itemIndex == newIndex || newIndex < 0 || newIndex >= int(items.size())) { return; }
+  void setInternalValue(size_t newIndex) {
+    if (itemIndex == newIndex || newIndex >= items.size()) { return; }
     itemIndex = newIndex;
     updateStatusBar();
     repaint();
@@ -135,22 +133,24 @@ protected:
     menu.addSectionHeader(parameter->getName(2048));
 
     for (size_t idx = 0; idx < items.size(); ++idx) {
-      menu.addItem(
-        juce::PopupMenu::Item(items[idx]).setID(int(idx) + 1).setTicked(int(idx) == itemIndex));
+      menu.addItem(juce::PopupMenu::Item(items[idx])
+                     .setID(static_cast<int>(idx) + 1)
+                     .setTicked(idx == itemIndex));
     }
 
-    menu.showMenuAsync(
-      juce::PopupMenu::Options().withInitiallySelectedItem(itemIndex + 1).withTargetComponent(this),
-      [this](int id) {
-        if (id != 0) { // 0 means menu was dismissed without selection
-          int idx = id - 1;
-          if (idx >= 0 && idx < int(items.size())) {
-            setInternalValue(idx);
-            attachment.setValueAsCompleteGesture(float(itemIndex));
-          }
-        }
-        this->repaint();
-      });
+    menu.showMenuAsync(juce::PopupMenu::Options()
+                         .withInitiallySelectedItem(static_cast<int>(itemIndex) + 1)
+                         .withTargetComponent(this),
+                       [this](int id) {
+                         if (id != 0) { // 0 means menu was dismissed without selection
+                           size_t idx = static_cast<size_t>(id - 1);
+                           if (idx < items.size()) {
+                             setInternalValue(idx);
+                             attachment.setValueAsCompleteGesture(static_cast<float>(itemIndex));
+                           }
+                         }
+                         this->repaint();
+                       });
   }
 
 public:
@@ -158,14 +158,22 @@ public:
            juce::RangedAudioParameter* parameter, Scale& scale, StatusBar& statusBar,
            NumberEditor& numberEditor, std::vector<juce::String> menuItems)
       : editor(editor), parameter(parameter), scale(scale), pal(palette), statusBar(statusBar),
-        numberEditor(numberEditor), attachment(
-                                      *parameter,
-                                      [&](float newRaw) {
-                                        int idx = int(std::floor(newRaw) + 0.5f);
-                                        setInternalValue(idx);
-                                      },
-                                      undoManager),
-        defaultIndex(int(scale.map(parameter->getDefaultValue()))),
+        numberEditor(numberEditor),
+        attachment(
+          *parameter,
+          [&](float newRaw) {
+            size_t idx
+              = static_cast<size_t>(std::max(0, static_cast<int>(std::floor(newRaw) + 0.5f)));
+            setInternalValue(idx);
+          },
+          undoManager),
+        defaultIndex([&]() -> size_t {
+          if (menuItems.empty()) { return 0; }
+          // TODO: C++26 std::saturate_cast may be used to simplify.
+          auto value = scale.map(parameter->getDefaultValue());
+          auto mapped = static_cast<size_t>(std::max(static_cast<decltype(value)>(0), value));
+          return std::min(mapped, menuItems.size() - 1);
+        }()),
         font(palette.getFont(TextSize::normal)), items(menuItems) {
     attachment.sendInitialUpdate();
     editor.addAndMakeVisible(*this, 0);
@@ -205,11 +213,10 @@ public:
     ctx.drawRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2, lw1);
 
     // Text.
-    if (itemIndex >= 0 && itemIndex < int(items.size())) {
+    if (itemIndex < items.size()) {
       ctx.setFont(font);
       ctx.setColour(pal.foreground());
-      ctx.drawText(items[size_t(itemIndex)],
-                   juce::Rectangle<float>(float(0), float(0), width, height),
+      ctx.drawText(items[itemIndex], juce::Rectangle<float>(float(0), float(0), width, height),
                    juce::Justification::centred);
     }
   }
@@ -234,7 +241,7 @@ public:
 
     if (event.mods.isCommandDown()) {
       setInternalValue(defaultIndex);
-      attachment.setValueAsCompleteGesture(float(itemIndex));
+      attachment.setValueAsCompleteGesture(static_cast<float>(itemIndex));
       return;
     }
 
@@ -244,13 +251,12 @@ public:
   virtual void mouseWheelMove(const juce::MouseEvent&,
                               const juce::MouseWheelDetails& wheel) override {
     if (std::abs(wheel.deltaY) <= std::numeric_limits<float>::epsilon()) { return; }
-    if (items.size() <= 0) { return; }
+    if (items.empty()) { return; }
 
-    const int size = int(items.size());
-    int nextIndex = (itemIndex + (wheel.deltaY < 0 ? -1 : 1) + size) % size;
+    size_t nextIndex = (itemIndex + (wheel.deltaY < 0 ? items.size() - 1 : 1)) % items.size();
 
     setInternalValue(nextIndex);
-    attachment.setValueAsCompleteGesture(float(itemIndex));
+    attachment.setValueAsCompleteGesture(static_cast<float>(itemIndex));
   }
 
   virtual bool keyPressed(const juce::KeyPress& key) override {
@@ -270,7 +276,7 @@ public:
     if (key.isKeyCode(KP::backspaceKey) || key.isKeyCode(KP::deleteKey)) {
       if (mods.isCommandDown()) {
         setInternalValue(defaultIndex);
-        attachment.setValueAsCompleteGesture(float(itemIndex));
+        attachment.setValueAsCompleteGesture(static_cast<float>(itemIndex));
         return true;
       }
     }
@@ -285,10 +291,9 @@ public:
     }
 
     if (direction != 0) {
-      const int size = int(items.size());
-      int nextIndex = (itemIndex + direction + size) % size;
+      size_t nextIndex = (itemIndex + (direction < 0 ? items.size() - 1 : 1)) % items.size();
       setInternalValue(nextIndex);
-      attachment.setValueAsCompleteGesture(float(itemIndex));
+      attachment.setValueAsCompleteGesture(static_cast<float>(itemIndex));
       return true;
     }
 

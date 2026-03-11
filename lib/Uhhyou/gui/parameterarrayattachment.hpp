@@ -42,7 +42,7 @@ public:
     for (auto& x : parameter) { x->addListener(this); }
 
     for (int i = 0; i < nParameter; ++i) {
-      indexMap.emplace(std::make_pair(parameter[i]->getParameterIndex(), i));
+      indexMap.emplace(std::make_pair(parameter[static_cast<size_t>(i)]->getParameterIndex(), i));
     }
   }
 
@@ -53,24 +53,26 @@ public:
 
   void sendInitialUpdate() {
     for (int i = 0; i < nParameter; ++i) {
-      parameterValueChanged(parameter[i]->getParameterIndex(), parameter[i]->getValue());
+      auto idx = static_cast<size_t>(i);
+      parameterValueChanged(parameter[idx]->getParameterIndex(), parameter[idx]->getValue());
     }
   }
 
   void setValueAsCompleteGesture(int index, float newRawValue) {
     callIfParameterValueChanged(index, newRawValue, [this](int i, float v) {
-      parameter[i]->beginChangeGesture();
-      parameter[i]->setValueNotifyingHost(v);
-      parameter[i]->endChangeGesture();
+      auto idx = static_cast<size_t>(i);
+      parameter[idx]->beginChangeGesture();
+      parameter[idx]->setValueNotifyingHost(v);
+      parameter[idx]->endChangeGesture();
     });
   }
 
   void setValueAsCompleteGesture(const std::array<float, nParameter>& newRawValue) {
     beginGesture();
     for (int index = 0; index < nParameter; ++index) {
-      callIfParameterValueChanged(index, newRawValue[index], [this](int i, float v) {
-        parameter[i]->setValueNotifyingHost(v);
-      });
+      callIfParameterValueChanged(
+        index, newRawValue[static_cast<size_t>(index)],
+        [this](int i, float v) { parameter[static_cast<size_t>(i)]->setValueNotifyingHost(v); });
     }
     endGesture();
   }
@@ -78,55 +80,61 @@ public:
   void beginGesture() {
     if (undoManager != nullptr) { undoManager->beginNewTransaction(); }
     for (int index = 0; index < nParameter; ++index) {
-      if (!isEditing[index]) { parameter[index]->beginChangeGesture(); }
+      auto idx = static_cast<size_t>(index);
+      if (!isEditing[idx]) { parameter[idx]->beginChangeGesture(); }
     }
     isEditing.fill(true);
   }
 
   void beginGesture(int index) {
-    if (isEditing[index]) { return; }
+    auto idx = static_cast<size_t>(index);
+    if (isEditing[idx]) { return; }
     if (undoManager != nullptr) { undoManager->beginNewTransaction(); }
-    parameter[index]->beginChangeGesture();
-    isEditing[index] = true;
+    parameter[idx]->beginChangeGesture();
+    isEditing[idx] = true;
   }
 
   void setValueAsPartOfGesture(int index, float newRawValue) {
-    callIfParameterValueChanged(index, newRawValue,
-                                [this](int i, float v) { parameter[i]->setValueNotifyingHost(v); });
+    callIfParameterValueChanged(index, newRawValue, [this](int i, float v) {
+      parameter[static_cast<size_t>(i)]->setValueNotifyingHost(v);
+    });
   }
 
   void setValueAsPartOfGesture(const std::array<float, nParameter>& newRawValue) {
     for (int index = 0; index < nParameter; ++index) {
-      callIfParameterValueChanged(index, newRawValue[index], [this](int i, float v) {
-        parameter[i]->setValueNotifyingHost(v);
-      });
+      callIfParameterValueChanged(
+        index, newRawValue[static_cast<size_t>(index)],
+        [this](int i, float v) { parameter[static_cast<size_t>(i)]->setValueNotifyingHost(v); });
     }
   }
 
   void endGesture() {
     for (int index = 0; index < nParameter; ++index) {
-      if (isEditing[index]) { parameter[index]->endChangeGesture(); }
+      auto idx = static_cast<size_t>(index);
+      if (isEditing[idx]) { parameter[idx]->endChangeGesture(); }
     }
     isEditing.fill(false);
   }
 
   void endGesture(int index) {
-    parameter[index]->endChangeGesture();
-    isEditing[index] = false;
+    auto idx = static_cast<size_t>(index);
+    parameter[idx]->endChangeGesture();
+    isEditing[idx] = false;
   }
 
 private:
   template<typename Callback>
   void callIfParameterValueChanged(int index, float newRawValue, Callback&& callback) {
-    const auto newValue = parameter[index]->convertTo0to1(newRawValue);
-    if (parameter[index]->getValue() != newValue) { callback(index, newValue); }
+    auto idx = static_cast<size_t>(index);
+    const auto newValue = parameter[idx]->convertTo0to1(newRawValue);
+    if (parameter[idx]->getValue() != newValue) { callback(index, newValue); }
   }
 
   // `parameterIndex` is a value from `AudioParameter::getParameterIndex()`.
   void parameterValueChanged(int parameterIndex, float newValue) override {
     if (!indexMap.contains(parameterIndex)) { return; }
     auto index = indexMap[parameterIndex];
-    lastValue[index] = newValue;
+    lastValue[static_cast<size_t>(index)] = newValue;
 
     if (juce::MessageManager::getInstance()->isThisTheMessageThread()) {
       cancelPendingUpdate();
@@ -141,19 +149,21 @@ private:
   void handleAsyncUpdate() override {
     if (parameterChangedCallback != nullptr) {
       for (int i = 0; i < nParameter; ++i) {
-        parameterChangedCallback(i, parameter[i]->convertFrom0to1(lastValue[i]));
+        auto idx = static_cast<size_t>(i);
+        parameterChangedCallback(i, parameter[idx]->convertFrom0to1(lastValue[idx]));
       }
     }
   }
 
   void handleAsyncUpdate(int index) {
     if (parameterChangedCallback != nullptr) {
-      parameterChangedCallback(index, parameter[index]->convertFrom0to1(lastValue[index]));
+      auto idx = static_cast<size_t>(index);
+      parameterChangedCallback(index, parameter[idx]->convertFrom0to1(lastValue[idx]));
     }
   }
 
-  // JUCE 7 holds parameters in a single `juce::Array`. `indexMap` is used to map the
-  // index of `juce::Array` to the internal index used in this class.
+  // JUCE 7 holds parameters in a single `juce::Array`. `indexMap` is used to map the index of
+  // `juce::Array` to the internal index used in this class.
   std::unordered_map<int, int> indexMap;
 
   std::array<juce::RangedAudioParameter*, nParameter> parameter;

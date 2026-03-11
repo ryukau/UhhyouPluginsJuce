@@ -392,7 +392,7 @@ public:
   }
 
   void mouseUp(const juce::MouseEvent&) override {
-    if (this->value) { setValue(false); }
+    if (this->value != float(0)) { setValue(false); }
   }
 
   bool keyStateChanged(bool) override {

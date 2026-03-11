@@ -31,12 +31,13 @@ template<typename Real, int order = 2> class ButterworthLowpass {
   static_assert(order > 0 && order % 2 == 0);
 
 private:
-  static constexpr int nSections = order / 2;
+  static constexpr size_t nSections = order / 2;
 
   static inline const std::array<Real, nSections> damping = []() {
     std::array<Real, nSections> d{};
-    for (int i = 0; i < nSections; ++i) {
-      const Real theta = (std::numbers::pi_v<Real> * (Real(2) * i + Real(1))) / (Real(2) * order);
+    for (size_t i = 0; i < nSections; ++i) {
+      const Real theta
+        = (std::numbers::pi_v<Real> * (Real(2) * Real(i) + Real(1))) / (Real(2) * Real(order));
       d[i] = Real(2) * std::sin(theta);
     }
     return d;
@@ -75,12 +76,13 @@ template<typename Real, int order = 2> class ButterworthHighpass {
   static_assert(order > 0 && order % 2 == 0);
 
 private:
-  static constexpr int nSections = order / 2;
+  static constexpr size_t nSections = order / 2;
 
   static inline const std::array<Real, nSections> damping = []() {
     std::array<Real, nSections> d{};
-    for (int i = 0; i < nSections; ++i) {
-      const Real theta = (std::numbers::pi_v<Real> * (Real(2) * i + Real(1))) / (Real(2) * order);
+    for (size_t i = 0; i < nSections; ++i) {
+      const Real theta
+        = (std::numbers::pi_v<Real> * (Real(2) * Real(i) + Real(1))) / (Real(2) * Real(order));
       d[i] = Real(2) * std::sin(theta);
     }
     return d;
@@ -100,7 +102,7 @@ public:
       * std::clamp(cutoffNormalized, std::numeric_limits<Real>::epsilon(), Real(0.499));
     const Real g = tanForButterworth(w);
     const Real g2 = g * g;
-    for (int idx = 0; idx < nSections; ++idx) {
+    for (size_t idx = 0; idx < nSections; ++idx) {
       SectionState& s = states_[idx];
       const Real d = damping[idx];
       const Real y_hp = (input - s.s1 * (g + d) - s.s2) / (Real(1) + d * g + g2);
@@ -142,7 +144,7 @@ public:
 
     // Write to buffer.
     if (++wptr >= size) { wptr = 0; }
-    buf[wptr] = input;
+    buf[size_t(wptr)] = input;
 
     // Start reading from buffer. Setup convolution filter parameters.
     const int localTap = std::clamp(2 * int(timeInSample), int(2), maxTap);
@@ -208,7 +210,7 @@ public:
       } else {
         sinc = o1_u0 / (pi * x);
       }
-      sum += sinc * window * buf[rptr];
+      sum += sinc * window * buf[size_t(rptr)];
       if (++rptr >= size) { rptr = 0; }
     }
     return sum;
