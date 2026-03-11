@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "smoother.hpp"
+#include "Uhhyou/dsp/smoother.hpp"
 
 #include <algorithm>
 #include <random>
