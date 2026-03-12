@@ -24,10 +24,10 @@ public:
   using StateModifier = std::function<juce::AccessibleState(juce::AccessibleState)>;
   using TitleCallback = std::function<juce::String()>;
 
-  ButtonAccessibilityHandler(juce::Component& cmp, juce::AccessibilityRole role,
+  ButtonAccessibilityHandler(juce::Component& cmp, juce::AccessibilityRole rl,
                              juce::AccessibilityActions act, StateModifier stateModifier = nullptr,
                              TitleCallback titleCallback = nullptr)
-      : juce::AccessibilityHandler(cmp, role, std::move(act)),
+      : juce::AccessibilityHandler(cmp, rl, std::move(act)),
         stateModifier_(std::move(stateModifier)), titleCallback_(std::move(titleCallback)) {}
 
   juce::AccessibleState getCurrentState() const override {

@@ -86,7 +86,9 @@ public:
       if (pk.size() < 2) { continue; }
       juce::Path line;
       line.startNewSubPath(lineOffsetX, height * pk[0]);
-      for (int i = 1; i < pk.size(); ++i) { line.lineTo(lineOffsetX + float(i), height * pk[i]); }
+      for (size_t i = 1; i < pk.size(); ++i) {
+        line.lineTo(lineOffsetX + float(i), height * pk[i]);
+      }
       line.lineTo(width, height);
       line.lineTo(0, height);
       line.closeSubPath();
@@ -99,7 +101,9 @@ public:
       if (env.size() < 2) { continue; }
       juce::Path line;
       line.startNewSubPath(lineOffsetX, height * env[0]);
-      for (int i = 1; i < env.size(); ++i) { line.lineTo(lineOffsetX + float(i), height * env[i]); }
+      for (size_t i = 1; i < env.size(); ++i) {
+        line.lineTo(lineOffsetX + float(i), height * env[i]);
+      }
       ctx.strokePath(line, lineStrokeType_);
     }
 
