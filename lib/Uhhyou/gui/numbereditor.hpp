@@ -19,22 +19,22 @@ class NumberEditor : public juce::TextEditor {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NumberEditor)
 
-  Uhhyou::Palette& pal;
+  Uhhyou::Palette& pal_;
 
-  std::function<void(juce::String)> updateFn;
+  std::function<void(juce::String)> updateFn_;
 
   void exitWithUpdate() {
     setVisible(false);
-    updateFn(getText());
+    updateFn_(getText());
   }
 
 public:
-  NumberEditor(Palette& palette) : pal(palette), updateFn([](juce::String) {}) {}
+  NumberEditor(Palette& palette) : pal_(palette), updateFn_([](juce::String) {}) {}
 
   void invoke(juce::Component& newParent, juce::Rectangle<int> bounds, juce::String numberText,
               std::function<void(juce::String)> updateFunction) {
     newParent.addChildComponent(this, -2);
-    updateFn = updateFunction;
+    updateFn_ = updateFunction;
 
     setBounds(bounds);
     setJustification(juce::Justification::centred);
@@ -45,7 +45,7 @@ public:
   }
 
   void resized() override {
-    applyFontToAllText(pal.getFont(TextSize::normal));
+    applyFontToAllText(pal_.getFont(TextSize::normal));
     juce::TextEditor::resized();
   }
 
@@ -63,10 +63,10 @@ class StatusBar : public juce::TextEditor {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StatusBar)
 
-  Uhhyou::Palette& pal;
+  Uhhyou::Palette& pal_;
 
 public:
-  StatusBar(juce::Component& parent, Palette& palette) : pal(palette) {
+  StatusBar(juce::Component& parent, Palette& palette) : pal_(palette) {
     parent.addChildComponent(this);
 
     // Component settings.
@@ -75,7 +75,7 @@ public:
 
     // TextEditor settings.
     setCaretVisible(false);
-    setColour(outlineColourId, pal.background());
+    setColour(outlineColourId, pal_.background());
     setEscapeAndReturnKeysConsumed(false);
     setJustification(juce::Justification::centredLeft);
     setReadOnly(true);
@@ -97,7 +97,7 @@ public:
   }
 
   void resized() override {
-    applyFontToAllText(pal.getFont(TextSize::normal));
+    applyFontToAllText(pal_.getFont(TextSize::normal));
     juce::TextEditor::resized();
   }
 };

@@ -29,31 +29,31 @@ private:
 protected:
   class KnobValueInterface : public juce::AccessibilityValueInterface {
   public:
-    explicit KnobValueInterface(KnobBase& knobToWrap) : knob(knobToWrap) {}
+    explicit KnobValueInterface(KnobBase& knobToWrap) : knob_(knobToWrap) {}
 
     bool isReadOnly() const override { return false; }
 
-    double getCurrentValue() const override { return double(knob.scale.map(knob.value)); }
+    double getCurrentValue() const override { return double(knob_.scale_.map(knob_.value_)); }
 
     void setValue(double newValue) override {
-      knob.attachment.setValueAsCompleteGesture(float(newValue));
+      knob_.attachment_.setValueAsCompleteGesture(float(newValue));
     }
 
     juce::String getCurrentValueAsString() const override {
-      return knob.parameter->getText(knob.value, std::numeric_limits<float>::digits10 + 1);
+      return knob_.parameter_->getText(knob_.value_, std::numeric_limits<float>::digits10 + 1);
     }
 
     void setValueAsString(const juce::String& newValue) override {
-      auto normalized = knob.parameter->getValueForText(newValue);
-      knob.attachment.setValueAsCompleteGesture(float(knob.scale.map(normalized)));
+      auto normalized = knob_.parameter_->getValueForText(newValue);
+      knob_.attachment_.setValueAsCompleteGesture(float(knob_.scale_.map(normalized)));
     }
 
     AccessibleValueRange getRange() const override {
-      return {{double(knob.scale.getMin()), double(knob.scale.getMax())}, 0.0};
+      return {{double(knob_.scale_.getMin()), double(knob_.scale_.getMax())}, 0.0};
     }
 
   private:
-    KnobBase& knob;
+    KnobBase& knob_;
   };
 
   class KnobAccessibilityHandler : public juce::AccessibilityHandler {
@@ -62,52 +62,52 @@ protected:
         : juce::AccessibilityHandler(knobToWrap, juce::AccessibilityRole::slider,
                                      std::move(actions),
                                      Interfaces{std::make_unique<KnobValueInterface>(knobToWrap)}),
-          knob(knobToWrap) {}
+          knob_(knobToWrap) {}
 
     juce::String getTitle() const override {
-      if (knob.parameter != nullptr) { return knob.parameter->getName(256); }
+      if (knob_.parameter_ != nullptr) { return knob_.parameter_->getName(256); }
       return juce::AccessibilityHandler::getTitle();
     }
 
   private:
-    KnobBase& knob;
+    KnobBase& knob_;
   };
 
-  juce::AudioProcessorEditor& editor;
-  const juce::RangedAudioParameter* const parameter;
+  juce::AudioProcessorEditor& editor_;
+  const juce::RangedAudioParameter* const parameter_;
 
-  Scale& scale;
-  Palette& pal;
-  StatusBar& statusBar;
-  NumberEditor& numberEditor;
-  juce::ParameterAttachment attachment;
+  Scale& scale_;
+  Palette& pal_;
+  StatusBar& statusBar_;
+  NumberEditor& numberEditor_;
+  juce::ParameterAttachment attachment_;
 
-  float value{}; // Normalized in [0, 1].
-  float defaultValue{};
+  float value_{}; // Normalized in [0, 1].
+  float defaultValue_{};
 
-  juce::Point<float> anchor{float(0), float(0)};
-  bool isMouseEntered = false;
-  bool isMouseDragging = false;
+  juce::Point<float> anchor_{float(0), float(0)};
+  bool isMouseEntered_ = false;
+  bool isMouseDragging_ = false;
 
-  std::vector<float> snaps;
-  bool isSnapping = false;
-  float snapDistancePixel = 24.0f;
+  std::vector<float> snaps_;
+  bool isSnapping_ = false;
+  float snapDistancePixel_ = 24.0f;
 
   static constexpr float arcOpenPartRatio = float(1) / float(12); // In [0, 0.5].
-  juce::PathStrokeType arcStrokeType;
-  juce::PathStrokeType handStrokeType;
+  juce::PathStrokeType arcStrokeType_;
+  juce::PathStrokeType handStrokeType_;
 
   void showHostMenuNative(juce::Point<int> position) {
-    if (auto* hostContext = editor.getHostContext()) {
-      if (auto hostContextMenu = hostContext->getContextMenuForParameter(parameter)) {
+    if (auto* hostContext = editor_.getHostContext()) {
+      if (auto hostContextMenu = hostContext->getContextMenuForParameter(parameter_)) {
         hostContextMenu->showNativeMenu(position);
       }
     }
   }
 
   void showHostMenuJuce() {
-    if (auto* hostContext = editor.getHostContext()) {
-      if (auto hostContextMenu = hostContext->getContextMenuForParameter(parameter)) {
+    if (auto* hostContext = editor_.getHostContext()) {
+      if (auto hostContextMenu = hostContext->getContextMenuForParameter(parameter_)) {
         hostContextMenu->getEquivalentPopupMenu().showMenuAsync(
           juce::PopupMenu::Options().withTargetComponent(this));
       }
@@ -115,24 +115,24 @@ protected:
   }
 
   float getFlooredInternalValue(float normalizedValue) const {
-    if (auto* scaled = dynamic_cast<const ScaledParameter<Scale>*>(this->parameter)) {
+    if (auto* scaled = dynamic_cast<const ScaledParameter<Scale>*>(parameter_)) {
       auto textRep = scaled->getTextRepresentation();
       if (textRep == ParameterTextRepresentation::raw) {
-        return this->scale.invmap(std::floor(this->scale.map(normalizedValue)));
+        return scale_.invmap(std::floor(scale_.map(normalizedValue)));
       } else if (textRep == ParameterTextRepresentation::normalized) {
         return std::floor(normalizedValue);
       }
     }
-    return this->scale.fromDisplay(std::floor(this->scale.toDisplay(normalizedValue)));
+    return scale_.fromDisplay(std::floor(scale_.toDisplay(normalizedValue)));
   }
 
   // Centralized method to update value and notify accessibility.
   void setInternalValue(float newValue) {
-    if (value == newValue) { return; }
-    value = newValue;
+    if (value_ == newValue) { return; }
+    value_ = newValue;
     repaint();
 
-    if (auto* handler = this->getAccessibilityHandler()) {
+    if (auto* handler = getAccessibilityHandler()) {
       handler->notifyAccessibilityEvent(juce::AccessibilityEvent::valueChanged);
     }
   }
@@ -146,35 +146,34 @@ protected:
   }
 
   void invokeTextEditor() {
-    numberEditor.invoke(
-      *this, juce::Rectangle<int>{0, 0, getWidth(), getHeight()},
-      this->parameter->getText(this->value, std::numeric_limits<float>::digits10 + 1),
-      [&](juce::String text) {
-        const auto val = parameter->getValueForText(text);
-        attachment.setValueAsCompleteGesture(float(this->scale.map(val)));
-      });
+    numberEditor_.invoke(*this, juce::Rectangle<int>{0, 0, getWidth(), getHeight()},
+                         parameter_->getText(value_, std::numeric_limits<float>::digits10 + 1),
+                         [&](juce::String text) {
+                           const auto val = parameter_->getValueForText(text);
+                           attachment_.setValueAsCompleteGesture(float(scale_.map(val)));
+                         });
   }
 
   void cycleUpValue() {
-    if (value >= float(1)) {
+    if (value_ >= float(1)) {
       setInternalValue(float(0));
       return;
     }
-    auto it = std::ranges::upper_bound(snaps, value);
-    setInternalValue((it != snaps.end()) ? *it : float(1));
+    auto it = std::ranges::upper_bound(snaps_, value_);
+    setInternalValue((it != snaps_.end()) ? *it : float(1));
   }
 
   void cycleDownValue() {
-    if (value <= 0) {
+    if (value_ <= 0) {
       setInternalValue(float(1));
       return;
     }
-    auto it = std::ranges::lower_bound(snaps, value);
-    setInternalValue((it != snaps.begin()) ? *std::prev(it) : float(0));
+    auto it = std::ranges::lower_bound(snaps_, value_);
+    setInternalValue((it != snaps_.begin()) ? *std::prev(it) : float(0));
   }
 
   void increaseValue(float delta) {
-    float newValue = value + delta;
+    float newValue = value_ + delta;
     newValue = knobType == KnobType::rotary ? (newValue - std::floor(newValue))
                                             : std::clamp(newValue, float(0), float(1));
     setInternalValue(newValue);
@@ -182,31 +181,31 @@ protected:
 
   void increaseValueWithSnap(const juce::Point<float>& position, float deltaPixel,
                              float deltaNormalized) {
-    if (isSnapping) {
-      if (std::abs(deltaPixel) <= snapDistancePixel) { return; }
-      isSnapping = false;
-      anchor = position;
+    if (isSnapping_) {
+      if (std::abs(deltaPixel) <= snapDistancePixel_) { return; }
+      isSnapping_ = false;
+      anchor_ = position;
       return;
     }
 
-    anchor = position;
+    anchor_ = position;
 
     if (deltaNormalized > 0) {
-      auto it = std::upper_bound(snaps.begin(), snaps.end(), value);
-      if (it != snaps.end()) {
-        if (value + deltaNormalized >= *it) {
+      auto it = std::upper_bound(snaps_.begin(), snaps_.end(), value_);
+      if (it != snaps_.end()) {
+        if (value_ + deltaNormalized >= *it) {
           setInternalValue((knobType == KnobType::rotary && *it == float(1)) ? float(0) : *it);
-          isSnapping = true;
+          isSnapping_ = true;
           return;
         }
       }
     } else if (deltaNormalized < 0) {
-      auto it = std::lower_bound(snaps.begin(), snaps.end(), value);
-      if (it != snaps.begin()) {
+      auto it = std::lower_bound(snaps_.begin(), snaps_.end(), value_);
+      if (it != snaps_.begin()) {
         auto prev_it = std::prev(it);
-        if (value + deltaNormalized <= *prev_it) {
+        if (value_ + deltaNormalized <= *prev_it) {
           setInternalValue(*prev_it);
-          isSnapping = true;
+          isSnapping_ = true;
           return;
         }
       }
@@ -224,21 +223,21 @@ public:
   KnobBase(juce::AudioProcessorEditor& editor, Palette& palette, juce::UndoManager* undoManager,
            juce::RangedAudioParameter* parameter, Scale& scale, StatusBar& statusBar,
            NumberEditor& numberEditor)
-      : editor(editor), parameter(parameter), scale(scale), pal(palette), statusBar(statusBar),
-        numberEditor(numberEditor), attachment(
-                                      *parameter,
-                                      [&](float newRaw) {
-                                        auto normalized = scale.invmap(newRaw);
-                                        setInternalValue(normalized);
-                                      },
-                                      undoManager),
-        defaultValue(parameter->getDefaultValue()),
-        arcStrokeType(palette.borderWidth() * 8.0f, juce::PathStrokeType::JointStyle::curved,
-                      juce::PathStrokeType::EndCapStyle::rounded),
-        handStrokeType(palette.borderWidth() * 2.0f, juce::PathStrokeType::JointStyle::curved,
-                       juce::PathStrokeType::EndCapStyle::rounded) {
-    editor.addAndMakeVisible(*this, 0);
-    attachment.sendInitialUpdate();
+      : editor_(editor), parameter_(parameter), scale_(scale), pal_(palette), statusBar_(statusBar),
+        numberEditor_(numberEditor), attachment_(
+                                       *parameter,
+                                       [&](float newRaw) {
+                                         auto normalized = scale_.invmap(newRaw);
+                                         setInternalValue(normalized);
+                                       },
+                                       undoManager),
+        defaultValue_(parameter->getDefaultValue()),
+        arcStrokeType_(palette.borderWidth() * 8.0f, juce::PathStrokeType::JointStyle::curved,
+                       juce::PathStrokeType::EndCapStyle::rounded),
+        handStrokeType_(palette.borderWidth() * 2.0f, juce::PathStrokeType::JointStyle::curved,
+                        juce::PathStrokeType::EndCapStyle::rounded) {
+    editor_.addAndMakeVisible(*this, 0);
+    attachment_.sendInitialUpdate();
 
     setMouseCursor(juce::MouseCursor::UpDownResizeCursor);
     setWantsKeyboardFocus(true);
@@ -254,52 +253,52 @@ public:
   }
 
   void setSnaps(const std::vector<float>& source) {
-    snaps = source;
-    if (snaps.empty()) { return; }
-    std::sort(snaps.begin(), snaps.end());
+    snaps_ = source;
+    if (snaps_.empty()) { return; }
+    std::sort(snaps_.begin(), snaps_.end());
 
     if constexpr (knobType == KnobType::rotary) {
-      if (snaps[0] == float(0)) { snaps.push_back(float(1)); }
+      if (snaps_[0] == float(0)) { snaps_.push_back(float(1)); }
     }
   }
 
-  void setSnapDistance(float pixels) { snapDistancePixel = pixels; }
+  void setSnapDistance(float pixels) { snapDistancePixel_ = pixels; }
 
   virtual void resized() override {
-    arcStrokeType.setStrokeThickness(pal.borderWidth() * 8.0f);
-    handStrokeType.setStrokeThickness(pal.borderWidth() * 2.0f);
+    arcStrokeType_.setStrokeThickness(pal_.borderWidth() * 8.0f);
+    handStrokeType_.setStrokeThickness(pal_.borderWidth() * 2.0f);
   }
 
   virtual void mouseEnter(const juce::MouseEvent&) override {
-    isMouseEntered = true;
-    statusBar.update(parameter);
+    isMouseEntered_ = true;
+    statusBar_.update(parameter_);
     repaint();
   }
 
   virtual void mouseExit(const juce::MouseEvent&) override {
-    isMouseEntered = false;
-    statusBar.clear();
+    isMouseEntered_ = false;
+    statusBar_.clear();
     repaint();
   }
 
   virtual void mouseDown(const juce::MouseEvent& event) override {
     if (event.mods.isRightButtonDown()) {
-      showHostMenuNative(editor.getMouseXYRelative());
+      showHostMenuNative(editor_.getMouseXYRelative());
       return;
     }
 
     if (event.mods.isMiddleButtonDown()) {
-      const auto oldValue = value;
+      const auto oldValue = value_;
 
       if (event.mods.isShiftDown()) {
-        setInternalValue(getFlooredInternalValue(value));
+        setInternalValue(getFlooredInternalValue(value_));
       } else {
         cycleUpValue();
       }
 
-      if (value != oldValue) {
-        this->attachment.setValueAsCompleteGesture(float(this->scale.map(value)));
-        statusBar.update(parameter);
+      if (value_ != oldValue) {
+        attachment_.setValueAsCompleteGesture(float(scale_.map(value_)));
+        statusBar_.update(parameter_);
       }
       return;
     }
@@ -307,51 +306,51 @@ public:
     if (!event.mods.isLeftButtonDown()) { return; }
 
     if (event.mods.isCommandDown()) {
-      setInternalValue(defaultValue);
-      attachment.setValueAsCompleteGesture(float(scale.map(value)));
-      statusBar.update(parameter);
+      setInternalValue(defaultValue_);
+      attachment_.setValueAsCompleteGesture(float(scale_.map(value_)));
+      statusBar_.update(parameter_);
       return;
     }
 
-    if (liveUpdate) { attachment.beginGesture(); }
-    isMouseDragging = true;
-    anchor = event.position;
+    if (liveUpdate) { attachment_.beginGesture(); }
+    isMouseDragging_ = true;
+    anchor_ = event.position;
     event.source.enableUnboundedMouseMovement(true);
   }
 
   virtual void mouseDrag(const juce::MouseEvent& event) override {
-    if (!event.mods.isLeftButtonDown() || !isMouseDragging) { return; }
+    if (!event.mods.isLeftButtonDown() || !isMouseDragging_) { return; }
 
     const auto sensi = event.mods.isShiftDown() ? lowSensitivity : sensitivity;
-    const auto delta = (anchor.y - event.position.y) * sensi;
-    if (snaps.empty()) {
+    const auto delta = (anchor_.y - event.position.y) * sensi;
+    if (snaps_.empty()) {
       increaseValue(delta);
-      anchor = event.position;
+      anchor_ = event.position;
     } else {
-      increaseValueWithSnap(event.position, event.position.y - anchor.y, delta);
+      increaseValueWithSnap(event.position, event.position.y - anchor_.y, delta);
     }
 
     if (liveUpdate) {
-      attachment.setValueAsPartOfGesture(float(scale.map(value)));
-      statusBar.update(parameter);
+      attachment_.setValueAsPartOfGesture(float(scale_.map(value_)));
+      statusBar_.update(parameter_);
     }
     repaint();
   }
 
   virtual void mouseUp(const juce::MouseEvent& event) override {
-    isMouseDragging = false;
-    isSnapping = false;
+    isMouseDragging_ = false;
+    isSnapping_ = false;
     if (!event.mods.isLeftButtonDown()) { return; }
 
     event.source.enableUnboundedMouseMovement(false);
 
     if (liveUpdate) {
-      attachment.endGesture();
+      attachment_.endGesture();
     } else {
-      attachment.setValueAsCompleteGesture(float(scale.map(value)));
+      attachment_.setValueAsCompleteGesture(float(scale_.map(value_)));
     }
 
-    statusBar.update(parameter);
+    statusBar_.update(parameter_);
     repaint();
   }
 
@@ -363,8 +362,8 @@ public:
   virtual void mouseWheelMove(const juce::MouseEvent&,
                               const juce::MouseWheelDetails& wheel) override {
     increaseValue(wheel.deltaY * wheelSensitivity);
-    attachment.setValueAsCompleteGesture(float(scale.map(value)));
-    statusBar.update(parameter);
+    attachment_.setValueAsCompleteGesture(float(scale_.map(value_)));
+    statusBar_.update(parameter_);
     repaint();
   }
 
@@ -383,18 +382,18 @@ public:
     }
 
     auto updateValue = [&]() {
-      attachment.setValueAsCompleteGesture(float(scale.map(value)));
-      statusBar.update(parameter);
+      attachment_.setValueAsCompleteGesture(float(scale_.map(value_)));
+      statusBar_.update(parameter_);
       repaint();
       return true;
     };
 
     if (key.isKeyCode(KP::backspaceKey) || key.isKeyCode(KP::deleteKey)) {
       if (mods.isCommandDown()) {
-        setInternalValue(defaultValue);
+        setInternalValue(defaultValue_);
         return updateValue();
       } else if (mods.isShiftDown()) {
-        setInternalValue(getFlooredInternalValue(value));
+        setInternalValue(getFlooredInternalValue(value_));
         return updateValue();
       }
     }
@@ -440,35 +439,37 @@ public:
 
     // Arc.
     if constexpr (style == Style::accent) {
-      ctx.setColour(this->isMouseEntered ? this->pal.accent() : this->pal.border().withAlpha(0.3f));
+      ctx.setColour(this->isMouseEntered_ ? this->pal_.accent()
+                                          : this->pal_.border().withAlpha(0.3f));
     } else if constexpr (style == Style::warning) {
-      ctx.setColour(this->isMouseEntered ? this->pal.warning()
-                                         : this->pal.border().withAlpha(0.3f));
+      ctx.setColour(this->isMouseEntered_ ? this->pal_.warning()
+                                          : this->pal_.border().withAlpha(0.3f));
     } else {
-      ctx.setColour(this->isMouseEntered ? this->pal.main() : this->pal.border().withAlpha(0.3f));
+      ctx.setColour(this->isMouseEntered_ ? this->pal_.main()
+                                          : this->pal_.border().withAlpha(0.3f));
     }
     constexpr auto twopi = 2 * std::numbers::pi_v<float>;
     const auto radius = center.x > center.y ? center.y : center.x;
     juce::Path arc;
     arc.addCentredArc(0, 0, radius, radius, 0, twopi * (0.5f + this->arcOpenPartRatio),
                       twopi * (1.5f - this->arcOpenPartRatio), true);
-    ctx.strokePath(arc, this->arcStrokeType);
+    ctx.strokePath(arc, this->arcStrokeType_);
 
     // Mark for default value. Sharing color and style with hand.
-    const float arcLineWidth = this->pal.borderWidth() * 8.0f;
+    const float arcLineWidth = this->pal_.borderWidth() * 8.0f;
     const auto headLength = arcLineWidth / 2 - radius;
     juce::Path mark;
-    mark.startNewSubPath(this->mapValueToHand(this->defaultValue, headLength / 2));
-    mark.lineTo(this->mapValueToHand(this->defaultValue, headLength));
-    ctx.strokePath(mark, this->handStrokeType);
+    mark.startNewSubPath(this->mapValueToHand(this->defaultValue_, headLength / 2));
+    mark.lineTo(this->mapValueToHand(this->defaultValue_, headLength));
+    ctx.strokePath(mark, this->handStrokeType_);
 
     // Line from center to head.
-    const auto headPoint = this->mapValueToHand(this->value, headLength);
+    const auto headPoint = this->mapValueToHand(this->value_, headLength);
     juce::Path hand;
     hand.startNewSubPath({0.0f, 0.0f});
     hand.lineTo(headPoint);
-    ctx.setColour(this->pal.foreground());
-    ctx.strokePath(hand, this->handStrokeType);
+    ctx.setColour(this->pal_.foreground());
+    ctx.strokePath(hand, this->handStrokeType_);
 
     // Head.
     ctx.fillEllipse(headPoint.x, headPoint.y, arcLineWidth, arcLineWidth);
@@ -493,34 +494,36 @@ public:
 
     // Arc.
     if constexpr (style == Style::accent) {
-      ctx.setColour(this->isMouseEntered ? this->pal.accent() : this->pal.border().withAlpha(0.3f));
+      ctx.setColour(this->isMouseEntered_ ? this->pal_.accent()
+                                          : this->pal_.border().withAlpha(0.3f));
     } else if constexpr (style == Style::warning) {
-      ctx.setColour(this->isMouseEntered ? this->pal.warning()
-                                         : this->pal.border().withAlpha(0.3f));
+      ctx.setColour(this->isMouseEntered_ ? this->pal_.warning()
+                                          : this->pal_.border().withAlpha(0.3f));
     } else {
-      ctx.setColour(this->isMouseEntered ? this->pal.main() : this->pal.border().withAlpha(0.3f));
+      ctx.setColour(this->isMouseEntered_ ? this->pal_.main()
+                                          : this->pal_.border().withAlpha(0.3f));
     }
     const auto radius = center.x > center.y ? center.y : center.x;
     const auto rHalf = radius / 2;
     juce::Path arc;
     arc.addEllipse(-rHalf, -rHalf, rHalf, rHalf);
-    ctx.strokePath(arc, this->arcStrokeType);
+    ctx.strokePath(arc, this->arcStrokeType_);
 
     // Mark for default value. Sharing color and style with hand.
-    const float arcLineWidth = this->pal.borderWidth() * 8.0f;
+    const float arcLineWidth = this->pal_.borderWidth() * 8.0f;
     const auto headLength = arcLineWidth / 2 - radius;
     juce::Path mark;
-    mark.startNewSubPath(this->mapValueToHand(this->defaultValue, headLength / 2));
-    mark.lineTo(this->mapValueToHand(this->defaultValue, headLength));
-    ctx.strokePath(mark, this->handStrokeType);
+    mark.startNewSubPath(this->mapValueToHand(this->defaultValue_, headLength / 2));
+    mark.lineTo(this->mapValueToHand(this->defaultValue_, headLength));
+    ctx.strokePath(mark, this->handStrokeType_);
 
     // Line from center to head.
-    const auto headPoint = this->mapValueToHand(this->value, headLength);
+    const auto headPoint = this->mapValueToHand(this->value_, headLength);
     juce::Path hand;
     hand.startNewSubPath({0.0f, 0.0f});
     hand.lineTo(headPoint);
-    ctx.setColour(this->pal.foreground());
-    ctx.strokePath(hand, this->handStrokeType);
+    ctx.setColour(this->pal_.foreground());
+    ctx.strokePath(hand, this->handStrokeType_);
 
     // Head.
     ctx.fillEllipse(headPoint.x, headPoint.y, arcLineWidth, arcLineWidth);
@@ -532,7 +535,7 @@ class TextKnobPainter : public KnobBase<Scale, knobType> {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TextKnobPainter)
 
-  juce::Font font;
+  juce::Font font_;
 
 public:
   int precision = 0;
@@ -543,18 +546,18 @@ public:
                   Scale& scale, StatusBar& statusBar, NumberEditor& numberEditor, int precision = 0)
       : KnobBase<Scale, knobType>(editor, palette, undoManager, parameter, scale, statusBar,
                                   numberEditor),
-        font(palette.getFont(TextSize::normal)), precision(precision) {
+        font_(palette.getFont(TextSize::normal)), precision(precision) {
     this->sensitivity = float(0.002);
     this->lowSensitivity = this->sensitivity / float(10);
   }
 
   virtual void resized() override {
-    font = this->pal.getFont(TextSize::normal);
+    font_ = this->pal_.getFont(TextSize::normal);
     KnobBase<Scale, knobType>::resized();
   }
 
   virtual void paint(juce::Graphics& ctx) override {
-    const float lw1 = this->pal.borderWidth(); // Border width.
+    const float lw1 = this->pal_.borderWidth(); // Border width.
     const float lw2 = 2 * lw1;
     const float lwHalf = lw1 / 2;
     const float width = float(this->getWidth());
@@ -563,26 +566,26 @@ public:
     const juce::Rectangle<float> bounds{lwHalf, lwHalf, width - lw1, height - lw1};
 
     // Background.
-    ctx.setColour(this->pal.surface());
+    ctx.setColour(this->pal_.surface());
     ctx.fillRoundedRectangle(bounds, lw2);
 
     // Border.
     const auto& colorBorder = [&]() {
       if constexpr (style == Uhhyou::Style::accent) {
-        return this->isMouseEntered ? this->pal.accent() : this->pal.border();
+        return this->isMouseEntered_ ? this->pal_.accent() : this->pal_.border();
       } else if constexpr (style == Uhhyou::Style::warning) {
-        return this->isMouseEntered ? this->pal.warning() : this->pal.border();
+        return this->isMouseEntered_ ? this->pal_.warning() : this->pal_.border();
       } else {
-        return this->isMouseEntered ? this->pal.main() : this->pal.border();
+        return this->isMouseEntered_ ? this->pal_.main() : this->pal_.border();
       }
     }();
     ctx.setColour(colorBorder);
     ctx.drawRoundedRectangle(bounds, lw2, lw1);
 
     // Small bar indicator. It only appears on focus to avoid visual distraction.
-    if (this->isMouseEntered) {
+    if (this->isMouseEntered_) {
       ctx.setColour(colorBorder.withAlpha(0.5f));
-      float fillH = (height - lw1) * this->value;
+      float fillH = (height - lw1) * this->value_;
       auto fillBounds = bounds;
       fillBounds.removeFromLeft(bounds.getWidth() - 2 * lw2);
       fillBounds.removeFromTop(bounds.getHeight() - fillH);
@@ -590,9 +593,9 @@ public:
     }
 
     // Text.
-    ctx.setFont(font);
-    ctx.setColour(this->pal.foreground());
-    ctx.drawText(this->parameter->getText(this->value, int(precision)),
+    ctx.setFont(font_);
+    ctx.setColour(this->pal_.foreground());
+    ctx.drawText(this->parameter_->getText(this->value_, int(precision)),
                  juce::Rectangle<float>(float(0), float(0), width, height),
                  juce::Justification::centred);
   }

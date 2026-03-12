@@ -39,18 +39,18 @@ struct Metrics {
 const juce::String sShaper{"Shaper"};
 
 Editor::Editor(Processor& processor) : EditorBase(processor, informationText) {
-  auto& s_ = processor.param.scale;
+  auto& sc = processor.param.scale;
 
-  addTextKnob(sShaper, "lowGain", s_.gain, {}, 5);
-  addTextKnob(sShaper, "highGain", s_.gain, {}, 5);
-  addTextKnob(sShaper, "crossoverHz", s_.cutoff, {}, 5);
-  addTextKnob(sShaper, "shaperDecaySecond", s_.decay, {}, 5);
-  addTextKnob(sShaper, "shaperRefreshRatio", s_.refreshRatio, {}, 5);
-  addTextKnob(sShaper, "shaperIntensity", s_.gain, {}, 5);
-  addTextKnob(sShaper, "shaperPostLowpassHz", s_.cutoff, {}, 5);
-  addToggleButton(sShaper, "oversampling", s_.boolean, "", "", LabeledWidget::expand);
+  addTextKnob(sShaper, "lowGain", sc.gain, {}, 5);
+  addTextKnob(sShaper, "highGain", sc.gain, {}, 5);
+  addTextKnob(sShaper, "crossoverHz", sc.cutoff, {}, 5);
+  addTextKnob(sShaper, "shaperDecaySecond", sc.decay, {}, 5);
+  addTextKnob(sShaper, "shaperRefreshRatio", sc.refreshRatio, {}, 5);
+  addTextKnob(sShaper, "shaperIntensity", sc.gain, {}, 5);
+  addTextKnob(sShaper, "shaperPostLowpassHz", sc.cutoff, {}, 5);
+  addToggleButton(sShaper, "oversampling", sc.boolean, "", "", LabeledWidget::expand);
 
-  registerInteractive(envelopeDisplay);
+  registerInteractive(envelopeDisplay_);
 
   // `setSize` must be called at last.
   const float scale = getWindowScale();
@@ -73,18 +73,18 @@ void Editor::resized() {
   const int left1 = left0 + mt.sectionWidth + mt.uiMargin;
 
   int currentTop = top0;
-  if (auto sc = sections.find(sShaper); sc != sections.end()) {
-    currentTop = layoutVerticalSection(groupLabels, left0, currentTop, mt.sectionWidth, mt.labelH,
+  if (auto sc = sections_.find(sShaper); sc != sections_.end()) {
+    currentTop = layoutVerticalSection(groupLabels_, left0, currentTop, mt.sectionWidth, mt.labelH,
                                        mt.labelY, sc->first, sc->second);
   }
 
   const int nameTop0 = layoutActionSectionAndPluginInfo(left1, top0, mt.sectionWidth, mt.labelW,
                                                         mt.labelX, mt.labelH, mt.labelY, scale);
 
-  envelopeDisplay.setBounds(
+  envelopeDisplay_.setBounds(
     Rect{left1, nameTop0 + mt.labelY + mt.margin, mt.sectionWidth, 6 * mt.labelY - 2 * mt.margin});
 
-  statusBar.setBounds(
+  statusBar_.setBounds(
     Rect{left0, bottom - mt.labelH - mt.uiMargin, mt.totalWidth - 2 * mt.uiMargin, mt.labelH});
 }
 

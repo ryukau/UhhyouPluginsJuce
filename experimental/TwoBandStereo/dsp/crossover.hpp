@@ -12,19 +12,19 @@ namespace Uhhyou {
 
 template<typename Sample, int length> class FixedIntDelay {
 private:
-  int ptr = 0;
-  std::array<Sample, length> buf{};
+  int ptr_ = 0;
+  std::array<Sample, length> buf_{};
 
 public:
   void reset(Sample value = 0) {
-    ptr = 0;
-    buf.fill(value);
+    ptr_ = 0;
+    buf_.fill(value);
   }
 
   Sample process(Sample x0) {
-    if (++ptr >= length) { ptr = 0; }
-    Sample output = buf[ptr];
-    buf[ptr] = x0;
+    if (++ptr_ >= length) { ptr_ = 0; }
+    Sample output = buf_[ptr_];
+    buf_[ptr_] = x0;
     return output;
   }
 };
@@ -66,46 +66,46 @@ template<typename Sample, size_t stage = 8> class ComplexIIR {
 private:
   static constexpr size_t nPoles = stage - 1;
 
-  Sample a_per_b = 0;
-  std::array<std::complex<Sample>, stage> poles;
+  Sample a_per_b_ = 0;
+  std::array<std::complex<Sample>, stage> poles_;
 
-  std::complex<Sample> x1 = 0;
-  ComplexIIRDelay<Sample, stage, stage - 1> delay;
+  std::complex<Sample> x1_ = 0;
+  ComplexIIRDelay<Sample, stage, stage - 1> delay_;
 
 public:
   void reset() {
-    x1 = 0;
-    delay.reset();
+    x1_ = 0;
+    delay_.reset();
   }
 
   void prepare(std::complex<Sample> pole) {
-    a_per_b = pole.real() / pole.imag();
-    for (auto& value : poles) {
+    a_per_b_ = pole.real() / pole.imag();
+    for (auto& value : poles_) {
       value = pole;
       pole *= pole;
     }
   }
 
   std::complex<Sample> process1PoleForward(Sample x0) {
-    std::complex<Sample> sig = x0 + poles[0] * x1;
-    x1 = x0;
-    return delay.process1PoleForward(sig, poles);
+    std::complex<Sample> sig = x0 + poles_[0] * x1_;
+    x1_ = x0;
+    return delay_.process1PoleForward(sig, poles_);
   }
 
   std::complex<Sample> process1PoleReversed(Sample x0) {
-    std::complex<Sample> sig = poles[0] * x0 + x1;
-    x1 = x0;
-    return delay.process1PoleReversed(sig, poles);
+    std::complex<Sample> sig = poles_[0] * x0 + x1_;
+    x1_ = x0;
+    return delay_.process1PoleReversed(sig, poles_);
   }
 
   Sample process2PoleForward(Sample x0) {
     std::complex<Sample> sig = process1PoleForward(x0);
-    return sig.real() + a_per_b * sig.imag();
+    return sig.real() + a_per_b_ * sig.imag();
   }
 
   Sample process2PoleReversed(Sample x0) {
     std::complex<Sample> sig = process1PoleReversed(x0);
-    return sig.real() + a_per_b * sig.imag();
+    return sig.real() + a_per_b_ * sig.imag();
   }
 };
 
@@ -113,15 +113,15 @@ template<typename Sample, size_t order, size_t stage = 8> class LinkwitzRileyFIR
 private:
   static constexpr size_t nSection = order / 4;
 
-  std::array<ComplexIIR<Sample, stage>, nSection> reverse;
-  std::array<ComplexIIR<Sample, stage>, nSection> forward;
+  std::array<ComplexIIR<Sample, stage>, nSection> reverse_;
+  std::array<ComplexIIR<Sample, stage>, nSection> forward_;
 
-  std::array<Sample, nSection> u1{};
-  std::array<Sample, nSection> u2{};
-  std::array<Sample, nSection> v1{};
-  std::array<Sample, nSection> v2{};
+  std::array<Sample, nSection> u1_{};
+  std::array<Sample, nSection> u2_{};
+  std::array<Sample, nSection> v1_{};
+  std::array<Sample, nSection> v2_{};
 
-  Sample gain = Sample(1);
+  Sample gain_ = Sample(1);
 
 public:
   static constexpr size_t latency = nSection * (size_t(1) << stage) + 1;
@@ -129,47 +129,47 @@ public:
   LinkwitzRileyFIR() { static_assert(order % 4 == 0 && order >= 4); }
 
   void reset() {
-    for (auto& x : reverse) { x.reset(); }
-    for (auto& x : forward) { x.reset(); }
+    for (auto& x : reverse_) { x.reset(); }
+    for (auto& x : forward_) { x.reset(); }
 
-    u1.fill({});
-    u2.fill({});
-    v1.fill({});
-    v2.fill({});
+    u1_.fill({});
+    u2_.fill({});
+    v1_.fill({});
+    v2_.fill({});
   }
 
   void prepare(Sample normalizedCrossover) {
     constexpr Sample pi = std::numbers::pi_v<Sample>;
     constexpr size_t N = 2 * nSection; // Butterworth order.
 
-    gain = Sample(1);
+    gain_ = Sample(1);
 
     auto cutoffRadian = Sample(2) * pi * normalizedCrossover;
     for (size_t idx = 0; idx < nSection; ++idx) {
       auto m = Sample(2 * idx) - Sample(N) + Sample(1);
       auto analogPole = cutoffRadian * std::polar(Sample(-1), pi * m / Sample(2 * N));
       auto pole = (Sample(2) + analogPole) / (Sample(2) - analogPole);
-      reverse[idx].prepare(pole);
-      forward[idx].prepare(pole);
-      gain *= (Sample(1) + Sample(-2) * pole.real() + std::norm(pole)) / Sample(4);
+      reverse_[idx].prepare(pole);
+      forward_[idx].prepare(pole);
+      gain_ *= (Sample(1) + Sample(-2) * pole.real() + std::norm(pole)) / Sample(4);
     }
 
-    gain = std::pow(gain, Sample(1) / Sample(nSection));
+    gain_ = std::pow(gain_, Sample(1) / Sample(nSection));
   }
 
   Sample process(Sample x0) {
     constexpr Sample a1 = Sample(2); // -2 for highpass.
 
     for (size_t i = 0; i < nSection; ++i) {
-      Sample u0 = reverse[i].process2PoleReversed(x0 * gain);
-      x0 = u0 + a1 * u1[i] + u2[i];
-      u2[i] = u1[i];
-      u1[i] = u0;
+      Sample u0 = reverse_[i].process2PoleReversed(x0 * gain_);
+      x0 = u0 + a1 * u1_[i] + u2_[i];
+      u2_[i] = u1_[i];
+      u1_[i] = u0;
 
-      Sample v0 = forward[i].process2PoleForward(x0 * gain);
-      x0 = v0 + a1 * v1[i] + v2[i];
-      v2[i] = v1[i];
-      v1[i] = v0;
+      Sample v0 = forward_[i].process2PoleForward(x0 * gain_);
+      x0 = v0 + a1 * v1_[i] + v2_[i];
+      v2_[i] = v1_[i];
+      v1_[i] = v0;
     }
     return x0;
   }
@@ -180,8 +180,8 @@ public:
   static constexpr size_t latency = LinkwitzRileyFIR<Sample, order, stage>::latency;
 
 private:
-  LinkwitzRileyFIR<Sample, order, stage> lowpass;
-  FixedIntDelay<Sample, latency> highpassDelay;
+  LinkwitzRileyFIR<Sample, order, stage> lowpass_;
+  FixedIntDelay<Sample, latency> highpassDelay_;
 
 public:
   std::array<Sample, 2> output{}; // 0: low, 1: high.
@@ -191,15 +191,15 @@ public:
   size_t getLatency() { return latency; }
 
   void reset() {
-    lowpass.reset();
-    highpassDelay.reset();
+    lowpass_.reset();
+    highpassDelay_.reset();
   }
 
-  void prepare(Sample normalizedCrossover) { lowpass.prepare(normalizedCrossover); }
+  void prepare(Sample normalizedCrossover) { lowpass_.prepare(normalizedCrossover); }
 
   void process(Sample x0) {
-    output[0] = lowpass.process(x0);
-    output[1] = highpassDelay.process(x0) - output[0];
+    output[0] = lowpass_.process(x0);
+    output[1] = highpassDelay_.process(x0) - output[0];
   }
 };
 

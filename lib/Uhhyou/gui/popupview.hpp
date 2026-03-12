@@ -33,14 +33,14 @@ private:
     juce::String getHelp() const override { return "Closes the information view."; }
   };
 
-  Palette& pal;
-  bool isMouseEntered = false;
-  float padding{float(20)};
-  std::function<void(void)> mouseDownCallback = nullptr;
+  Palette& pal_;
+  bool isMouseEntered_ = false;
+  float padding_{float(20)};
+  std::function<void(void)> mouseDownCallback_ = nullptr;
 
 public:
   CloseInfoButton(Palette& palette, int popupInset, std::function<void(void)> mouseDownCallback)
-      : pal(palette), padding(float(popupInset)), mouseDownCallback(mouseDownCallback) {
+      : pal_(palette), padding_(float(popupInset)), mouseDownCallback_(mouseDownCallback) {
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
     setWantsKeyboardFocus(true);
   }
@@ -48,20 +48,20 @@ public:
   std::unique_ptr<juce::AccessibilityHandler> createAccessibilityHandler() override {
     juce::AccessibilityActions actions;
     actions.addAction(juce::AccessibilityActionType::press, [this]() {
-      if (mouseDownCallback != nullptr) { mouseDownCallback(); }
+      if (mouseDownCallback_ != nullptr) { mouseDownCallback_(); }
     });
     return std::make_unique<CloseInfoButtonAccessibilityHandler>(*this, std::move(actions));
   }
 
-  virtual void resized() override { padding = 20 * pal.borderWidth(); }
+  virtual void resized() override { padding_ = 20 * pal_.borderWidth(); }
 
   virtual void paint(juce::Graphics& ctx) override {
     auto bounds = getLocalBounds().toFloat();
 
-    bool highlight = isMouseEntered || hasKeyboardFocus(false);
+    bool highlight = isMouseEntered_ || hasKeyboardFocus(false);
 
     // Background.
-    const auto& bgColor = highlight ? pal.main() : pal.background();
+    const auto& bgColor = highlight ? pal_.main() : pal_.background();
     ctx.fillAll(bgColor.withAlpha(float(0.875)));
 
     // Hint text.
@@ -71,33 +71,33 @@ public:
     // and increases the bottom margin, so that "click to close" text on bottom can be
     // decorated as a clickable button.
     //
-    ctx.setColour(highlight ? pal.foreground() : pal.foreground().withAlpha(0.5f));
-    ctx.setFont(pal.getFont(TextSize::normal));
+    ctx.setColour(highlight ? pal_.foreground() : pal_.foreground().withAlpha(0.5f));
+    ctx.setFont(pal_.getFont(TextSize::normal));
     juce::String hintText = "Click margin to close (Esc)";
     const auto& justification = juce::Justification::centred;
-    ctx.drawText(hintText, bounds.withBottom(padding), justification);
-    ctx.drawText(hintText, bounds.removeFromBottom(padding), justification);
+    ctx.drawText(hintText, bounds.withBottom(padding_), justification);
+    ctx.drawText(hintText, bounds.removeFromBottom(padding_), justification);
   }
 
   virtual void mouseDown(const juce::MouseEvent&) override {
-    if (mouseDownCallback != nullptr) { mouseDownCallback(); }
+    if (mouseDownCallback_ != nullptr) { mouseDownCallback_(); }
     repaint();
   }
 
   virtual void mouseEnter(const juce::MouseEvent&) override {
-    isMouseEntered = true;
+    isMouseEntered_ = true;
     repaint();
   }
 
   virtual void mouseExit(const juce::MouseEvent&) override {
-    isMouseEntered = false;
+    isMouseEntered_ = false;
     repaint();
   }
 
   bool keyPressed(const juce::KeyPress& key) override {
     using KP = juce::KeyPress;
     if (key.isKeyCode(KP::spaceKey) || key.isKeyCode(KP::returnKey)) {
-      mouseDownCallback();
+      mouseDownCallback_();
       return true;
     }
     return false;
@@ -109,9 +109,9 @@ public:
 
 class NavigableCodeEditor : public juce::CodeEditorComponent {
 private:
-  Palette& pal;
-  juce::String originalSource;
-  int currentWrapLimit = 0;
+  Palette& pal_;
+  juce::String originalSource_;
+  int currentWrapLimit_ = 0;
 
   juce::ScrollBar* getVerticalScrollBar() {
     for (auto* child : getChildren()) {
@@ -210,25 +210,25 @@ private:
 public:
   NavigableCodeEditor(juce::CodeDocument& doc, juce::CodeTokeniser* tok, Palette& palette,
                       const juce::String& source)
-      : juce::CodeEditorComponent(doc, tok), pal(palette), originalSource(source) {
+      : juce::CodeEditorComponent(doc, tok), pal_(palette), originalSource_(source) {
     setReadOnly(false);
 
     using ColorId = juce::CodeEditorComponent::ColourIds;
-    setColour(ColorId::backgroundColourId, pal.background());
-    setColour(ColorId::defaultTextColourId, pal.foreground());
-    setColour(ColorId::highlightColourId, pal.main().withAlpha(0.3f));
-    setColour(ColorId::lineNumberBackgroundId, pal.background());
-    setColour(ColorId::lineNumberTextId, pal.foreground().withAlpha(0.5f));
+    setColour(ColorId::backgroundColourId, pal_.background());
+    setColour(ColorId::defaultTextColourId, pal_.foreground());
+    setColour(ColorId::highlightColourId, pal_.main().withAlpha(0.3f));
+    setColour(ColorId::lineNumberBackgroundId, pal_.background());
+    setColour(ColorId::lineNumberTextId, pal_.foreground().withAlpha(0.5f));
 
     setLineNumbersShown(false);
     setWantsKeyboardFocus(true);
     setMouseClickGrabsKeyboardFocus(true);
 
-    loadContent(originalSource);
+    loadContent(originalSource_);
   }
 
   void updateWrapLimit() {
-    auto monospace = pal.getFont(TextSize::normal, FontType::monospace);
+    auto monospace = pal_.getFont(TextSize::normal, FontType::monospace);
     float characterWidth = juce::GlyphArrangement::getStringWidth(monospace, "M");
     if (characterWidth <= 0.0f) { characterWidth = 8.0f; } // Fallback.
 
@@ -237,15 +237,15 @@ public:
     int limit = static_cast<int>(availableWidth / characterWidth);
     if (limit < 20) { limit = 20; }
 
-    if (limit != currentWrapLimit) {
-      currentWrapLimit = limit;
+    if (limit != currentWrapLimit_) {
+      currentWrapLimit_ = limit;
 
       double scrollRatio = 0.0;
       if (auto* sb = getVerticalScrollBar()) {
         double total = sb->getMaximumRangeLimit() - sb->getMinimumRangeLimit();
         if (total > 0.0) { scrollRatio = sb->getCurrentRangeStart() / total; }
       }
-      juce::String wrappedText = applyLineWrap(prepareManualText(originalSource), limit);
+      juce::String wrappedText = applyLineWrap(prepareManualText(originalSource_), limit);
       loadContent(wrappedText);
 
       if (auto* sb = getVerticalScrollBar()) {
@@ -310,99 +310,99 @@ private:
   public:
     PluginInfoButtonAccessibilityHandler(PluginInfoButton& btn, juce::AccessibilityActions actions)
         : juce::AccessibilityHandler(btn, juce::AccessibilityRole::button, std::move(actions)),
-          button(btn) {}
+          button_(btn) {}
 
-    juce::String getTitle() const override { return button.label; }
+    juce::String getTitle() const override { return button_.label_; }
     juce::String getHelp() const override { return ", Show plugin information and license."; }
 
   private:
-    PluginInfoButton& button;
+    PluginInfoButton& button_;
   };
 
-  int popupInset{20};
+  int popupInset_{20};
 
-  CloseInfoButton closeButton;
-  TabView tabView;
-  juce::CodeDocument infoDocument{};
-  NavigableCodeEditor infoDisplay;
-  juce::CodeDocument licenseDocument{};
-  NavigableCodeEditor licenseDisplay;
+  CloseInfoButton closeButton_;
+  TabView tabView_;
+  juce::CodeDocument infoDocument_{};
+  NavigableCodeEditor infoDisplay_;
+  juce::CodeDocument licenseDocument_{};
+  NavigableCodeEditor licenseDisplay_;
 
-  Palette& pal;
-  StatusBar& statusBar;
-  bool isMouseEntered = false;
-  juce::Font font;
-  juce::String label;
+  Palette& pal_;
+  StatusBar& statusBar_;
+  bool isMouseEntered_ = false;
+  juce::Font font_;
+  juce::String label_;
 
-  NavigationManager& navManager;
-  FocusScope popupScope;
+  NavigationManager& navManager_;
+  FocusScope popupScope_;
 
   enum TabIndex { information, license };
 
   juce::Component* getActiveContent() {
-    if (infoDisplay.isVisible()) { return &infoDisplay; }
-    if (licenseDisplay.isVisible()) { return &licenseDisplay; }
+    if (infoDisplay_.isVisible()) { return &infoDisplay_; }
+    if (licenseDisplay_.isVisible()) { return &licenseDisplay_; }
     return nullptr;
   }
 
   void dismissPopup() {
-    navManager.popScope(this);
-    closeButton.setVisible(false);
-    tabView.setVisible(false);
-    if (getWantsKeyboardFocus()) { this->grabKeyboardFocus(); }
+    navManager_.popScope(this);
+    closeButton_.setVisible(false);
+    tabView_.setVisible(false);
+    if (getWantsKeyboardFocus()) { grabKeyboardFocus(); }
   }
 
   void displayPopup() {
     bool wantsFocus = getWantsKeyboardFocus();
-    popupScope.setKeyboardFocusEnabled(wantsFocus);
+    popupScope_.setKeyboardFocusEnabled(wantsFocus);
 
-    closeButton.setVisible(true);
-    tabView.setVisible(true);
+    closeButton_.setVisible(true);
+    tabView_.setVisible(true);
 
-    closeButton.toFront(true);
-    tabView.toFront(true);
+    closeButton_.toFront(true);
+    tabView_.toFront(true);
 
-    navManager.pushScope(this, &popupScope);
-    if (wantsFocus) { tabView.grabKeyboardFocus(); }
+    navManager_.pushScope(this, &popupScope_);
+    if (wantsFocus) { tabView_.grabKeyboardFocus(); }
   }
 
 public:
   PluginInfoButton(Component& parent, Palette& palette, StatusBar& statusBar,
                    NavigationManager& navigationManager, const juce::String& label,
                    const juce::String& infoText, const juce::String& licenseText)
-      : popupInset(std::min(int(20 * palette.borderWidth()), 20)),
-        closeButton(palette, popupInset, [&]() { this->dismissPopup(); }),
-        tabView(palette, {"Information", "License"}),
-        infoDisplay(infoDocument, nullptr, palette, infoText),
-        licenseDisplay(licenseDocument, nullptr, palette, licenseText), pal(palette),
-        statusBar(statusBar), font(juce::FontOptions{}), label(label),
-        navManager(navigationManager) {
+      : popupInset_(std::min(int(20 * palette.borderWidth()), 20)),
+        closeButton_(palette, popupInset_, [&]() { dismissPopup(); }),
+        tabView_(palette, {"Information", "License"}),
+        infoDisplay_(infoDocument_, nullptr, palette, infoText),
+        licenseDisplay_(licenseDocument_, nullptr, palette, licenseText), pal_(palette),
+        statusBar_(statusBar), font_(juce::FontOptions{}), label_(label),
+        navManager_(navigationManager) {
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
     setWantsKeyboardFocus(true);
     setMouseClickGrabsKeyboardFocus(false);
 
     parent.addAndMakeVisible(*this, 0);
 
-    parent.addChildComponent(closeButton, 0);
-    closeButton.setBoundsInset(juce::BorderSize<int>{0});
+    parent.addChildComponent(closeButton_, 0);
+    closeButton_.setBoundsInset(juce::BorderSize<int>{0});
 
-    parent.addChildComponent(tabView, -1);
-    tabView.setBoundsInset(juce::BorderSize<int>{popupInset});
+    parent.addChildComponent(tabView_, -1);
+    tabView_.setBoundsInset(juce::BorderSize<int>{popupInset_});
 
     auto popupAddWidget = [&](TabIndex tabIndex, juce::CodeEditorComponent& display) {
-      tabView.addWidget(tabIndex, &display);
+      tabView_.addWidget(tabIndex, &display);
     };
-    popupAddWidget(TabIndex::information, infoDisplay);
-    popupAddWidget(TabIndex::license, licenseDisplay);
+    popupAddWidget(TabIndex::information, infoDisplay_);
+    popupAddWidget(TabIndex::license, licenseDisplay_);
 
     // Setup traversal order.
-    popupScope.add(closeButton);
-    popupScope.add(tabView);
-    popupScope.add(infoDisplay);
-    popupScope.add(licenseDisplay);
+    popupScope_.add(closeButton_);
+    popupScope_.add(tabView_);
+    popupScope_.add(infoDisplay_);
+    popupScope_.add(licenseDisplay_);
   }
 
-  ~PluginInfoButton() override { navManager.popScope(this); }
+  ~PluginInfoButton() override { navManager_.popScope(this); }
 
   std::unique_ptr<juce::AccessibilityHandler> createAccessibilityHandler() override {
     juce::AccessibilityActions actions;
@@ -414,44 +414,44 @@ public:
   }
 
   virtual void resized() override {
-    font = pal.getFont(TextSize::large, FontType::ui);
+    font_ = pal_.getFont(TextSize::large, FontType::ui);
 
-    popupInset = int(20 * pal.borderWidth());
-    closeButton.setBoundsInset(juce::BorderSize<int>{0});
-    tabView.setBoundsInset(juce::BorderSize<int>{popupInset});
+    popupInset_ = int(20 * pal_.borderWidth());
+    closeButton_.setBoundsInset(juce::BorderSize<int>{0});
+    tabView_.setBoundsInset(juce::BorderSize<int>{popupInset_});
 
-    auto innerBounds = tabView.getInnerBounds();
-    infoDisplay.setBounds(innerBounds);
-    infoDisplay.setFont(pal.getFont(TextSize::normal, FontType::monospace));
-    licenseDisplay.setBounds(innerBounds);
-    licenseDisplay.setFont(pal.getFont(TextSize::normal, FontType::monospace));
+    auto innerBounds = tabView_.getInnerBounds();
+    infoDisplay_.setBounds(innerBounds);
+    infoDisplay_.setFont(pal_.getFont(TextSize::normal, FontType::monospace));
+    licenseDisplay_.setBounds(innerBounds);
+    licenseDisplay_.setFont(pal_.getFont(TextSize::normal, FontType::monospace));
 
-    tabView.refreshTab();
+    tabView_.refreshTab();
   }
 
   void scale(float scalingFactor) {
-    tabView.setBoundsInset(juce::BorderSize<int>{int(scalingFactor * popupInset)});
+    tabView_.setBoundsInset(juce::BorderSize<int>{int(scalingFactor * popupInset_)});
   }
 
   virtual void paint(juce::Graphics& ctx) override {
-    const float lw1 = pal.borderWidth(); // Border width.
+    const float lw1 = pal_.borderWidth(); // Border width.
     const float lw2 = 2 * lw1;
     const float lwHalf = lw1 / 2;
     const float width = std::floor(float(getWidth()));
     const float height = std::floor(float(getHeight()));
 
     // Background.
-    ctx.setColour(pal.surface());
+    ctx.setColour(pal_.surface());
     ctx.fillRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2);
 
     // Border.
-    ctx.setColour(isMouseEntered ? pal.main() : pal.border());
+    ctx.setColour(isMouseEntered_ ? pal_.main() : pal_.border());
     ctx.drawRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2, lw1);
 
     // Text.
-    ctx.setFont(font);
-    ctx.setColour(pal.foreground());
-    ctx.drawText(label, juce::Rectangle<float>(float(0), float(0), width, height),
+    ctx.setFont(font_);
+    ctx.setColour(pal_.foreground());
+    ctx.drawText(label_, juce::Rectangle<float>(float(0), float(0), width, height),
                  juce::Justification::centred);
   }
 
@@ -461,14 +461,14 @@ public:
   }
 
   virtual void mouseEnter(const juce::MouseEvent&) override {
-    isMouseEntered = true;
-    statusBar.setText("Show plugin information");
+    isMouseEntered_ = true;
+    statusBar_.setText("Show plugin information");
     repaint();
   }
 
   virtual void mouseExit(const juce::MouseEvent&) override {
-    isMouseEntered = false;
-    statusBar.clear();
+    isMouseEntered_ = false;
+    statusBar_.clear();
     repaint();
   }
 
@@ -481,7 +481,7 @@ public:
       return true;
     }
 
-    if (key.isKeyCode(KP::escapeKey) && tabView.isVisible()) {
+    if (key.isKeyCode(KP::escapeKey) && tabView_.isVisible()) {
       dismissPopup();
       return true;
     }

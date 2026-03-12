@@ -22,82 +22,85 @@ class EditorBase : public juce::AudioProcessorEditor,
                    private juce::Timer {
 public:
   EditorBase(ProcessorType& p, const juce::String& infoText)
-      : AudioProcessorEditor(p), processor(p), focusOverlay(palette), numberEditor(palette),
-        statusBar(*this, palette),
-        pluginInfoButton(*this, palette, statusBar, navManager, processor.getName(), infoText,
-                         getLibraryLicenseText()),
-        undoButton(*this, palette, statusBar, numberEditor, "Undo", "",
-                   [&]() {
-                     if (processor.undoManager.canUndo()) { processor.undoManager.undo(); }
-                   }),
-        redoButton(*this, palette, statusBar, numberEditor, "Redo", "",
-                   [&]() {
-                     if (processor.undoManager.canRedo()) { processor.undoManager.redo(); }
-                   }),
-        randomizeButton(*this, palette, statusBar, numberEditor, "Randomize",
-                        "Undo/Redo to revert.", [this]() { performRandomize(); }),
-        presetManager(*this, palette, statusBar, &(processor.undoManager), processor.param.tree),
-        settingsButton(
-          *this, palette, statusBar, numberEditor, "GUI Settings", "Open settings menu", [this]() {
+      : AudioProcessorEditor(p), processor_(p), focusOverlay_(palette_), numberEditor_(palette_),
+        statusBar_(*this, palette_),
+        pluginInfoButton_(*this, palette_, statusBar_, navManager_, processor_.getName(), infoText,
+                          getLibraryLicenseText()),
+        undoButton_(*this, palette_, statusBar_, numberEditor_, "Undo", "",
+                    [&]() {
+                      if (processor_.undoManager.canUndo()) { processor_.undoManager.undo(); }
+                    }),
+        redoButton_(*this, palette_, statusBar_, numberEditor_, "Redo", "",
+                    [&]() {
+                      if (processor_.undoManager.canRedo()) { processor_.undoManager.redo(); }
+                    }),
+        randomizeButton_(*this, palette_, statusBar_, numberEditor_, "Randomize",
+                         "Undo/Redo to revert.", [this]() { performRandomize(); }),
+        presetManager_(*this, palette_, statusBar_, &(processor_.undoManager),
+                       processor_.param.tree),
+        settingsButton_(
+          *this, palette_, statusBar_, numberEditor_, "GUI Settings", "Open settings menu",
+          [this]() {
             juce::PopupMenu menu;
 
             bool focus
-              = getStateTree().getProperty("KeyboardFocusEnabled", palette.keyboardFocusEnabled());
+              = getStateTree().getProperty("KeyboardFocusEnabled", palette_.keyboardFocusEnabled());
             menu.addItem("Keyboard Navigation (Steals host shortcuts)", true, focus,
                          [this, focus]() {
                            setGlobalKeyboardFocus(!focus);
-                           palette.updateSetting("keyboardFocusEnabled", !focus);
+                           palette_.updateSetting("keyboardFocusEnabled", !focus);
                          });
 
             menu.addItem("Reset Window Size to 100%", [this]() {
-              float currentScale = getStateTree().getProperty("windowScale", palette.windowScale());
+              float currentScale
+                = getStateTree().getProperty("windowScale", palette_.windowScale());
               if (currentScale > 0.0f) {
                 setSize(juce::roundToInt(getWidth() / currentScale),
                         juce::roundToInt(getHeight() / currentScale));
               }
             });
 
-            menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&settingsButton));
+            menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&settingsButton_));
           }) {
     juce::Desktop::getInstance().addFocusChangeListener(this);
 
     bool initialFocus
-      = getStateTree().getProperty("KeyboardFocusEnabled", palette.keyboardFocusEnabled());
+      = getStateTree().getProperty("KeyboardFocusEnabled", palette_.keyboardFocusEnabled());
     setResizable(true, false);
     setWantsKeyboardFocus(initialFocus);
     setMouseClickGrabsKeyboardFocus(initialFocus);
 
-    navManager.pushScope(this, &mainScope);
-    mainScope.setKeyboardFocusEnabled(initialFocus);
+    navManager_.pushScope(this, &mainScope_);
+    mainScope_.setKeyboardFocusEnabled(initialFocus);
 
-    tooltipWindow.setOpaque(false);
-    registerInteractive(undoButton);
-    registerInteractive(redoButton);
-    registerInteractive(randomizeButton);
-    registerInteractive(presetManager);
-    registerInteractive(settingsButton);
-    registerInteractive(pluginInfoButton);
+    tooltipWindow_.setOpaque(false);
+    registerInteractive(undoButton_);
+    registerInteractive(redoButton_);
+    registerInteractive(randomizeButton_);
+    registerInteractive(presetManager_);
+    registerInteractive(settingsButton_);
+    registerInteractive(pluginInfoButton_);
 
     auto savedLocks = getStateTree().getProperty("ParamLocks").toString();
     auto lockedIds = juce::StringArray::fromTokens(savedLocks, ",", "");
     for (const auto& id : lockedIds) {
-      if (auto* prm = processor.param.tree.getParameter(id)) {
-        paramPtrToId[prm] = id;
-        paramLocks.lock(prm);
+      if (auto* prm = processor_.param.tree.getParameter(id)) {
+        paramPtrToId_[prm] = id;
+        paramLocks_.lock(prm);
       }
     }
 
-    paramLocks.setOnChange([this]() {
-      this->saveParamLocks();
-      this->repaint();
+    paramLocks_.setOnChange([this]() {
+      saveParamLocks();
+      repaint();
     });
   }
 
   ~EditorBase() override { juce::Desktop::getInstance().removeFocusChangeListener(this); }
 
   void resized() override {
-    focusOverlay.setBounds(getLocalBounds());
-    focusOverlay.toFront(false);
+    focusOverlay_.setBounds(getLocalBounds());
+    focusOverlay_.toFront(false);
 
     // A mitigation to disable mouse events while resizing. See `mouseEnter` for details.
     setInterceptsMouseClicks(false, false);
@@ -112,33 +115,33 @@ public:
   }
 
   void paint(juce::Graphics& ctx) override {
-    ctx.setColour(palette.background());
+    ctx.setColour(palette_.background());
     ctx.fillAll();
 
-    auto groupLabelFont = palette.getFont(TextSize::normal);
-    ctx.setColour(palette.foreground());
+    auto groupLabelFont = palette_.getFont(TextSize::normal);
+    ctx.setColour(palette_.foreground());
     ctx.setFont(groupLabelFont);
-    for (const auto& x : groupLabels) {
-      x.paint(ctx, groupLabelFont, 2 * palette.borderWidth(),
-              palette.getFontHeight(TextSize::normal));
+    for (const auto& x : groupLabels_) {
+      x.paint(ctx, groupLabelFont, 2 * palette_.borderWidth(),
+              palette_.getFontHeight(TextSize::normal));
     }
   }
 
   void paintOverChildren(juce::Graphics& ctx) override {
-    int shadowSize = std::max(1, int(palette.borderWidth()));
-    juce::DropShadow shadow(palette.foreground(), 4 * shadowSize, {0, shadowSize});
+    int shadowSize = std::max(1, int(palette_.borderWidth()));
+    juce::DropShadow shadow(palette_.foreground(), 4 * shadowSize, {0, shadowSize});
 
     auto drawShadowIfHovered = [&](juce::Component& cmp) -> bool {
       if (!cmp.isVisible() || !cmp.isMouseOverOrDragging(true)) { return false; }
       auto bounds = getLocalArea(&cmp, cmp.getLocalBounds());
       juce::Graphics::ScopedSaveState save(ctx);
       ctx.excludeClipRegion(bounds);
-      if (tooltipWindow.isVisible()) { ctx.excludeClipRegion(tooltipWindow.getBounds()); }
+      if (tooltipWindow_.isVisible()) { ctx.excludeClipRegion(tooltipWindow_.getBounds()); }
       shadow.drawForRectangle(ctx, bounds);
       return true;
     };
 
-    for (auto& safePtr : mainScope.components) {
+    for (auto& safePtr : mainScope_.components) {
       if (auto* cmp = safePtr.getComponent()) {
         if (drawShadowIfHovered(*cmp)) { break; }
       }
@@ -146,10 +149,8 @@ public:
   }
 
   virtual void mouseDown(const juce::MouseEvent& event) override {
-    if (event.originalComponent == this && this->getWantsKeyboardFocus()) {
-      this->grabKeyboardFocus();
-    }
-    numberEditor.setVisible(false);
+    if (event.originalComponent == this && getWantsKeyboardFocus()) { grabKeyboardFocus(); }
+    numberEditor_.setVisible(false);
   }
 
   void mouseEnter(const juce::MouseEvent& event) override {
@@ -170,7 +171,7 @@ public:
 
   bool keyPressed(const juce::KeyPress& key) override {
     if (key == juce::KeyPress::escapeKey) {
-      if (!navManager.handleEscape()) {
+      if (!navManager_.handleEscape()) {
         giveAwayKeyboardFocus();
         if (auto* peer = getPeer()) { peer->grabFocus(); }
       }
@@ -178,7 +179,7 @@ public:
     }
 
     if (key.isKeyCode(juce::KeyPress::tabKey)) {
-      return navManager.handleTab(key.getModifiers().isShiftDown());
+      return navManager_.handleTab(key.getModifiers().isShiftDown());
     }
 
     return false;
@@ -194,46 +195,46 @@ public:
   void focusLost(juce::Component::FocusChangeType) override { repaint(); }
 
 protected:
-  ProcessorType& processor;
-  Palette palette;
-  Uhhyou::LookAndFeel lookAndFeel{palette};
+  ProcessorType& processor_;
+  Palette palette_;
+  Uhhyou::LookAndFeel lookAndFeel_{palette_};
 
-  NavigationManager navManager;
-  FocusScope mainScope;
+  NavigationManager navManager_;
+  FocusScope mainScope_;
 
-  juce::TooltipWindow tooltipWindow{this, 400};
-  FocusRingOverlay focusOverlay;
-  NumberEditor numberEditor;
-  StatusBar statusBar;
-  PluginInfoButton pluginInfoButton;
-  ActionButton<> undoButton;
-  ActionButton<> redoButton;
-  ActionButton<> randomizeButton;
-  PresetManager presetManager;
-  ActionButton<> settingsButton;
-  std::vector<GroupLabel> groupLabels;
+  juce::TooltipWindow tooltipWindow_{this, 400};
+  FocusRingOverlay focusOverlay_;
+  NumberEditor numberEditor_;
+  StatusBar statusBar_;
+  PluginInfoButton pluginInfoButton_;
+  ActionButton<> undoButton_;
+  ActionButton<> redoButton_;
+  ActionButton<> randomizeButton_;
+  PresetManager presetManager_;
+  ActionButton<> settingsButton_;
+  std::vector<GroupLabel> groupLabels_;
 
   using ComponentSharedPtr = std::shared_ptr<juce::Component>;
-  std::vector<ComponentSharedPtr> widgetStorage;
-  std::unordered_map<juce::String, std::vector<ComponentSharedPtr>> sections;
+  std::vector<ComponentSharedPtr> widgetStorage_;
+  std::unordered_map<juce::String, std::vector<ComponentSharedPtr>> sections_;
 
-  ParameterLockRegistry paramLocks;
-  std::unordered_map<const juce::AudioProcessorParameter*, juce::String> paramPtrToId;
+  ParameterLockRegistry paramLocks_;
+  std::unordered_map<const juce::AudioProcessorParameter*, juce::String> paramPtrToId_;
 
   using RandomizeFn = std::function<float(float)>;
-  std::unordered_map<const juce::AudioProcessorParameter*, RandomizeFn> randomizers;
+  std::unordered_map<const juce::AudioProcessorParameter*, RandomizeFn> randomizers_;
 
   virtual void performRandomize() {
     std::uniform_real_distribution<float> dist{0.0f, 1.0f};
     std::random_device dev;
     std::mt19937 rng(dev());
 
-    auto params = processor.getParameters();
+    auto params = processor_.getParameters();
     for (auto& prm : params) {
-      if (this->paramLocks.isLocked(prm)) { continue; }
+      if (paramLocks_.isLocked(prm)) { continue; }
 
       float normalized = dist(rng);
-      if (auto it = this->randomizers.find(prm); it != this->randomizers.end()) {
+      if (auto it = randomizers_.find(prm); it != randomizers_.end()) {
         normalized = it->second(normalized);
       }
 
@@ -244,7 +245,7 @@ protected:
   }
 
   inline juce::ValueTree getStateTree() {
-    return processor.param.tree.state.getOrCreateChildWithName("GUI", nullptr);
+    return processor_.param.tree.state.getOrCreateChildWithName("GUI", nullptr);
   }
 
   float getWindowScale() { return getStateTree().getProperty("windowScale", 1.0f); }
@@ -253,26 +254,26 @@ protected:
     getConstrainer()->setFixedAspectRatio(double(scaledWidth) / double(scaledHeight));
     setSize(scaledWidth, scaledHeight);
 
-    addAndMakeVisible(focusOverlay);
-    focusOverlay.toFront(false);
+    addAndMakeVisible(focusOverlay_);
+    focusOverlay_.toFront(false);
   }
 
   float updateScale(int defaultHeight) {
     const float scale = getHeight() / float(defaultHeight);
     getStateTree().setProperty("windowScale", scale, nullptr);
-    palette.resize(scale);
-    groupLabels.clear();
-    statusBar.setText("Window Scale: " + juce::String(juce::roundToInt(scale * 100.0f)) + "%");
+    palette_.resize(scale);
+    groupLabels_.clear();
+    statusBar_.setText("Window Scale: " + juce::String(juce::roundToInt(scale * 100.0f)) + "%");
     return scale;
   }
 
   int layoutActionSectionAndPluginInfo(int left, int top, int sectionWidth, int labelW, int labelX,
                                        int labelH, int labelY, float scale) {
-    const int nameTop0
-      = layoutActionSection(groupLabels, left, top, sectionWidth, labelW, labelX, labelH, labelY,
-                            undoButton, redoButton, randomizeButton, presetManager, settingsButton);
-    pluginInfoButton.setBounds(juce::Rectangle<int>{left, nameTop0, sectionWidth, labelH});
-    pluginInfoButton.scale(scale);
+    const int nameTop0 = layoutActionSection(groupLabels_, left, top, sectionWidth, labelW, labelX,
+                                             labelH, labelY, undoButton_, redoButton_,
+                                             randomizeButton_, presetManager_, settingsButton_);
+    pluginInfoButton_.setBounds(juce::Rectangle<int>{left, nameTop0, sectionWidth, labelH});
+    pluginInfoButton_.scale(scale);
     return nameTop0;
   }
 
@@ -282,7 +283,7 @@ protected:
     setWantsKeyboardFocus(enable);
     setMouseClickGrabsKeyboardFocus(enable);
 
-    mainScope.setKeyboardFocusEnabled(enable);
+    mainScope_.setKeyboardFocusEnabled(enable);
 
     if (!enable) {
       juce::MessageManager::callAsync([]() { juce::Component::unfocusAllComponents(); });
@@ -291,36 +292,36 @@ protected:
 
   void saveParamLocks() {
     juce::StringArray ids;
-    for (auto* p : paramLocks.getLockedParameters()) {
-      if (auto it = paramPtrToId.find(p); it != paramPtrToId.end()) { ids.add(it->second); }
+    for (auto* p : paramLocks_.getLockedParameters()) {
+      if (auto it = paramPtrToId_.find(p); it != paramPtrToId_.end()) { ids.add(it->second); }
     }
     getStateTree().setProperty("ParamLocks", ids.joinIntoString(","), nullptr);
   }
 
   // Registers a component for interaction (Focus, Shadows, Mouse events). Does not take ownership.
   void registerInteractive(juce::Component& widget) {
-    if (mainScope.add(widget)) {
+    if (mainScope_.add(widget)) {
       widget.addMouseListener(this, true);
 
       bool focusEnabled
-        = getStateTree().getProperty("KeyboardFocusEnabled", palette.keyboardFocusEnabled());
+        = getStateTree().getProperty("KeyboardFocusEnabled", palette_.keyboardFocusEnabled());
       widget.setWantsKeyboardFocus(focusEnabled);
       widget.setMouseClickGrabsKeyboardFocus(focusEnabled);
     }
   }
 
   void registerParameterId(const juce::String& id, const juce::AudioProcessorParameter* prm) {
-    if (prm) { paramPtrToId[prm] = id; }
+    if (prm) { paramPtrToId_[prm] = id; }
   }
 
   void registerRandomizer(const juce::AudioProcessorParameter* prm, RandomizeFn randomizer) {
-    if (prm != nullptr && randomizer != nullptr) { randomizers[prm] = std::move(randomizer); }
+    if (prm != nullptr && randomizer != nullptr) { randomizers_[prm] = std::move(randomizer); }
   }
 
   // Adds a widget to a layout section (takes Ownership via shared_ptr).
   void addRawWidgetToSection(const juce::String& sectionTitle,
                              std::shared_ptr<juce::Component> widget) {
-    auto [iter, inserted] = sections.try_emplace(sectionTitle);
+    auto [iter, inserted] = sections_.try_emplace(sectionTitle);
     iter->second.push_back(widget);
   }
 
@@ -328,8 +329,8 @@ protected:
   void addToSection(const juce::String& sectionTitle, const juce::String& label,
                     juce::Component& component, const juce::RangedAudioParameter* const parameter,
                     LabeledWidget::Layout option = LabeledWidget::showLabel) {
-    auto widget = std::make_shared<LabeledWidget>(paramLocks, palette, statusBar, label, component,
-                                                  parameter, option);
+    auto widget = std::make_shared<LabeledWidget>(paramLocks_, palette_, statusBar_, label,
+                                                  component, parameter, option);
 
     addAndMakeVisible(*widget);
     addRawWidgetToSection(sectionTitle, widget);
@@ -385,10 +386,10 @@ protected:
                    const std::vector<juce::String>& menuItems, juce::String label,
                    LabeledWidget::Layout layoutOption = LabeledWidget::showLabel,
                    RandomizeFn randomizer = nullptr) {
-    auto prm = processor.param.tree.getParameter(paramId);
+    auto prm = processor_.param.tree.getParameter(paramId);
     if (label.isEmpty() && prm != nullptr) { label = prm->getName(2048); }
     auto widget = std::make_shared<ComboBox<Scale, style>>(
-      *this, palette, &processor.undoManager, prm, scale, statusBar, numberEditor, menuItems);
+      *this, palette_, &processor_.undoManager, prm, scale, statusBar_, numberEditor_, menuItems);
 
     if (sectionTitle.isNotEmpty()) {
       addToSection(sectionTitle, label, *widget, prm, layoutOption);
@@ -409,7 +410,7 @@ protected:
       });
     }
 
-    widgetStorage.push_back(widget);
+    widgetStorage_.push_back(widget);
     return widget;
   }
 
@@ -418,8 +419,8 @@ protected:
                                   const std::vector<float> snapsY, juce::String labelX = "",
                                   juce::String labelY = "", RandomizeFn randX = nullptr,
                                   RandomizeFn randY = nullptr) {
-    auto prmX = processor.param.tree.getParameter(paramIdX);
-    auto prmY = processor.param.tree.getParameter(paramIdY);
+    auto prmX = processor_.param.tree.getParameter(paramIdX);
+    auto prmY = processor_.param.tree.getParameter(paramIdY);
 
     registerParameterId(paramIdX, prmX);
     registerParameterId(paramIdY, prmY);
@@ -431,15 +432,15 @@ protected:
     if (labelY.isEmpty() && prmY) { labelY = prmY->getName(2048); }
 
     auto pad
-      = std::make_shared<XYPad>(*this, palette, &processor.undoManager,
-                                std::array<juce::RangedAudioParameter*, 2>{prmX, prmY}, statusBar);
+      = std::make_shared<XYPad>(*this, palette_, &processor_.undoManager,
+                                std::array<juce::RangedAudioParameter*, 2>{prmX, prmY}, statusBar_);
     pad->setSnaps(snapsX, snapsY);
 
     juce::String snapKey = juce::String(paramIdX) + "_" + paramIdY + "_Snap";
     bool initialSnap = getStateTree().getProperty(snapKey, true);
 
     auto wrapper = std::make_shared<LabeledXYPad>(
-      paramLocks, palette, statusBar, *pad, labelX, labelY, prmX, prmY, initialSnap,
+      paramLocks_, palette_, statusBar_, *pad, labelX, labelY, prmX, prmY, initialSnap,
       [this, snapKey](bool state) { getStateTree().setProperty(snapKey, state, nullptr); });
 
     addAndMakeVisible(*wrapper);
@@ -455,7 +456,7 @@ protected:
     registerInteractive(wrapper->getLabelY());
     registerInteractive(*pad);
 
-    widgetStorage.push_back(pad);
+    widgetStorage_.push_back(pad);
     return pad;
   }
 
@@ -464,7 +465,7 @@ private:
   auto addKnob_(const juce::String& sectionTitle, const juce::String& paramId, Scale& scale,
                 const std::vector<float>& snaps, int precision, juce::String label,
                 LabeledWidget::Layout layoutOption, RandomizeFn randomizer) {
-    auto prm = processor.param.tree.getParameter(paramId);
+    auto prm = processor_.param.tree.getParameter(paramId);
 
     if (label.isEmpty() && prm != nullptr) {
       label = prm->getName(2048);
@@ -472,8 +473,8 @@ private:
       if (!unit.isEmpty()) { label += " [" + unit + "]"; }
     }
 
-    auto widget = std::make_shared<KnobType>(*this, palette, &processor.undoManager, prm, scale,
-                                             statusBar, numberEditor, precision);
+    auto widget = std::make_shared<KnobType>(*this, palette_, &processor_.undoManager, prm, scale,
+                                             statusBar_, numberEditor_, precision);
 
     widget->setSnaps(snaps);
 
@@ -486,7 +487,7 @@ private:
 
     registerParameterId(paramId, prm);
     registerRandomizer(prm, std::move(randomizer));
-    widgetStorage.push_back(widget);
+    widgetStorage_.push_back(widget);
     return widget;
   }
 
@@ -494,11 +495,11 @@ private:
   auto addButton_(const juce::String& sectionTitle, const juce::String& paramId, Scale& scale,
                   juce::String label, const juce::String& hint, LabeledWidget::Layout layout,
                   RandomizeFn randomizer) {
-    auto prm = processor.param.tree.getParameter(paramId);
+    auto prm = processor_.param.tree.getParameter(paramId);
     if (label.isEmpty() && prm) { label = prm->getName(2048); }
 
-    auto widget = std::make_shared<ButtonType>(*this, palette, &processor.undoManager, prm, scale,
-                                               statusBar, numberEditor, label, hint);
+    auto widget = std::make_shared<ButtonType>(*this, palette_, &processor_.undoManager, prm, scale,
+                                               statusBar_, numberEditor_, label, hint);
 
     if (sectionTitle.isNotEmpty()) {
       addToSection(sectionTitle, label, *widget, prm, layout);
@@ -509,7 +510,7 @@ private:
 
     registerParameterId(paramId, prm);
     registerRandomizer(prm, std::move(randomizer));
-    widgetStorage.push_back(widget);
+    widgetStorage_.push_back(widget);
     return widget;
   }
 };

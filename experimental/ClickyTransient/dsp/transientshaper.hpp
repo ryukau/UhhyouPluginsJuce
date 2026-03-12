@@ -27,23 +27,23 @@ template<typename Sample, int length = 63> class BandSplitter {
 private:
   static_assert(length > 0);
 
-  int wptr = 0;
-  std::array<Sample, length> buf{};
+  int wptr_ = 0;
+  std::array<Sample, length> buf_{};
 
 public:
   static constexpr int latency = length / 2;
 
   void reset() {
-    wptr = 0;
-    buf.fill({});
+    wptr_ = 0;
+    buf_.fill({});
   }
 
   SplittedBand2<Sample> process(Sample input, Sample cutoffNormalized) {
     if constexpr (length == 1) { return Sample(2) * cutoffNormalized * input; }
 
     // Write to buffer.
-    if (++wptr >= length) { wptr = 0; }
-    buf[wptr] = input;
+    if (++wptr_ >= length) { wptr_ = 0; }
+    buf_[wptr_] = input;
 
     // Setup recursive sine oscillator.
     constexpr Sample pi = std::numbers::pi_v<Sample>;
@@ -54,7 +54,7 @@ public:
     Sample u2 = std::sin(phi - Sample(2) * omega);
 
     // Convolution.
-    int rptr = wptr;
+    int rptr = wptr_;
     Sample sum = 0;
     for (int i = 0; i < length; ++i) {
       const Sample u0 = k * u1 - u2;
@@ -65,21 +65,21 @@ public:
       const Sample sinc = x == 0 ? Sample(2) * cutoffNormalized : u0 / (pi * x);
 
       if (++rptr >= length) { rptr = 0; }
-      sum += sinc * buf[rptr];
+      sum += sinc * buf_[rptr];
     }
 
-    int center = wptr - latency;
+    int center = wptr_ - latency;
     if (center < 0) { center += length; }
-    return {sum, buf[center] - sum};
+    return {sum, buf_[center] - sum};
   }
 };
 
 template<typename Sample> class EnvelopeFollowerExpDecay {
 private:
-  Sample y = 0;
+  Sample y_ = 0;
 
 public:
-  void reset() { y = 0; }
+  void reset() { y_ = 0; }
 
   Sample process(Sample input, Sample decayTimeSample, Sample refreshRatio) {
     const Sample time = std::max(Sample(1), decayTimeSample);
@@ -88,17 +88,17 @@ public:
     // The magic number is `log(1e-3) ~= -6.907755278982137`.
     const Sample decay = std::exp(Sample(-6.907755278982137) / time);
 
-    y *= decay;
+    y_ *= decay;
     const Sample x = std::abs(input);
-    if (x >= refreshRatio * y) { y = x; }
-    return y;
+    if (x >= refreshRatio * y_) { y_ = x; }
+    return y_;
   }
 };
 
 template<typename Sample> class EnvelopeFollowerEmaCascade {
 private:
   static constexpr int nCascade = 3;
-  std::array<Sample, nCascade> v{};
+  std::array<Sample, nCascade> v_{};
 
   inline Sample cutoffToKp(Sample cutoffNormalized) {
     constexpr Sample twopi = Sample(2) * std::numbers::pi_v<Sample>;
@@ -109,16 +109,16 @@ private:
   inline Sample halfRect(Sample x) { return x >= 0 ? x : 0; }
 
 public:
-  void reset() { v.fill({}); }
+  void reset() { v_.fill({}); }
 
   Sample process(Sample input, Sample cutoffNormalized) {
     input = std::abs(input);
     for (int i = 0; i < nCascade; ++i) {
-      v[i] += cutoffToKp(cutoffNormalized * Sample(i + 1)) * (input - v[i]);
+      v_[i] += cutoffToKp(cutoffNormalized * Sample(i + 1)) * (input - v_[i]);
     }
 
-    auto d1 = halfRect(v[1] - v[0]);
-    auto d2 = halfRect(v[2] - v[1]);
+    auto d1 = halfRect(v_[1] - v_[0]);
+    auto d2 = halfRect(v_[2] - v_[1]);
 
     return std::max(d1, d2);
   }
@@ -129,17 +129,17 @@ private:
   static_assert(order > 0 && order % 2 == 0);
   static constexpr int nSection = order / 2;
 
-  std::array<Sample, nSection> x1{};
-  std::array<Sample, nSection> x2{};
-  std::array<Sample, nSection> y1{};
-  std::array<Sample, nSection> y2{};
+  std::array<Sample, nSection> x1_{};
+  std::array<Sample, nSection> x2_{};
+  std::array<Sample, nSection> y1_{};
+  std::array<Sample, nSection> y2_{};
 
 public:
   void reset() {
-    x1.fill({});
-    x2.fill({});
-    y1.fill({});
-    y2.fill({});
+    x1_.fill({});
+    x2_.fill({});
+    y1_.fill({});
+    y2_.fill({});
   }
 
   Sample process(Sample x0, Sample cutoffNormalized) {
@@ -164,12 +164,12 @@ public:
       const Sample b0 = b1 / Sample(2);
       const Sample& b2 = b0;
 
-      const Sample y0 = b0 * x0 + b1 * x1[i] + b2 * x2[i] + a1 * y1[i] + a2 * y2[i];
+      const Sample y0 = b0 * x0 + b1 * x1_[i] + b2 * x2_[i] + a1 * y1_[i] + a2 * y2_[i];
 
-      x2[i] = x1[i];
-      x1[i] = x0;
-      y2[i] = y1[i];
-      y1[i] = y0;
+      x2_[i] = x1_[i];
+      x1_[i] = x0;
+      y2_[i] = y1_[i];
+      y1_[i] = y0;
 
       x0 = y0;
     }

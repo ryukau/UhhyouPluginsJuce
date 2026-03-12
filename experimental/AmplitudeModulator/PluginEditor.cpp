@@ -39,9 +39,9 @@ struct Metrics {
 const juce::String sAM{"Amplitude Modulator"};
 
 Editor::Editor(Processor& processor) : EditorBase(processor, informationText) {
-  auto& s_ = processor.param.scale;
+  auto& sc = processor.param.scale;
 
-  addComboBox(sAM, "amType", s_.amType,
+  addComboBox(sAM, "amType", sc.amType,
               {
                 "Double Side-band (DSB)",
                 "Upper Side-band (USB)",
@@ -53,9 +53,9 @@ Editor::Editor(Processor& processor) : EditorBase(processor, informationText) {
               },
               "Type");
 
-  addTextKnob(sAM, "carriorSideBandMix", s_.unipolar, {}, 5);
-  addTextKnob(sAM, "outputGain", s_.gain, {}, 5);
-  addToggleButton(sAM, "swapCarriorAndModulator", s_.boolean, "", "", LabeledWidget::expand);
+  addTextKnob(sAM, "carriorSideBandMix", sc.unipolar, {}, 5);
+  addTextKnob(sAM, "outputGain", sc.gain, {}, 5);
+  addToggleButton(sAM, "swapCarriorAndModulator", sc.boolean, "", "", LabeledWidget::expand);
 
   // `setSize` must be called at last.
   const float scale = getWindowScale();
@@ -78,15 +78,15 @@ void Editor::resized() {
   const int left1 = left0 + mt.sectionWidth + mt.uiMargin;
 
   int currentTop = top0;
-  if (auto sc = sections.find(sAM); sc != sections.end()) {
-    currentTop = layoutVerticalSection(groupLabels, left0, currentTop, mt.sectionWidth, mt.labelH,
+  if (auto sc = sections_.find(sAM); sc != sections_.end()) {
+    currentTop = layoutVerticalSection(groupLabels_, left0, currentTop, mt.sectionWidth, mt.labelH,
                                        mt.labelY, sc->first, sc->second);
   }
 
   layoutActionSectionAndPluginInfo(left1, top0, mt.sectionWidth, mt.labelW, mt.labelX, mt.labelH,
                                    mt.labelY, scale);
 
-  statusBar.setBounds(
+  statusBar_.setBounds(
     Rect{left0, bottom - mt.labelH - mt.uiMargin, mt.totalWidth - 2 * mt.uiMargin, mt.labelH});
 }
 

@@ -122,37 +122,37 @@ private:
 
   static constexpr int minTimeSample = maxTap / 2 - 1;
 
-  std::vector<Real> buf{std::vector<Real>(maxTap, Real(0))};
-  Real maxTime = 0;
-  Real prevTime = 0;
-  int wptr = 0;
+  std::vector<Real> buf_{std::vector<Real>(maxTap, Real(0))};
+  Real maxTime_ = 0;
+  Real prevTime_ = 0;
+  int wptr_ = 0;
 
 public:
   void setup(Real maxTimeSample) {
-    maxTime = maxTimeSample;
-    buf.resize(std::max(size_t(maxTap), size_t(maxTime) + maxTap / 2 + 1));
+    maxTime_ = maxTimeSample;
+    buf_.resize(std::max(size_t(maxTap), size_t(maxTime_) + maxTap / 2 + 1));
   }
 
   void reset() {
-    prevTime = 0;
-    wptr = 0;
-    std::fill(buf.begin(), buf.end(), Real(0));
+    prevTime_ = 0;
+    wptr_ = 0;
+    std::fill(buf_.begin(), buf_.end(), Real(0));
   }
 
   Real process(Real input, Real timeInSample) {
-    const int size = int(buf.size());
+    const int size = int(buf_.size());
 
     // Write to buffer.
-    if (++wptr >= size) { wptr = 0; }
-    buf[size_t(wptr)] = input;
+    if (++wptr_ >= size) { wptr_ = 0; }
+    buf_[size_t(wptr_)] = input;
 
     // Start reading from buffer. Setup convolution filter parameters.
     const int localTap = std::clamp(2 * int(timeInSample), int(2), maxTap);
     const int halfTap = localTap / 2;
-    const Real clamped = std::clamp(timeInSample, Real(halfTap - 1), maxTime);
+    const Real clamped = std::clamp(timeInSample, Real(halfTap - 1), maxTime_);
 
-    const Real timeDiff = std::abs(prevTime - clamped + Real(1));
-    prevTime = clamped;
+    const Real timeDiff = std::abs(prevTime_ - clamped + Real(1));
+    prevTime_ = clamped;
     const Real cutoff = timeDiff <= Real(1) ? Real(0.5) : std::exp2(-timeDiff);
 
     if (timeInSample <= 0) { return input * Real(2) * cutoff; }
@@ -176,7 +176,7 @@ public:
     Real o2_u2 = std::cos(o2_phi + o2_omega * (Real(-2) + fraction));
 
     // Convolution.
-    int rptr = wptr - timeInt - halfTap;
+    int rptr = wptr_ - timeInt - halfTap;
     if (rptr < 0) { rptr += size; }
 
     Real sum = 0;
@@ -210,7 +210,7 @@ public:
       } else {
         sinc = o1_u0 / (pi * x);
       }
-      sum += sinc * window * buf[size_t(rptr)];
+      sum += sinc * window * buf_[size_t(rptr)];
       if (++rptr >= size) { rptr = 0; }
     }
     return sum;
@@ -219,34 +219,34 @@ public:
 
 template<typename Real> class FeedbackGate {
 private:
-  Real envelope{};
-  Real smoothed{};
-  Real riseAlpha{};
-  Real fallAlpha{};
+  Real envelope_{};
+  Real smoothed_{};
+  Real riseAlpha_{};
+  Real fallAlpha_{};
 
 public:
   void setup(Real sampleRate) {
-    riseAlpha = secondToEmaAlpha(sampleRate, Real(0.001));
-    fallAlpha = secondToEmaAlpha(sampleRate, Real(0.02));
+    riseAlpha_ = secondToEmaAlpha(sampleRate, Real(0.001));
+    fallAlpha_ = secondToEmaAlpha(sampleRate, Real(0.02));
   }
 
   void reset() {
-    envelope = Real(0);
-    smoothed = Real(0);
+    envelope_ = Real(0);
+    smoothed_ = Real(0);
   }
 
   Real process(Real input, Real thresholdOpen, Real thresholdClose) {
     const Real x0 = std::abs(input);
 
     if (x0 >= thresholdOpen) {
-      envelope = Real(1);
+      envelope_ = Real(1);
     } else if (x0 < thresholdClose) {
-      envelope += fallAlpha * (x0 - envelope);
+      envelope_ += fallAlpha_ * (x0 - envelope_);
     }
 
-    const bool open = envelope > thresholdClose;
-    const Real alpha = open ? riseAlpha : fallAlpha;
-    return smoothed += alpha * (envelope - smoothed);
+    const bool open = envelope_ > thresholdClose;
+    const Real alpha = open ? riseAlpha_ : fallAlpha_;
+    return smoothed_ += alpha * (envelope_ - smoothed_);
   }
 };
 
@@ -257,63 +257,63 @@ public:
   enum class Synchronization { Phase, Frequency, Free };
 
 private:
-  Real frameIndex = Real(-1);
-  Real phase = 0;
-  Real lfoFreq = 0;
-  Real syncAlpha = 0; // Exponential moving average coefficient.
-  Real targetFreq = 0;
-  Synchronization mode = Synchronization::Phase;
+  Real frameIndex_ = Real(-1);
+  Real phase_ = 0;
+  Real lfoFreq_ = 0;
+  Real syncAlpha_ = 0; // Exponential moving average coefficient.
+  Real targetFreq_ = 0;
+  Synchronization mode_ = Synchronization::Phase;
 
 public:
-  inline Real getPhase() const { return phase; }
-  void setSyncRate(Real emaAlpha) { syncAlpha = emaAlpha; }
+  inline Real getPhase() const { return phase_; }
+  void setSyncRate(Real emaAlpha) { syncAlpha_ = emaAlpha; }
 
   void reset() {
-    frameIndex = Real(-1);
-    phase = 0;
-    lfoFreq = 0;
+    frameIndex_ = Real(-1);
+    phase_ = 0;
+    lfoFreq_ = 0;
   }
 
   void update(Synchronization syncMode, Real tempo, Real lfoRate, Real upper, Real lower,
               Real upRate) {
-    mode = syncMode;
-    frameIndex = Real(-1);
-    const Real activeTempo = (mode == Synchronization::Free) ? Real(120) : tempo;
-    targetFreq = (activeTempo * lower * lfoRate) / (Real(60) * upper * upRate);
+    mode_ = syncMode;
+    frameIndex_ = Real(-1);
+    const Real activeTempo = (mode_ == Synchronization::Free) ? Real(120) : tempo;
+    targetFreq_ = (activeTempo * lower * lfoRate) / (Real(60) * upper * upRate);
   }
 
   Real process(bool isPlaying, bool isResetting, Real initialPhase, Real upRate, Real beatsElapsed,
                Real tempo) {
-    frameIndex += Real(1);
+    frameIndex_ += Real(1);
 
-    auto output = phase + initialPhase;
+    auto output = phase_ + initialPhase;
     output -= std::floor(output);
 
     constexpr auto tolerance = Real(1) / Real(1024);
 
     if (isResetting) [[unlikely]] {
-      const auto diff = std::remainder(-phase, Real(1));
+      const auto diff = std::remainder(-phase_, Real(1));
       const auto absDiff = std::abs(diff);
-      phase += syncAlpha * (absDiff >= tolerance ? absDiff : diff);
-    } else if (mode == Synchronization::Phase && !isPlaying) {
-      phase += targetFreq;
-      phase -= std::floor(phase);
+      phase_ += syncAlpha_ * (absDiff >= tolerance ? absDiff : diff);
+    } else if (mode_ == Synchronization::Phase && !isPlaying) {
+      phase_ += targetFreq_;
+      phase_ -= std::floor(phase_);
       return output;
     } else {
-      phase += lfoFreq;
-      phase -= std::floor(phase);
+      phase_ += lfoFreq_;
+      phase_ -= std::floor(phase_);
 
-      if (mode == Synchronization::Phase) {
+      if (mode_ == Synchronization::Phase) {
         const auto samplesElapsed = beatsElapsed * (Real(60) * upRate / tempo);
-        auto targetPhase = (samplesElapsed + frameIndex) * targetFreq;
+        auto targetPhase = (samplesElapsed + frameIndex_) * targetFreq_;
         targetPhase -= std::floor(targetPhase);
-        const auto diff = std::remainder(targetPhase - phase, Real(1));
+        const auto diff = std::remainder(targetPhase - phase_, Real(1));
         const auto absDiff = std::abs(diff);
-        phase += syncAlpha * (absDiff >= tolerance ? absDiff : diff);
+        phase_ += syncAlpha_ * (absDiff >= tolerance ? absDiff : diff);
       }
     }
 
-    lfoFreq += syncAlpha * (targetFreq - lfoFreq);
+    lfoFreq_ += syncAlpha_ * (targetFreq_ - lfoFreq_);
 
     return output;
   }
@@ -354,35 +354,35 @@ template<typename Real> class Fdn2 {
 private:
   static constexpr size_t fdnSize = 2;
 
-  std::array<Real, fdnSize> buffer;
-  FeedbackGate<Real> feedbackGate;
-  std::array<Saturator<Real>, fdnSize> saturator;
-  Saturator<Real> inputSaturator;
-  std::array<ButterworthHighpass<Real>, fdnSize> safetyHighpass;
-  std::array<DelayAntialiased<Real>, fdnSize> delay;
-  std::array<ButterworthLowpass<Real, 4>, fdnSize> feedbackLowpass;
-  std::array<ButterworthLowpass<Real, 2>, fdnSize> viscosityLowpass;
+  std::array<Real, fdnSize> buffer_;
+  FeedbackGate<Real> feedbackGate_;
+  std::array<Saturator<Real>, fdnSize> saturator_;
+  Saturator<Real> inputSaturator_;
+  std::array<ButterworthHighpass<Real>, fdnSize> safetyHighpass_;
+  std::array<DelayAntialiased<Real>, fdnSize> delay_;
+  std::array<ButterworthLowpass<Real, 4>, fdnSize> feedbackLowpass_;
+  std::array<ButterworthLowpass<Real, 2>, fdnSize> viscosityLowpass_;
 
 public:
   void setup(Real maxTimeSamples) {
-    for (auto& x : delay) { x.setup(maxTimeSamples); }
+    for (auto& x : delay_) { x.setup(maxTimeSamples); }
   }
 
-  void updateSamplingRate(Real sampleRate) { feedbackGate.setup(sampleRate); }
+  void updateSamplingRate(Real sampleRate) { feedbackGate_.setup(sampleRate); }
 
   void softReset() {
-    buffer.fill({});
-    feedbackGate.reset();
-    for (auto& x : saturator) { x.reset(); }
-    inputSaturator.reset();
-    for (auto& x : safetyHighpass) { x.reset(); }
-    for (auto& x : feedbackLowpass) { x.reset(); }
-    for (auto& x : viscosityLowpass) { x.reset(); }
+    buffer_.fill({});
+    feedbackGate_.reset();
+    for (auto& x : saturator_) { x.reset(); }
+    inputSaturator_.reset();
+    for (auto& x : safetyHighpass_) { x.reset(); }
+    for (auto& x : feedbackLowpass_) { x.reset(); }
+    for (auto& x : viscosityLowpass_) { x.reset(); }
   }
 
   void reset() {
     softReset();
-    for (auto& x : delay) { x.reset(); }
+    for (auto& x : delay_) { x.reset(); }
   }
 
   struct DisplayTime {
@@ -415,61 +415,65 @@ public:
     typename Saturator<Real>::Function saturatorType;
   };
 
-  Real process(Real input, Real lfoPhase, DisplayTime& displayTime, const Parameters& p_) {
+  Real process(Real input, Real lfoPhase, DisplayTime& displayTime, const Parameters& params) {
     constexpr auto pi = std::numbers::pi_v<Real>;
     constexpr auto twopi = Real(2) * pi;
     const auto omega = twopi * lfoPhase;
-    const auto cs = std::lerp(std::cos(omega), Real(1), p_.flangeBlend);
-    const auto sn = std::lerp(std::sin(omega), Real(0), p_.flangeBlend);
+    const auto cs = std::lerp(std::cos(omega), Real(1), params.flangeBlend);
+    const auto sn = std::lerp(std::sin(omega), Real(0), params.flangeBlend);
 
     const auto timeLfo = std::abs(Real(4) * lfoPhase - Real(2)) - Real(1);
 
-    const auto fbCircular = boxToCircle(std::complex<Real>{p_.feedback0, p_.feedback1});
-    auto fb0 = std::lerp(p_.feedback0, fbCircular.real(), p_.safeFeedback);
-    auto fb1 = std::lerp(p_.feedback1, fbCircular.imag(), p_.safeFeedback);
-    auto sig0 = cs * buffer[0] - sn * buffer[1];
-    auto sig1 = sn * buffer[0] + cs * buffer[1];
+    const auto fbCircular = boxToCircle(std::complex<Real>{params.feedback0, params.feedback1});
+    auto fb0 = std::lerp(params.feedback0, fbCircular.real(), params.safeFeedback);
+    auto fb1 = std::lerp(params.feedback1, fbCircular.imag(), params.safeFeedback);
+    auto sig0 = cs * buffer_[0] - sn * buffer_[1];
+    auto sig1 = sn * buffer_[0] + cs * buffer_[1];
 
-    const auto fbGate
-      = feedbackGate.process(input, p_.feedbackGateThreshold, p_.feedbackGateThreshold * Real(0.5));
+    const auto fbGate = feedbackGate_.process(input, params.feedbackGateThreshold,
+                                              params.feedbackGateThreshold * Real(0.5));
     sig0 *= fb0 * fbGate;
     sig1 *= fb1 * fbGate;
 
-    sig0 = saturator[0].process(sig0, p_.saturatorType);
-    sig1 = saturator[1].process(sig1, p_.saturatorType);
+    sig0 = saturator_[0].process(sig0, params.saturatorType);
+    sig1 = saturator_[1].process(sig1, params.saturatorType);
 
-    const auto inSat = inputSaturator.process(input, p_.saturatorType);
-    const auto delayIn0 = p_.inputBlend * inSat + sig0;
-    const auto delayIn1 = (Real(1) - p_.inputBlend) * inSat + sig1;
-    const auto hp0 = safetyHighpass[0].process(delayIn0, p_.highpassCutoff);
-    const auto hp1 = safetyHighpass[1].process(delayIn1, p_.highpassCutoff);
+    const auto inSat = inputSaturator_.process(input, params.saturatorType);
+    const auto delayIn0 = params.inputBlend * inSat + sig0;
+    const auto delayIn1 = (Real(1) - params.inputBlend) * inSat + sig1;
+    const auto hp0 = safetyHighpass_[0].process(delayIn0, params.highpassCutoff);
+    const auto hp1 = safetyHighpass_[1].process(delayIn1, params.highpassCutoff);
 
-    const auto viscosityGain = butterworthNormalizationGain(p_.viscosityCutoff, Real(1000));
-    const auto viscSig0 = viscosityLowpass[0].process(sig0, p_.viscosityCutoff) * viscosityGain;
-    const auto viscSig1 = viscosityLowpass[1].process(sig1, p_.viscosityCutoff) * viscosityGain;
-    const auto crossModSig0 = std::lerp(inSat, viscSig0, p_.sigModMode);
-    const auto crossModSig1 = std::lerp(inSat, viscSig1, p_.sigModMode);
+    const auto viscosityGain = butterworthNormalizationGain(params.viscosityCutoff, Real(1000));
+    const auto viscSig0
+      = viscosityLowpass_[0].process(sig0, params.viscosityCutoff) * viscosityGain;
+    const auto viscSig1
+      = viscosityLowpass_[1].process(sig1, params.viscosityCutoff) * viscosityGain;
+    const auto crossModSig0 = std::lerp(inSat, viscSig0, params.sigModMode);
+    const auto crossModSig1 = std::lerp(inSat, viscSig1, params.sigModMode);
 
-    auto timeMod0
-      = p_.timeInSamples0 * std::exp2(p_.lfoTimeMod0 * timeLfo + p_.sigTimeMod0 * crossModSig0);
-    auto timeMod1
-      = p_.timeInSamples1 * std::exp2(p_.lfoTimeMod1 * timeLfo + p_.sigTimeMod1 * crossModSig1);
+    auto timeMod0 = params.timeInSamples0
+      * std::exp2(params.lfoTimeMod0 * timeLfo + params.sigTimeMod0 * crossModSig0);
+    auto timeMod1 = params.timeInSamples1
+      * std::exp2(params.lfoTimeMod1 * timeLfo + params.sigTimeMod1 * crossModSig1);
 
     displayTime.upper[0] = std::max(displayTime.upper[0], timeMod0);
     displayTime.upper[1] = std::max(displayTime.upper[1], timeMod1);
     displayTime.lower[0] = std::min(displayTime.lower[0], timeMod0);
     displayTime.lower[1] = std::min(displayTime.lower[1], timeMod1);
 
-    const auto am0 = std::clamp(std::lerp(Real(1), crossModSig0, p_.sigAmpMod0), Real(-2), Real(2));
-    const auto am1 = std::clamp(std::lerp(Real(1), crossModSig1, p_.sigAmpMod1), Real(-2), Real(2));
-    buffer[0] = delay[0].process(am0 * std::lerp(delayIn0, hp0, p_.highpassFade), timeMod0);
-    buffer[1] = delay[1].process(am1 * std::lerp(delayIn1, hp1, p_.highpassFade), timeMod1);
+    const auto am0
+      = std::clamp(std::lerp(Real(1), crossModSig0, params.sigAmpMod0), Real(-2), Real(2));
+    const auto am1
+      = std::clamp(std::lerp(Real(1), crossModSig1, params.sigAmpMod1), Real(-2), Real(2));
+    buffer_[0] = delay_[0].process(am0 * std::lerp(delayIn0, hp0, params.highpassFade), timeMod0);
+    buffer_[1] = delay_[1].process(am1 * std::lerp(delayIn1, hp1, params.highpassFade), timeMod1);
 
-    buffer[0] = feedbackLowpass[0].process(buffer[0], p_.lowpassCutoff);
-    buffer[1] = feedbackLowpass[1].process(buffer[1], p_.lowpassCutoff);
+    buffer_[0] = feedbackLowpass_[0].process(buffer_[0], params.lowpassCutoff);
+    buffer_[1] = feedbackLowpass_[1].process(buffer_[1], params.lowpassCutoff);
 
-    buffer[0] += p_.flangeSign * buffer[1];
-    return buffer[0] + (Real(1) - p_.flangeBlend) * buffer[1];
+    buffer_[0] += params.flangeSign * buffer_[1];
+    return buffer_[0] + (Real(1) - params.flangeBlend) * buffer_[1];
   }
 };
 

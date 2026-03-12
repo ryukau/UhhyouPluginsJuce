@@ -39,11 +39,11 @@ struct Metrics {
 const juce::String sStereoControl{"Stereo Control"};
 
 Editor::Editor(Processor& processor) : EditorBase(processor, informationText) {
-  auto& s_ = processor.param.scale;
+  auto& sc = processor.param.scale;
 
-  addTextKnob(sStereoControl, "crossoverHz", s_.crossoverHz, {}, 5);
-  addTextKnob(sStereoControl, "upperStereoSpread", s_.unipolar, {}, 5);
-  addTextKnob(sStereoControl, "lowerStereoSpread", s_.unipolar, {}, 5);
+  addTextKnob(sStereoControl, "crossoverHz", sc.crossoverHz, {}, 5);
+  addTextKnob(sStereoControl, "upperStereoSpread", sc.unipolar, {}, 5);
+  addTextKnob(sStereoControl, "lowerStereoSpread", sc.unipolar, {}, 5);
 
   // `setSize` must be called at last.
   const float scale = getWindowScale();
@@ -66,15 +66,15 @@ void Editor::resized() {
   const int left1 = left0 + mt.sectionWidth + mt.uiMargin;
 
   int currentTop = top0;
-  if (auto sc = sections.find(sStereoControl); sc != sections.end()) {
-    currentTop = layoutVerticalSection(groupLabels, left0, currentTop, mt.sectionWidth, mt.labelH,
+  if (auto sc = sections_.find(sStereoControl); sc != sections_.end()) {
+    currentTop = layoutVerticalSection(groupLabels_, left0, currentTop, mt.sectionWidth, mt.labelH,
                                        mt.labelY, sc->first, sc->second);
   }
 
   layoutActionSectionAndPluginInfo(left1, top0, mt.sectionWidth, mt.labelW, mt.labelX, mt.labelH,
                                    mt.labelY, scale);
 
-  statusBar.setBounds(
+  statusBar_.setBounds(
     Rect{left0, bottom - mt.labelH - mt.uiMargin, mt.totalWidth - 2 * mt.uiMargin, mt.labelH});
 }
 

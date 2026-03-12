@@ -34,22 +34,22 @@ public:
                const float* inMod1, float* out0, float* out1);
 
 private:
-  double sampleRate = 44100;
+  double sampleRate_ = 44100;
 
-  size_t amType = 0;
-  bool swapCarriorAndModulator = false;
-  SmootherParameter<double> smoo;
-  ExpSmoother<double> carriorSideBandMix{smoo};
-  ExpSmoother<double> outputGain{smoo};
+  size_t amType_ = 0;
+  bool swapCarriorAndModulator_ = false;
+  SmootherParameter<double> smoo_;
+  ExpSmoother<double> carriorSideBandMix_{smoo_};
+  ExpSmoother<double> outputGain_{smoo_};
 
   // `AA` is short for anti-aliasing. `Naive` means no anti-alising here.
-  std::array<AmplitudeModulator<double>, 2> amNaive;
-  std::array<UpperSideBandAmplitudeModulator<double>, 2> amUsbNaive;
-  std::array<LowerSideBandAmplitudeModulator<double>, 2> amLsbNaive;
-  std::array<AmplitudeModulatorUpperAA<double>, 2> amUpperAA;
-  std::array<AmplitudeModulatorFullAA<double>, 2> amFullAA;
-  std::array<UpperSideBandAmplitudeModulatorAA<double>, 2> amUsbAA;
-  std::array<LowerSideBandAmplitudeModulatorAA<double>, 2> amLsbAA;
+  std::array<AmplitudeModulator<double>, 2> amNaive_;
+  std::array<UpperSideBandAmplitudeModulator<double>, 2> amUsbNaive_;
+  std::array<LowerSideBandAmplitudeModulator<double>, 2> amLsbNaive_;
+  std::array<AmplitudeModulatorUpperAA<double>, 2> amUpperAA_;
+  std::array<AmplitudeModulatorFullAA<double>, 2> amFullAA_;
+  std::array<UpperSideBandAmplitudeModulatorAA<double>, 2> amUsbAA_;
+  std::array<LowerSideBandAmplitudeModulatorAA<double>, 2> amLsbAA_;
 };
 
 } // namespace Uhhyou

@@ -100,7 +100,7 @@ private:
     = {T(1) / T(30), T(11) / T(40), T(11) / T(60), T(1) / T(120)};
 
   static constexpr T tolerance = std::numeric_limits<T>::epsilon();
-  std::array<T, nSegment + 1> buffer{};
+  std::array<T, nSegment + 1> buffer_{};
 
   enum class Region { Linear, SatPos, SatNeg };
 
@@ -218,17 +218,17 @@ private:
   }
 
 public:
-  void reset() { buffer.fill(T(0)); }
+  void reset() { buffer_.fill(T(0)); }
 
   T process(T input) {
-    std::copy_backward(buffer.begin(), buffer.end() - 1, buffer.end());
-    buffer[0] = input;
+    std::copy_backward(buffer_.begin(), buffer_.end() - 1, buffer_.end());
+    buffer_[0] = input;
 
     T value = T(0);
-    process_segment<0>(buffer[4], buffer[3], value);
-    process_segment<1>(buffer[3], buffer[2], value);
-    process_segment<2>(buffer[2], buffer[1], value);
-    process_segment<3>(buffer[1], buffer[0], value);
+    process_segment<0>(buffer_[4], buffer_[3], value);
+    process_segment<1>(buffer_[3], buffer_[2], value);
+    process_segment<2>(buffer_[2], buffer_[1], value);
+    process_segment<3>(buffer_[1], buffer_[0], value);
 
     return value;
   }
@@ -242,13 +242,13 @@ private:
   static constexpr T offset_factor = T(5.77350269189625731e-01); // 1 / sqrt(3).
   static constexpr T epsilon = std::numeric_limits<T>::epsilon();
 
-  T h1_fall{};
-  T h1_rise{};
-  T h2_fall{};
-  T h2_rise{};
-  T h3_fall{};
-  T h3_rise{};
-  T x1{};
+  T h1_fall_{};
+  T h1_rise_{};
+  T h2_fall_{};
+  T h2_rise_{};
+  T h3_fall_{};
+  T h3_rise_{};
+  T x1_{};
 
   T f0(T x) const {
     T z = x * x;
@@ -347,44 +347,44 @@ private:
 
 public:
   void reset() {
-    h1_fall = 0;
-    h1_rise = 0;
-    h2_fall = 0;
-    h2_rise = 0;
-    h3_fall = 0;
-    h3_rise = 0;
-    x1 = 0;
+    h1_fall_ = 0;
+    h1_rise_ = 0;
+    h2_fall_ = 0;
+    h2_rise_ = 0;
+    h3_fall_ = 0;
+    h3_rise_ = 0;
+    x1_ = 0;
   }
 
   T process(T x0) {
-    const T d0 = x0 - x1;
+    const T d0 = x0 - x1_;
 
     T t_fall, t_rise;
     if (std::abs(d0) < epsilon) {
-      const T mid = T(0.5) * f0(T(0.5) * (x0 + x1));
+      const T mid = T(0.5) * f0(T(0.5) * (x0 + x1_));
       t_fall = mid;
       t_rise = mid;
     } else {
-      auto [m0, m1] = integrate(x1, x0);
+      auto [m0, m1] = integrate(x1_, x0);
       const T inv_d2 = T(1.0) / (d0 * d0);
       t_fall = (x0 * m0 - m1) * inv_d2;
-      t_rise = (m1 - x1 * m0) * inv_d2;
+      t_rise = (m1 - x1_ * m0) * inv_d2;
     }
 
     const T y0 = T(0.25) * t_fall;
-    const T y1 = T(0.5) * h1_fall + T(0.25) * h1_rise;
-    const T y2 = T(0.25) * h2_fall + T(0.5) * h2_rise;
-    const T y3 = T(0.25) * h3_rise;
+    const T y1 = T(0.5) * h1_fall_ + T(0.25) * h1_rise_;
+    const T y2 = T(0.25) * h2_fall_ + T(0.5) * h2_rise_;
+    const T y3 = T(0.25) * h3_rise_;
 
     const T output = y0 + y1 + y2 + y3;
 
-    h3_fall = h2_fall;
-    h3_rise = h2_rise;
-    h2_fall = h1_fall;
-    h2_rise = h1_rise;
-    h1_fall = t_fall;
-    h1_rise = t_rise;
-    x1 = x0;
+    h3_fall_ = h2_fall_;
+    h3_rise_ = h2_rise_;
+    h2_fall_ = h1_fall_;
+    h2_rise_ = h1_rise_;
+    h1_fall_ = t_fall;
+    h1_rise_ = t_rise;
+    x1_ = x0;
 
     return output;
   }
@@ -394,13 +394,13 @@ template<std::floating_point T> class TriangleAdaa4 {
 private:
   static constexpr T offset_factor = T(0.577350269189625731); // 1 / sqrt(3)
 
-  T h1_fall{};
-  T h1_rise{};
-  T h2_fall{};
-  T h2_rise{};
-  T h3_fall{};
-  T h3_rise{};
-  T x1{};
+  T h1_fall_{};
+  T h1_rise_{};
+  T h2_fall_{};
+  T h2_rise_{};
+  T h3_fall_{};
+  T h3_rise_{};
+  T x1_{};
 
   struct Moments {
     T m0;
@@ -474,44 +474,44 @@ private:
 
 public:
   void reset() {
-    h1_fall = 0;
-    h1_rise = 0;
-    h2_fall = 0;
-    h2_rise = 0;
-    h3_fall = 0;
-    h3_rise = 0;
-    x1 = 0;
+    h1_fall_ = 0;
+    h1_rise_ = 0;
+    h2_fall_ = 0;
+    h2_rise_ = 0;
+    h3_fall_ = 0;
+    h3_rise_ = 0;
+    x1_ = 0;
   }
 
   T process(T x0) {
-    const T d0 = x0 - x1;
+    const T d0 = x0 - x1_;
     T t_fall, t_rise;
 
     if (std::abs(d0) < std::numeric_limits<T>::epsilon()) {
-      const T mid = T(0.5) * f0(T(0.5) * (x0 + x1));
+      const T mid = T(0.5) * f0(T(0.5) * (x0 + x1_));
       t_fall = mid;
       t_rise = mid;
     } else {
-      const auto [m0, m1] = integrate(x1, x0);
+      const auto [m0, m1] = integrate(x1_, x0);
       const T inv_d2 = T(1) / (d0 * d0);
       t_fall = (x0 * m0 - m1) * inv_d2;
-      t_rise = (m1 - x1 * m0) * inv_d2;
+      t_rise = (m1 - x1_ * m0) * inv_d2;
     }
 
     const T y0 = T(0.25) * t_fall;
-    const T y1 = T(0.5) * h1_fall + T(0.25) * h1_rise;
-    const T y2 = T(0.25) * h2_fall + T(0.5) * h2_rise;
-    const T y3 = T(0.25) * h3_rise;
+    const T y1 = T(0.5) * h1_fall_ + T(0.25) * h1_rise_;
+    const T y2 = T(0.25) * h2_fall_ + T(0.5) * h2_rise_;
+    const T y3 = T(0.25) * h3_rise_;
 
     const T output = y0 + y1 + y2 + y3;
 
-    h3_fall = h2_fall;
-    h3_rise = h2_rise;
-    h2_fall = h1_fall;
-    h2_rise = h1_rise;
-    h1_fall = t_fall;
-    h1_rise = t_rise;
-    x1 = x0;
+    h3_fall_ = h2_fall_;
+    h3_rise_ = h2_rise_;
+    h2_fall_ = h1_fall_;
+    h2_rise_ = h1_rise_;
+    h1_fall_ = t_fall;
+    h1_rise_ = t_rise;
+    x1_ = x0;
 
     return output;
   }
@@ -958,20 +958,20 @@ template<typename Real> struct ChebyshevClenshaw {
 // Using 1st order antiderivative anti-aliasing (ADAA).
 template<typename Real> class Saturator {
 private:
-  HardclipAdaa4<Real> hardclip4;
-  ModuloQuadAdaa4<Real> modulo_quad4;
-  TriangleAdaa4<Real> triangle4;
+  HardclipAdaa4<Real> hardclip4_;
+  ModuloQuadAdaa4<Real> modulo_quad4_;
+  TriangleAdaa4<Real> triangle4_;
 
   static constexpr Real eps = std::numeric_limits<float>::epsilon();
-  Real x1 = 0;
-  Real s1 = 0;
+  Real x1_ = 0;
+  Real s1_ = 0;
 
   template<typename Fn> inline Real processInternal(Real input) {
-    const auto d0 = input - x1;
+    const auto d0 = input - x1_;
     const auto s0 = Fn::f1(input);
-    const auto output = std::abs(d0) < eps ? Fn::f0(Real(0.5) * (input + x1)) : (s0 - s1) / d0;
-    s1 = s0;
-    x1 = input;
+    const auto output = std::abs(d0) < eps ? Fn::f0(Real(0.5) * (input + x1_)) : (s0 - s1_) / d0;
+    s1_ = s0;
+    x1_ = input;
     return output;
   }
 
@@ -1007,12 +1007,12 @@ public:
   };
 
   void reset() {
-    hardclip4.reset();
-    modulo_quad4.reset();
-    triangle4.reset();
+    hardclip4_.reset();
+    modulo_quad4_.reset();
+    triangle4_.reset();
 
-    x1 = 0;
-    s1 = 0;
+    x1_ = 0;
+    s1_ = 0;
   }
 
   Real process(Real input, Function fn = Function::hardclip_cleaner) {
@@ -1020,7 +1020,7 @@ public:
     switch (fn) {
       default:
       case Function::hardclip_cleaner:
-        return hardclip4.process(input);
+        return hardclip4_.process(input);
       case Function::hardclip:
         return processInternal<Hardclip<Real>>(input);
       case Function::softsign:
@@ -1038,7 +1038,7 @@ public:
       case Function::log1p:
         return processInternal<Log1p<Real>>(input);
       case Function::triangle_cleaner:
-        return triangle4.process(input);
+        return triangle4_.process(input);
       case Function::triangle:
         return processInternal<Triangle<Real>>(input);
       case Function::modulo_sqrt:
@@ -1048,7 +1048,7 @@ public:
       case Function::modulo_linear2:
         return processInternal<ModuloLinear2<Real>>(input);
       case Function::modulo_quad_cleaner:
-        return modulo_quad4.process(input);
+        return modulo_quad4_.process(input);
       case Function::modulo_quad:
         return processInternal<ModuloQuad<Real>>(input);
       case Function::sin_expm1:

@@ -28,35 +28,37 @@ private:
 protected:
   class ComboBoxValueInterface : public juce::AccessibilityValueInterface {
   public:
-    explicit ComboBoxValueInterface(ComboBox& cb) : comboBox(cb) {}
+    explicit ComboBoxValueInterface(ComboBox& cb) : comboBox_(cb) {}
 
     bool isReadOnly() const override { return false; }
 
-    double getCurrentValue() const override { return static_cast<double>(comboBox.itemIndex); }
+    double getCurrentValue() const override { return static_cast<double>(comboBox_.itemIndex_); }
 
     void setValue(double newValue) override {
-      comboBox.attachment.setValueAsCompleteGesture(static_cast<float>(newValue));
+      comboBox_.attachment_.setValueAsCompleteGesture(static_cast<float>(newValue));
     }
 
     juce::String getCurrentValueAsString() const override {
-      if (comboBox.itemIndex < comboBox.items.size()) { return comboBox.items[comboBox.itemIndex]; }
+      if (comboBox_.itemIndex_ < comboBox_.items_.size()) {
+        return comboBox_.items_[comboBox_.itemIndex_];
+      }
       return {};
     }
 
     void setValueAsString(const juce::String& newValue) override {
-      auto it = std::find(comboBox.items.begin(), comboBox.items.end(), newValue);
-      if (it != comboBox.items.end()) {
-        auto index = static_cast<size_t>(std::distance(comboBox.items.begin(), it));
-        comboBox.attachment.setValueAsCompleteGesture(static_cast<float>(index));
+      auto it = std::find(comboBox_.items_.begin(), comboBox_.items_.end(), newValue);
+      if (it != comboBox_.items_.end()) {
+        auto index = static_cast<size_t>(std::distance(comboBox_.items_.begin(), it));
+        comboBox_.attachment_.setValueAsCompleteGesture(static_cast<float>(index));
       }
     }
 
     AccessibleValueRange getRange() const override {
-      return {{0.0, static_cast<double>(comboBox.items.size() - 1)}, 0.0};
+      return {{0.0, static_cast<double>(comboBox_.items_.size() - 1)}, 0.0};
     }
 
   private:
-    ComboBox& comboBox;
+    ComboBox& comboBox_;
   };
 
   class ComboBoxAccessibilityHandler : public juce::AccessibilityHandler {
@@ -65,46 +67,46 @@ protected:
         : juce::AccessibilityHandler(
             cbToWrap, juce::AccessibilityRole::comboBox, std::move(actions),
             Interfaces{std::make_unique<ComboBoxValueInterface>(cbToWrap)}),
-          cb(cbToWrap) {}
+          cb_(cbToWrap) {}
 
     juce::String getTitle() const override {
-      if (cb.parameter != nullptr) { return cb.parameter->getName(256); }
+      if (cb_.parameter_ != nullptr) { return cb_.parameter_->getName(256); }
       return juce::AccessibilityHandler::getTitle();
     }
 
   private:
-    ComboBox& cb;
+    ComboBox& cb_;
   };
 
-  juce::AudioProcessorEditor& editor;
-  const juce::RangedAudioParameter* const parameter;
+  juce::AudioProcessorEditor& editor_;
+  const juce::RangedAudioParameter* const parameter_;
 
-  Scale& scale;
-  Palette& pal;
-  StatusBar& statusBar;
-  NumberEditor& numberEditor;
-  juce::ParameterAttachment attachment;
+  Scale& scale_;
+  Palette& pal_;
+  StatusBar& statusBar_;
+  NumberEditor& numberEditor_;
+  juce::ParameterAttachment attachment_;
 
-  juce::PopupMenu menu;
+  juce::PopupMenu menu_;
 
-  size_t itemIndex{};
-  size_t defaultIndex{};
+  size_t itemIndex_{};
+  size_t defaultIndex_{};
 
-  bool isMouseEntered = false;
-  juce::Font font;
-  std::vector<juce::String> items;
+  bool isMouseEntered_ = false;
+  juce::Font font_;
+  std::vector<juce::String> items_;
 
   void showHostMenuNative(juce::Point<int> position) {
-    if (auto* hostContext = editor.getHostContext()) {
-      if (auto hostContextMenu = hostContext->getContextMenuForParameter(parameter)) {
+    if (auto* hostContext = editor_.getHostContext()) {
+      if (auto hostContextMenu = hostContext->getContextMenuForParameter(parameter_)) {
         hostContextMenu->showNativeMenu(position);
       }
     }
   }
 
   void showHostMenuJuce() {
-    if (auto* hostContext = editor.getHostContext()) {
-      if (auto hostContextMenu = hostContext->getContextMenuForParameter(parameter)) {
+    if (auto* hostContext = editor_.getHostContext()) {
+      if (auto hostContextMenu = hostContext->getContextMenuForParameter(parameter_)) {
         hostContextMenu->getEquivalentPopupMenu().showMenuAsync(
           juce::PopupMenu::Options().withTargetComponent(this));
       }
@@ -112,14 +114,14 @@ protected:
   }
 
   void updateStatusBar() {
-    if (items.empty()) { return; }
-    statusBar.setText(std::format("{}: {} ({}/{})", parameter->getName(256).toRawUTF8(),
-                                  items[itemIndex].toRawUTF8(), itemIndex + 1, items.size()));
+    if (items_.empty()) { return; }
+    statusBar_.setText(std::format("{}: {} ({}/{})", parameter_->getName(256).toRawUTF8(),
+                                   items_[itemIndex_].toRawUTF8(), itemIndex_ + 1, items_.size()));
   }
 
   void setInternalValue(size_t newIndex) {
-    if (itemIndex == newIndex || newIndex >= items.size()) { return; }
-    itemIndex = newIndex;
+    if (itemIndex_ == newIndex || newIndex >= items_.size()) { return; }
+    itemIndex_ = newIndex;
     updateStatusBar();
     repaint();
 
@@ -129,37 +131,37 @@ protected:
   }
 
   void invokeMenu() {
-    menu.clear();
-    menu.addSectionHeader(parameter->getName(2048));
+    menu_.clear();
+    menu_.addSectionHeader(parameter_->getName(2048));
 
-    for (size_t idx = 0; idx < items.size(); ++idx) {
-      menu.addItem(juce::PopupMenu::Item(items[idx])
-                     .setID(static_cast<int>(idx) + 1)
-                     .setTicked(idx == itemIndex));
+    for (size_t idx = 0; idx < items_.size(); ++idx) {
+      menu_.addItem(juce::PopupMenu::Item(items_[idx])
+                      .setID(static_cast<int>(idx) + 1)
+                      .setTicked(idx == itemIndex_));
     }
 
-    menu.showMenuAsync(juce::PopupMenu::Options()
-                         .withInitiallySelectedItem(static_cast<int>(itemIndex) + 1)
-                         .withTargetComponent(this),
-                       [this](int id) {
-                         if (id != 0) { // 0 means menu was dismissed without selection
-                           size_t idx = static_cast<size_t>(id - 1);
-                           if (idx < items.size()) {
-                             setInternalValue(idx);
-                             attachment.setValueAsCompleteGesture(static_cast<float>(itemIndex));
-                           }
-                         }
-                         this->repaint();
-                       });
+    menu_.showMenuAsync(juce::PopupMenu::Options()
+                          .withInitiallySelectedItem(static_cast<int>(itemIndex_) + 1)
+                          .withTargetComponent(this),
+                        [this](int id) {
+                          if (id != 0) { // 0 means menu was dismissed without selection
+                            size_t idx = static_cast<size_t>(id - 1);
+                            if (idx < items_.size()) {
+                              setInternalValue(idx);
+                              attachment_.setValueAsCompleteGesture(static_cast<float>(itemIndex_));
+                            }
+                          }
+                          repaint();
+                        });
   }
 
 public:
   ComboBox(juce::AudioProcessorEditor& editor, Palette& palette, juce::UndoManager* undoManager,
            juce::RangedAudioParameter* parameter, Scale& scale, StatusBar& statusBar,
            NumberEditor& numberEditor, std::vector<juce::String> menuItems)
-      : editor(editor), parameter(parameter), scale(scale), pal(palette), statusBar(statusBar),
-        numberEditor(numberEditor),
-        attachment(
+      : editor_(editor), parameter_(parameter), scale_(scale), pal_(palette), statusBar_(statusBar),
+        numberEditor_(numberEditor),
+        attachment_(
           *parameter,
           [&](float newRaw) {
             size_t idx
@@ -167,16 +169,16 @@ public:
             setInternalValue(idx);
           },
           undoManager),
-        defaultIndex([&]() -> size_t {
+        defaultIndex_([&]() -> size_t {
           if (menuItems.empty()) { return 0; }
           // TODO: C++26 std::saturate_cast may be used to simplify.
           auto value = scale.map(parameter->getDefaultValue());
           auto mapped = static_cast<size_t>(std::max(static_cast<decltype(value)>(0), value));
           return std::min(mapped, menuItems.size() - 1);
         }()),
-        font(palette.getFont(TextSize::normal)), items(menuItems) {
-    attachment.sendInitialUpdate();
-    editor.addAndMakeVisible(*this, 0);
+        font_(palette.getFont(TextSize::normal)), items_(menuItems) {
+    attachment_.sendInitialUpdate();
+    editor_.addAndMakeVisible(*this, 0);
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
     setWantsKeyboardFocus(true);
     setMouseClickGrabsKeyboardFocus(true);
@@ -189,59 +191,59 @@ public:
     return std::make_unique<ComboBoxAccessibilityHandler>(*this, std::move(actions));
   }
 
-  virtual void resized() override { font = pal.getFont(TextSize::normal); }
+  virtual void resized() override { font_ = pal_.getFont(TextSize::normal); }
 
   virtual void paint(juce::Graphics& ctx) override {
-    const float lw1 = pal.borderWidth(); // Border width.
+    const float lw1 = pal_.borderWidth(); // Border width.
     const float lw2 = 2 * lw1;
     const float lwHalf = lw1 / 2;
     const float width = float(getWidth());
     const float height = float(getHeight());
 
     // Background.
-    ctx.setColour(pal.surface());
+    ctx.setColour(pal_.surface());
     ctx.fillRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2);
 
     // Border.
     if constexpr (style == Uhhyou::Style::accent) {
-      ctx.setColour(isMouseEntered ? pal.accent() : pal.border());
+      ctx.setColour(isMouseEntered_ ? pal_.accent() : pal_.border());
     } else if constexpr (style == Uhhyou::Style::warning) {
-      ctx.setColour(isMouseEntered ? pal.warning() : pal.border());
+      ctx.setColour(isMouseEntered_ ? pal_.warning() : pal_.border());
     } else {
-      ctx.setColour(isMouseEntered ? pal.main() : pal.border());
+      ctx.setColour(isMouseEntered_ ? pal_.main() : pal_.border());
     }
     ctx.drawRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2, lw1);
 
     // Text.
-    if (itemIndex < items.size()) {
-      ctx.setFont(font);
-      ctx.setColour(pal.foreground());
-      ctx.drawText(items[itemIndex], juce::Rectangle<float>(float(0), float(0), width, height),
+    if (itemIndex_ < items_.size()) {
+      ctx.setFont(font_);
+      ctx.setColour(pal_.foreground());
+      ctx.drawText(items_[itemIndex_], juce::Rectangle<float>(float(0), float(0), width, height),
                    juce::Justification::centred);
     }
   }
 
   virtual void mouseEnter(const juce::MouseEvent&) override {
-    isMouseEntered = true;
+    isMouseEntered_ = true;
     updateStatusBar();
     repaint();
   }
 
   virtual void mouseExit(const juce::MouseEvent&) override {
-    isMouseEntered = false;
-    statusBar.clear();
+    isMouseEntered_ = false;
+    statusBar_.clear();
     repaint();
   }
 
   virtual void mouseDown(const juce::MouseEvent& event) override {
     if (event.mods.isRightButtonDown()) {
-      showHostMenuNative(editor.getMouseXYRelative());
+      showHostMenuNative(editor_.getMouseXYRelative());
       return;
     }
 
     if (event.mods.isCommandDown()) {
-      setInternalValue(defaultIndex);
-      attachment.setValueAsCompleteGesture(static_cast<float>(itemIndex));
+      setInternalValue(defaultIndex_);
+      attachment_.setValueAsCompleteGesture(static_cast<float>(itemIndex_));
       return;
     }
 
@@ -251,12 +253,12 @@ public:
   virtual void mouseWheelMove(const juce::MouseEvent&,
                               const juce::MouseWheelDetails& wheel) override {
     if (std::abs(wheel.deltaY) <= std::numeric_limits<float>::epsilon()) { return; }
-    if (items.empty()) { return; }
+    if (items_.empty()) { return; }
 
-    size_t nextIndex = (itemIndex + (wheel.deltaY < 0 ? items.size() - 1 : 1)) % items.size();
+    size_t nextIndex = (itemIndex_ + (wheel.deltaY < 0 ? items_.size() - 1 : 1)) % items_.size();
 
     setInternalValue(nextIndex);
-    attachment.setValueAsCompleteGesture(static_cast<float>(itemIndex));
+    attachment_.setValueAsCompleteGesture(static_cast<float>(itemIndex_));
   }
 
   virtual bool keyPressed(const juce::KeyPress& key) override {
@@ -275,13 +277,13 @@ public:
 
     if (key.isKeyCode(KP::backspaceKey) || key.isKeyCode(KP::deleteKey)) {
       if (mods.isCommandDown()) {
-        setInternalValue(defaultIndex);
-        attachment.setValueAsCompleteGesture(static_cast<float>(itemIndex));
+        setInternalValue(defaultIndex_);
+        attachment_.setValueAsCompleteGesture(static_cast<float>(itemIndex_));
         return true;
       }
     }
 
-    if (items.empty()) { return false; }
+    if (items_.empty()) { return false; }
 
     int direction = 0;
     if (key.isKeyCode(KP::upKey) || key.isKeyCode(KP::leftKey)) {
@@ -291,9 +293,9 @@ public:
     }
 
     if (direction != 0) {
-      size_t nextIndex = (itemIndex + (direction < 0 ? items.size() - 1 : 1)) % items.size();
+      size_t nextIndex = (itemIndex_ + (direction < 0 ? items_.size() - 1 : 1)) % items_.size();
       setInternalValue(nextIndex);
-      attachment.setValueAsCompleteGesture(static_cast<float>(itemIndex));
+      attachment_.setValueAsCompleteGesture(static_cast<float>(itemIndex_));
       return true;
     }
 

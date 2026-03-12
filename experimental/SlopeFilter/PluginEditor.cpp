@@ -39,12 +39,12 @@ struct Metrics {
 const juce::String sSlopeFilter{"Slope Filter"};
 
 Editor::Editor(Processor& processor) : EditorBase(processor, informationText) {
-  auto& s_ = processor.param.scale;
+  auto& sc = processor.param.scale;
 
-  addComboBox(sSlopeFilter, "shelvingType", s_.boolean, {"Low Shelf", "High Shelf"}, "Type");
-  addTextKnob(sSlopeFilter, "startHz", s_.startHz, {}, 5, "Slope Start [Hz]");
-  addTextKnob(sSlopeFilter, "slopeDecibel", s_.slopeDecibel, {}, 5, "Slope [dB/oct]");
-  addTextKnob(sSlopeFilter, "outputGain", s_.outputGain, {}, 5, "Output [dB]");
+  addComboBox(sSlopeFilter, "shelvingType", sc.boolean, {"Low Shelf", "High Shelf"}, "Type");
+  addTextKnob(sSlopeFilter, "startHz", sc.startHz, {}, 5, "Slope Start [Hz]");
+  addTextKnob(sSlopeFilter, "slopeDecibel", sc.slopeDecibel, {}, 5, "Slope [dB/oct]");
+  addTextKnob(sSlopeFilter, "outputGain", sc.outputGain, {}, 5, "Output [dB]");
 
   // `setSize` must be called at last.
   const float scale = getWindowScale();
@@ -67,15 +67,15 @@ void Editor::resized() {
   const int left1 = left0 + mt.sectionWidth + mt.uiMargin;
 
   int currentTop = top0;
-  if (auto sc = sections.find(sSlopeFilter); sc != sections.end()) {
-    currentTop = layoutVerticalSection(groupLabels, left0, currentTop, mt.sectionWidth, mt.labelH,
+  if (auto sc = sections_.find(sSlopeFilter); sc != sections_.end()) {
+    currentTop = layoutVerticalSection(groupLabels_, left0, currentTop, mt.sectionWidth, mt.labelH,
                                        mt.labelY, sc->first, sc->second);
   }
 
   layoutActionSectionAndPluginInfo(left1, top0, mt.sectionWidth, mt.labelW, mt.labelX, mt.labelH,
                                    mt.labelY, scale);
 
-  statusBar.setBounds(
+  statusBar_.setBounds(
     Rect{left0, bottom - mt.labelH - mt.uiMargin, mt.totalWidth - 2 * mt.uiMargin, mt.labelH});
 }
 

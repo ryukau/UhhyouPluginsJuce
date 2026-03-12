@@ -79,48 +79,48 @@ public:
   enum Layout { showLabel = 0, expand = 1 };
 
 private:
-  Palette& pal;
-  Layout option;
-  juce::Component& widget;
-  LockableLabel lockLabel;
+  Palette& pal_;
+  Layout option_;
+  juce::Component& widget_;
+  LockableLabel lockLabel_;
 
 public:
   LabeledWidget(ParameterLockRegistry& locks, Palette& palette, StatusBar& statusBar,
                 const juce::String& label, juce::Component& widget,
                 const juce::RangedAudioParameter* const parameter,
                 Layout option = Layout::showLabel)
-      : pal(palette), option(option), widget(widget),
-        lockLabel(locks, palette, statusBar, label, parameter, juce::Justification::centredLeft,
-                  LockableLabel::Orientation::horizontal) {
-    if (option == Layout::showLabel) {
-      addAndMakeVisible(lockLabel);
+      : pal_(palette), option_(option), widget_(widget),
+        lockLabel_(locks, palette, statusBar, label, parameter, juce::Justification::centredLeft,
+                   LockableLabel::Orientation::horizontal) {
+    if (option_ == Layout::showLabel) {
+      addAndMakeVisible(lockLabel_);
     } else {
       locks.lock(parameter);
     }
-    addAndMakeVisible(widget);
+    addAndMakeVisible(widget_);
   }
 
-  LockableLabel& lockableLabel() { return lockLabel; }
+  LockableLabel& lockableLabel() { return lockLabel_; }
 
   void resized() override {
     auto r = getLocalBounds();
-    if (option == expand) {
-      widget.setBounds(r);
+    if (option_ == expand) {
+      widget_.setBounds(r);
     } else {
       auto labelBounds = r.removeFromLeft(r.getWidth() / 2);
-      lockLabel.setBounds(labelBounds);
-      widget.setBounds(r);
+      lockLabel_.setBounds(labelBounds);
+      widget_.setBounds(r);
     }
   }
 
   void paint(juce::Graphics& ctx) override {
-    if (option == showLabel) {
+    if (option_ == showLabel) {
       auto r = getLocalBounds();
       r.removeFromRight(r.getWidth() / 2);
-      r.removeFromLeft(int(pal.getFontHeight(TextSize::normal)));
+      r.removeFromLeft(int(pal_.getFontHeight(TextSize::normal)));
 
-      ctx.setColour(pal.border().withAlpha(float(0.25)));
-      ctx.drawLine({r.getBottomLeft().toFloat(), r.getBottomRight().toFloat()}, pal.borderWidth());
+      ctx.setColour(pal_.border().withAlpha(float(0.25)));
+      ctx.drawLine({r.getBottomLeft().toFloat(), r.getBottomRight().toFloat()}, pal_.borderWidth());
     }
   }
 };

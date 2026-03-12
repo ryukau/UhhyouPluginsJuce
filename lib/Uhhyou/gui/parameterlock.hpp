@@ -19,33 +19,33 @@ namespace Uhhyou {
 
 class ParameterLockRegistry {
 private:
-  std::unordered_set<const juce::AudioProcessorParameter*> locked;
-  std::function<void()> onChange;
+  std::unordered_set<const juce::AudioProcessorParameter*> locked_;
+  std::function<void()> onChange_;
 
 public:
-  void setOnChange(std::function<void()> callback) { onChange = callback; }
+  void setOnChange(std::function<void()> callback) { onChange_ = callback; }
 
-  bool isLocked(const juce::AudioProcessorParameter* p) const { return locked.contains(p); }
+  bool isLocked(const juce::AudioProcessorParameter* p) const { return locked_.contains(p); }
 
   void lock(const juce::AudioProcessorParameter* p) {
     if (p == nullptr) { return; }
-    locked.insert(p);
-    if (onChange) { onChange(); }
+    locked_.insert(p);
+    if (onChange_) { onChange_(); }
   }
 
   void toggle(const juce::AudioProcessorParameter* p) {
     if (p == nullptr) { return; }
 
-    if (locked.contains(p)) {
-      locked.erase(p);
+    if (locked_.contains(p)) {
+      locked_.erase(p);
     } else {
-      locked.insert(p);
+      locked_.insert(p);
     }
 
-    if (onChange) { onChange(); }
+    if (onChange_) { onChange_(); }
   }
 
-  const auto& getLockedParameters() const { return locked; }
+  const auto& getLockedParameters() const { return locked_; }
 };
 
 class LockableLabel : public juce::Component, public juce::SettableTooltipClient {
@@ -59,42 +59,44 @@ private:
                                       juce::AccessibilityActions actions)
         : juce::AccessibilityHandler(labelToWrap, juce::AccessibilityRole::toggleButton,
                                      std::move(actions)),
-          label(labelToWrap) {}
+          label_(labelToWrap) {}
 
     juce::AccessibleState getCurrentState() const override {
       auto state = juce::AccessibilityHandler::getCurrentState().withCheckable();
-      if (label.parameter && label.locks.isLocked(label.parameter)) { state = state.withChecked(); }
+      if (label_.parameter_ && label_.locks_.isLocked(label_.parameter_)) {
+        state = state.withChecked();
+      }
       return state;
     }
 
     juce::String getTitle() const override {
-      juce::String status = (label.parameter && label.locks.isLocked(label.parameter))
+      juce::String status = (label_.parameter_ && label_.locks_.isLocked(label_.parameter_))
         ? ", Randomize off."
         : ", Randomize on.";
-      return label.labelText + status;
+      return label_.labelText_ + status;
     }
 
   private:
-    LockableLabel& label;
+    LockableLabel& label_;
   };
 
-  ParameterLockRegistry& locks;
-  Palette& pal;
-  StatusBar& statusBar;
-  const juce::RangedAudioParameter* const parameter;
-  juce::String labelText;
-  juce::Justification justification;
-  Orientation orientation;
-  bool isHovering = false;
+  ParameterLockRegistry& locks_;
+  Palette& pal_;
+  StatusBar& statusBar_;
+  const juce::RangedAudioParameter* const parameter_;
+  juce::String labelText_;
+  juce::Justification justification_;
+  Orientation orientation_;
+  bool isHovering_ = false;
 
   void updateStatusBar() {
-    statusBar.setText(std::format("{}: Randomize {}", parameter->getName(256).toRawUTF8(),
-                                  locks.isLocked(parameter) ? "OFF" : "ON"));
+    statusBar_.setText(std::format("{}: Randomize {}", parameter_->getName(256).toRawUTF8(),
+                                   locks_.isLocked(parameter_) ? "OFF" : "ON"));
   }
 
   void toggleLock() {
-    if (!parameter) { return; }
-    locks.toggle(parameter);
+    if (!parameter_) { return; }
+    locks_.toggle(parameter_);
     updateStatusBar();
     repaint();
 
@@ -108,8 +110,8 @@ public:
                 const juce::String& label, const juce::RangedAudioParameter* const parameter,
                 juce::Justification justification,
                 Orientation orientation = Orientation::horizontal)
-      : locks(locks), pal(palette), statusBar(statusBar), parameter(parameter), labelText(label),
-        justification(justification), orientation(orientation) {
+      : locks_(locks), pal_(palette), statusBar_(statusBar), parameter_(parameter),
+        labelText_(label), justification_(justification), orientation_(orientation) {
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
     setWantsKeyboardFocus(true);
     setMouseClickGrabsKeyboardFocus(true);
@@ -123,11 +125,11 @@ public:
 
   void paint(juce::Graphics& ctx) override {
     auto bounds = getLocalBounds().toFloat();
-    if (justification.testFlags(juce::Justification::left)) {
-      bounds.removeFromLeft(std::floor(pal.getFontHeight(TextSize::normal)));
+    if (justification_.testFlags(juce::Justification::left)) {
+      bounds.removeFromLeft(std::floor(pal_.getFontHeight(TextSize::normal)));
     }
 
-    if (orientation == Orientation::vertical) {
+    if (orientation_ == Orientation::vertical) {
       float cx = bounds.getCentreX();
       float cy = bounds.getCentreY();
       constexpr float pi = std::numbers::pi_v<float>;
@@ -140,20 +142,21 @@ public:
     }
 
     // Draw Text
-    ctx.setFont(pal.getFont(TextSize::normal));
-    ctx.setColour(locks.isLocked(parameter) ? pal.foreground().withAlpha(0.5f) : pal.foreground());
-    ctx.drawText(labelText, bounds, justification);
+    ctx.setFont(pal_.getFont(TextSize::normal));
+    ctx.setColour(locks_.isLocked(parameter_) ? pal_.foreground().withAlpha(0.5f)
+                                              : pal_.foreground());
+    ctx.drawText(labelText_, bounds, justification_);
   }
 
   void mouseEnter(const juce::MouseEvent&) override {
-    isHovering = true;
+    isHovering_ = true;
     updateStatusBar();
     repaint();
   }
 
   void mouseExit(const juce::MouseEvent&) override {
-    isHovering = false;
-    statusBar.clear();
+    isHovering_ = false;
+    statusBar_.clear();
     repaint();
   }
 

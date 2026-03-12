@@ -18,7 +18,7 @@ class DSPCore {
 public:
   using Real = double;
 
-  DSPCore(ParameterStore& param) : param(param) { noteIdStack.reserve(1024); }
+  DSPCore(ParameterStore& param) : param(param) { noteIdStack_.reserve(1024); }
 
   ParameterStore& param;
   Real tempo = Real(120);
@@ -53,61 +53,61 @@ private:
     int noteId{};
   };
 
-  std::vector<NoteData> noteIdStack;
+  std::vector<NoteData> noteIdStack_;
 
-  Real sampleRate = 44100;
-  Real upRate = upFold * 44100.0;
-  Real fadeKp = 0;
-  Real noteKp = 0;
-  Real notePitchScalar = Real(1);
-  Real noteGainScalar = Real(1);
+  Real sampleRate_ = 44100;
+  Real upRate_ = upFold * 44100.0;
+  Real fadeKp_ = 0;
+  Real noteKp_ = 0;
+  Real notePitchScalar_ = Real(1);
+  Real noteGainScalar_ = Real(1);
 
-  unsigned overSampling = 1;
-  Saturator<Real>::Function saturatorType = Saturator<Real>::Function::hardclip;
+  unsigned overSampling_ = 1;
+  Saturator<Real>::Function saturatorType_ = Saturator<Real>::Function::hardclip;
 
-  bool isResettingLfoPhase = false;
-  bool useFeedbackGate = false;
-  bool noteReceive = false;
+  bool isResettingLfoPhase_ = false;
+  bool useFeedbackGate_ = false;
+  bool noteReceive_ = false;
 
-  SmootherParameter<Real> smoo;
-  ExpSmootherLocal<Real> notePitch;
-  ExpSmootherLocal<Real> noteGain;
-  ExpSmootherLocal<Real> globalPitchBend;
+  SmootherParameter<Real> smoo_;
+  ExpSmootherLocal<Real> notePitch_;
+  ExpSmootherLocal<Real> noteGain_;
+  ExpSmootherLocal<Real> globalPitchBend_;
 
-  ExpSmoother<Real> saturationGain{smoo};
-  ExpSmoother<Real> inputBlend{smoo};
-  ExpSmoother<Real> feedback0{smoo};
-  ExpSmoother<Real> feedback1{smoo};
-  RotaryExpSmoother<Real> lfoPhaseInitial{smoo};
-  RotaryExpSmoother<Real> lfoPhaseStereoOffset{smoo};
-  ExpSmoother<Real> delayTimeSample0{smoo};
-  ExpSmoother<Real> delayTimeSample1{smoo};
-  ExpSmoother<Real> viscosityCutoff{smoo};
-  ExpSmoother<Real> sigModMode{smoo};
-  ExpSmoother<Real> sigTimeMod0{smoo};
-  ExpSmoother<Real> sigTimeMod1{smoo};
-  ExpSmoother<Real> lfoTimeMod0{smoo};
-  ExpSmoother<Real> lfoTimeMod1{smoo};
-  ExpSmoother<Real> sigAmpMod0{smoo};
-  ExpSmoother<Real> sigAmpMod1{smoo};
-  ExpSmoother<Real> highpassCutoff{smoo};
-  ExpSmootherLocal<Real> highpassFade;
-  ExpSmoother<Real> flangeBlend{smoo};
-  ExpSmoother<Real> safeFeedback{smoo};
-  ExpSmoother<Real> flangePolarity{smoo};
-  ExpSmoother<Real> lowpassCutoff{smoo};
-  ExpSmootherLocal<Real> lowpassFade;
-  ExpSmoother<Real> dryGain{smoo};
-  ExpSmoother<Real> wetGain{smoo};
+  ExpSmoother<Real> saturationGain_{smoo_};
+  ExpSmoother<Real> inputBlend_{smoo_};
+  ExpSmoother<Real> feedback0_{smoo_};
+  ExpSmoother<Real> feedback1_{smoo_};
+  RotaryExpSmoother<Real> lfoPhaseInitial_{smoo_};
+  RotaryExpSmoother<Real> lfoPhaseStereoOffset_{smoo_};
+  ExpSmoother<Real> delayTimeSample0_{smoo_};
+  ExpSmoother<Real> delayTimeSample1_{smoo_};
+  ExpSmoother<Real> viscosityCutoff_{smoo_};
+  ExpSmoother<Real> sigModMode_{smoo_};
+  ExpSmoother<Real> sigTimeMod0_{smoo_};
+  ExpSmoother<Real> sigTimeMod1_{smoo_};
+  ExpSmoother<Real> lfoTimeMod0_{smoo_};
+  ExpSmoother<Real> lfoTimeMod1_{smoo_};
+  ExpSmoother<Real> sigAmpMod0_{smoo_};
+  ExpSmoother<Real> sigAmpMod1_{smoo_};
+  ExpSmoother<Real> highpassCutoff_{smoo_};
+  ExpSmootherLocal<Real> highpassFade_;
+  ExpSmoother<Real> flangeBlend_{smoo_};
+  ExpSmoother<Real> safeFeedback_{smoo_};
+  ExpSmoother<Real> flangePolarity_{smoo_};
+  ExpSmoother<Real> lowpassCutoff_{smoo_};
+  ExpSmootherLocal<Real> lowpassFade_;
+  ExpSmoother<Real> dryGain_{smoo_};
+  ExpSmoother<Real> wetGain_{smoo_};
 
-  std::array<Real, 2> preSaturationPeak{};
-  std::array<Real, 2> outputPeak{};
-  std::array<Real, 2> modPhase{};
-  std::array<Fdn2<Real>::DisplayTime, 2> displayTime;
-  std::array<std::array<Real, 2>, 2> halfbandInput{};
-  TempoSyncedLfo<Real> lfo;
-  std::array<HalfBandIIR<Real, HalfBandCoefficient<Real>>, 2> halfbandIir;
-  std::array<Fdn2<Real>, 2> fdn;
+  std::array<Real, 2> preSaturationPeak_{};
+  std::array<Real, 2> outputPeak_{};
+  std::array<Real, 2> modPhase_{};
+  std::array<Fdn2<Real>::DisplayTime, 2> displayTime_;
+  std::array<std::array<Real, 2>, 2> halfbandInput_{};
+  TempoSyncedLfo<Real> lfo_;
+  std::array<HalfBandIIR<Real, HalfBandCoefficient<Real>>, 2> halfbandIir_;
+  std::array<Fdn2<Real>, 2> fdn_;
 };
 
 } // namespace Uhhyou

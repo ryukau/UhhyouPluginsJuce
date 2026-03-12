@@ -26,12 +26,12 @@ public:
   void resized() override;
 
 private:
-  decltype(processor.param.value)& v_() { return processor.param.value; }
+  decltype(processor_.param.value)& val() { return processor_.param.value; }
 
-  LfoPhaseDisplay lfoPhaseDisplay{*this, palette, v_().displayLfoPhase};
-  DelayTimeDisplay delayTimeDisplay{*this, palette, v_()};
-  MeterDisplay meterPreSaturationPeak{*this, palette, v_().displayPreSaturationPeak, "Pre-Sat."};
-  MeterDisplay meterOutputPeak{*this, palette, v_().displayOutputPeak, "Output"};
+  LfoPhaseDisplay lfoPhaseDisplay_{*this, palette_, val().displayLfoPhase};
+  DelayTimeDisplay delayTimeDisplay_{*this, palette_, val()};
+  MeterDisplay meterPreSaturationPeak_{*this, palette_, val().displayPreSaturationPeak, "Pre-Sat."};
+  MeterDisplay meterOutputPeak_{*this, palette_, val().displayOutputPeak, "Output"};
 };
 
 } // namespace Uhhyou

@@ -33,13 +33,13 @@ public:
   void process(const size_t length, const float* in0, const float* in1, float* out0, float* out1);
 
 private:
-  double sampleRate = 44100;
+  double sampleRate_ = 44100;
 
-  SmootherParameter<double> smoo;
-  ExpSmoother<double> crossoverFreq{smoo};
-  ExpSmoother<double> lowerStereoSpread{smoo};
-  ExpSmoother<double> upperStereoSpread{smoo};
-  std::array<LinkwitzRileyFIR2Band4n<double, 4, 8>, 2> crossoverFilter;
+  SmootherParameter<double> smoo_;
+  ExpSmoother<double> crossoverFreq_{smoo_};
+  ExpSmoother<double> lowerStereoSpread_{smoo_};
+  ExpSmoother<double> upperStereoSpread_{smoo_};
+  std::array<LinkwitzRileyFIR2Band4n<double, 4, 8>, 2> crossoverFilter_;
 };
 
 } // namespace Uhhyou

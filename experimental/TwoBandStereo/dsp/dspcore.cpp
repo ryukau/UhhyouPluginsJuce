@@ -11,28 +11,28 @@
 
 namespace Uhhyou {
 
-void DSPCore::setup(double sampleRate_) {
-  sampleRate = double(sampleRate_);
+void DSPCore::setup(double sampleRate) {
+  sampleRate_ = double(sampleRate);
 
-  smoo.setTime(sampleRate, double(1));
+  smoo_.setTime(sampleRate_, double(1));
 
   reset();
   startup();
 }
 
-size_t DSPCore::getLatency() { return crossoverFilter[0].getLatency(); }
+size_t DSPCore::getLatency() { return crossoverFilter_[0].getLatency(); }
 
 #define ASSIGN_PARAMETER(METHOD)                                                                   \
   auto& pv = param.value;                                                                          \
                                                                                                    \
-  crossoverFreq.METHOD(pv.crossoverHz->load() / sampleRate);                                       \
-  lowerStereoSpread.METHOD(pv.lowerStereoSpread->load());                                          \
-  upperStereoSpread.METHOD(pv.upperStereoSpread->load());
+  crossoverFreq_.METHOD(pv.crossoverHz->load() / sampleRate_);                                     \
+  lowerStereoSpread_.METHOD(pv.lowerStereoSpread->load());                                         \
+  upperStereoSpread_.METHOD(pv.upperStereoSpread->load());
 
 void DSPCore::reset() {
   ASSIGN_PARAMETER(reset);
 
-  for (auto& x : crossoverFilter) { x.reset(); }
+  for (auto& x : crossoverFilter_) { x.reset(); }
 
   startup();
 }
@@ -54,16 +54,16 @@ inline std::array<Sample, 2> mixStereo(Sample inL, Sample inR, Sample spread) {
 void DSPCore::process(const size_t length, const float* in0, const float* in1, float* out0,
                       float* out1) {
   for (size_t i = 0; i < length; ++i) {
-    crossoverFreq.process();
-    for (auto& x : crossoverFilter) { x.prepare(crossoverFreq.value()); }
+    crossoverFreq_.process();
+    for (auto& x : crossoverFilter_) { x.prepare(crossoverFreq_.value()); }
 
-    crossoverFilter[0].process(double(in0[i]));
-    crossoverFilter[1].process(double(in1[i]));
+    crossoverFilter_[0].process(double(in0[i]));
+    crossoverFilter_[1].process(double(in1[i]));
 
-    auto lower = mixStereo(crossoverFilter[0].output[0], crossoverFilter[1].output[0],
-                           lowerStereoSpread.process());
-    auto upper = mixStereo(crossoverFilter[0].output[1], crossoverFilter[1].output[1],
-                           upperStereoSpread.process());
+    auto lower = mixStereo(crossoverFilter_[0].output[0], crossoverFilter_[1].output[0],
+                           lowerStereoSpread_.process());
+    auto upper = mixStereo(crossoverFilter_[0].output[1], crossoverFilter_[1].output[1],
+                           upperStereoSpread_.process());
 
     out0[i] = float(lower[0] + upper[0]);
     out1[i] = float(lower[1] + upper[1]);

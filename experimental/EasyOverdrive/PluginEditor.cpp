@@ -43,38 +43,37 @@ const juce::String sMisc{"Misc."};
 
 Editor::Editor(Processor& processor)
     : EditorBase(processor, informationText),
-      oversamplingAttachment(
+      oversamplingAttachment_(
         *processor.param.tree.getParameter("oversampling"),
-        [this](float) { this->processor.setLatencySamples(int(this->processor.dsp.getLatency())); },
-        nullptr),
-      limiterEnabledAttachment(
+        [this](float) { processor_.setLatencySamples(int(processor_.dsp.getLatency())); }, nullptr),
+      limiterEnabledAttachment_(
         *processor.param.tree.getParameter("limiterEnabled"),
-        [this](float) { this->processor.setLatencySamples(int(this->processor.dsp.getLatency())); },
+        [this](float) { processor_.setLatencySamples(int(processor_.dsp.getLatency())); },
         nullptr) {
-  auto& s_ = processor.param.scale;
+  auto& sc = processor.param.scale;
 
-  addTextKnob(sDrive, "preDriveGain", s_.gain, {}, 5);
-  addTextKnob(sDrive, "postDriveGain", s_.gain, {}, 5);
-  addComboBox(sDrive, "overDriveType", s_.overDriveType,
+  addTextKnob(sDrive, "preDriveGain", sc.gain, {}, 5);
+  addTextKnob(sDrive, "postDriveGain", sc.gain, {}, 5);
+  addComboBox(sDrive, "overDriveType", sc.overDriveType,
               {"Immediate", "HardGate", "Spike", "SpikeCubic", "CutoffMod", "Matched", "BadLimiter",
                "PolyDrive"},
               "");
-  addTextKnob(sDrive, "overDriveHoldSecond", s_.overDriveHoldSecond, {}, 5);
-  addTextKnob(sDrive, "overDriveQ", s_.filterQ, {}, 5);
-  addTextKnob(sDrive, "overDriveCharacterAmp", s_.gain, {}, 5);
+  addTextKnob(sDrive, "overDriveHoldSecond", sc.overDriveHoldSecond, {}, 5);
+  addTextKnob(sDrive, "overDriveQ", sc.filterQ, {}, 5);
+  addTextKnob(sDrive, "overDriveCharacterAmp", sc.gain, {}, 5);
 
-  addToggleButton(sAsym, "asymDriveEnabled", s_.boolean, "", "", LabeledWidget::expand);
-  addTextKnob(sAsym, "asymDriveDecaySecond", s_.envelopeSecond, {}, 5);
-  addTextKnob(sAsym, "asymDriveDecayBias", s_.asymDriveDecayBias, {}, 5);
-  addTextKnob(sAsym, "asymDriveQ", s_.filterQ, {}, 5);
-  addTextKnob(sAsym, "asymExponentRange", s_.asymExponentRange, {}, 5);
+  addToggleButton(sAsym, "asymDriveEnabled", sc.boolean, "", "", LabeledWidget::expand);
+  addTextKnob(sAsym, "asymDriveDecaySecond", sc.envelopeSecond, {}, 5);
+  addTextKnob(sAsym, "asymDriveDecayBias", sc.asymDriveDecayBias, {}, 5);
+  addTextKnob(sAsym, "asymDriveQ", sc.filterQ, {}, 5);
+  addTextKnob(sAsym, "asymExponentRange", sc.asymExponentRange, {}, 5);
 
-  addToggleButton(sLimiter, "limiterEnabled", s_.boolean, "", "", LabeledWidget::expand);
-  addTextKnob(sLimiter, "limiterInputGain", s_.gain, {}, 5);
-  addTextKnob(sLimiter, "limiterReleaseSecond", s_.envelopeSecond, {}, 5);
+  addToggleButton(sLimiter, "limiterEnabled", sc.boolean, "", "", LabeledWidget::expand);
+  addTextKnob(sLimiter, "limiterInputGain", sc.gain, {}, 5);
+  addTextKnob(sLimiter, "limiterReleaseSecond", sc.envelopeSecond, {}, 5);
 
-  addTextKnob(sMisc, "parameterSmoothingSecond", s_.parameterSmoothingSecond, {}, 5);
-  addComboBox(sMisc, "oversampling", s_.oversampling, {"1x", "2x", "16x"}, "");
+  addTextKnob(sMisc, "parameterSmoothingSecond", sc.parameterSmoothingSecond, {}, 5);
+  addComboBox(sMisc, "oversampling", sc.oversampling, {"1x", "2x", "16x"}, "");
 
   // `setSize` must be called at last.
   const float scale = getWindowScale();
@@ -97,29 +96,29 @@ void Editor::resized() {
   const int left1 = left0 + mt.sectionWidth + mt.uiMargin;
 
   int currentTop = top0;
-  if (auto sc = sections.find(sDrive); sc != sections.end()) {
-    currentTop = layoutVerticalSection(groupLabels, left0, currentTop, mt.sectionWidth, mt.labelH,
+  if (auto sc = sections_.find(sDrive); sc != sections_.end()) {
+    currentTop = layoutVerticalSection(groupLabels_, left0, currentTop, mt.sectionWidth, mt.labelH,
                                        mt.labelY, sc->first, sc->second);
   }
-  if (auto sc = sections.find(sAsym); sc != sections.end()) {
-    currentTop = layoutVerticalSection(groupLabels, left0, currentTop, mt.sectionWidth, mt.labelH,
+  if (auto sc = sections_.find(sAsym); sc != sections_.end()) {
+    currentTop = layoutVerticalSection(groupLabels_, left0, currentTop, mt.sectionWidth, mt.labelH,
                                        mt.labelY, sc->first, sc->second);
   }
-  if (auto sc = sections.find(sLimiter); sc != sections.end()) {
-    currentTop = layoutVerticalSection(groupLabels, left0, currentTop, mt.sectionWidth, mt.labelH,
+  if (auto sc = sections_.find(sLimiter); sc != sections_.end()) {
+    currentTop = layoutVerticalSection(groupLabels_, left0, currentTop, mt.sectionWidth, mt.labelH,
                                        mt.labelY, sc->first, sc->second);
   }
 
   currentTop = top0;
-  if (auto sc = sections.find(sMisc); sc != sections.end()) {
-    currentTop = layoutVerticalSection(groupLabels, left1, currentTop, mt.sectionWidth, mt.labelH,
+  if (auto sc = sections_.find(sMisc); sc != sections_.end()) {
+    currentTop = layoutVerticalSection(groupLabels_, left1, currentTop, mt.sectionWidth, mt.labelH,
                                        mt.labelY, sc->first, sc->second);
   }
 
   layoutActionSectionAndPluginInfo(left1, currentTop, mt.sectionWidth, mt.labelW, mt.labelX,
                                    mt.labelH, mt.labelY, scale);
 
-  statusBar.setBounds(
+  statusBar_.setBounds(
     Rect{left0, bottom - mt.labelH - mt.uiMargin, mt.totalWidth - 2 * mt.uiMargin, mt.labelH});
 }
 

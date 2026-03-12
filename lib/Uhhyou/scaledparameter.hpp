@@ -31,17 +31,17 @@ inline auto formatNumber(float value, int precision) {
 
 template<typename Scale> class ScaledParameter : public juce::RangedAudioParameter {
 private:
-  float defaultNormalized{};
-  std::atomic<float> raw{};
-  Scale& scale; // Scale might output int, uint or double.
-  juce::NormalisableRange<float> range;
+  float defaultNormalized_{};
+  std::atomic<float> raw_{};
+  Scale& scale_; // Scale might output int, uint or double.
+  juce::NormalisableRange<float> range_;
 
-  ParameterTextRepresentation textRep = ParameterTextRepresentation::display;
+  ParameterTextRepresentation textRep_ = ParameterTextRepresentation::display;
 
   using ToTextFn = std::function<juce::String(float)>;
   using FromTextFn = std::function<float(const juce::String&)>;
-  ToTextFn toTextFunc;
-  FromTextFn fromTextFunc;
+  ToTextFn toTextFunc_;
+  FromTextFn fromTextFunc_;
 
 public:
   ScaledParameter(float defaultNormalized, Scale& scale, const juce::String& parameterId,
@@ -54,38 +54,39 @@ public:
           juce::ParameterID(parameterId, versionHint), parameterName,
           juce::AudioProcessorParameterWithIDAttributes().withCategory(category).withLabel(
             unitLabel)),
-        defaultNormalized(defaultNormalized), raw(float(scale.map(defaultNormalized))),
-        scale(scale), range(
-                        float(scale.getMin()), float(scale.getMax()),
-                        [&](float, float, float normalized) { return normalizedToRaw(normalized); },
-                        [&](float, float, float rawValue) { return rawToNormalized(rawValue); },
-                        [&](float, float, float v) { return v; }),
-        textRep(textRep), toTextFunc(std::move(toText)), fromTextFunc(std::move(fromText)) {
-    assert((toTextFunc == nullptr && fromTextFunc == nullptr)
-           || (toTextFunc != nullptr && fromTextFunc != nullptr));
+        defaultNormalized_(defaultNormalized), raw_(float(scale.map(defaultNormalized))),
+        scale_(scale),
+        range_(
+          float(scale.getMin()), float(scale.getMax()),
+          [&](float, float, float normalized) { return normalizedToRaw(normalized); },
+          [&](float, float, float rawValue) { return rawToNormalized(rawValue); },
+          [&](float, float, float v) { return v; }),
+        textRep_(textRep), toTextFunc_(std::move(toText)), fromTextFunc_(std::move(fromText)) {
+    assert((toTextFunc_ == nullptr && fromTextFunc_ == nullptr)
+           || (toTextFunc_ != nullptr && fromTextFunc_ != nullptr));
   }
 
-  const juce::NormalisableRange<float>& getNormalisableRange() const override { return range; }
+  const juce::NormalisableRange<float>& getNormalisableRange() const override { return range_; }
 
-  std::atomic<float>* getAtomicRaw() { return &raw; }
-  Scale& getScale() { return scale; }
-  ParameterTextRepresentation getTextRepresentation() const { return textRep; }
+  std::atomic<float>* getAtomicRaw() { return &raw_; }
+  Scale& getScale() { return scale_; }
+  ParameterTextRepresentation getTextRepresentation() const { return textRep_; }
 
   float rawToNormalized(float rawValue) const {
-    return std::clamp(float(scale.invmap(rawValue)), float(0), float(1));
+    return std::clamp(float(scale_.invmap(rawValue)), float(0), float(1));
   }
 
   float normalizedToRaw(float normalized) const {
-    return float(scale.map(std::clamp(normalized, float(0), float(1))));
+    return float(scale_.map(std::clamp(normalized, float(0), float(1))));
   }
 
-  float getDefaultValue() const override { return defaultNormalized; }
+  float getDefaultValue() const override { return defaultNormalized_; }
 
 private:
-  float getValue() const override { return rawToNormalized(raw); }
+  float getValue() const override { return rawToNormalized(raw_); }
 
   void setValue(float newValue) override {
-    raw = float(scale.map(std::clamp(newValue, float(0), float(1))));
+    raw_ = float(scale_.map(std::clamp(newValue, float(0), float(1))));
   }
 
   static constexpr int decimalDigitsF32 = std::numeric_limits<float>::digits10 + 1;
@@ -96,24 +97,24 @@ private:
     // in JUCE 7.
     if (precision >= decimalDigitsF32) { precision = decimalDigitsF32; }
 
-    if (toTextFunc != nullptr) { return toTextFunc(normalized); }
+    if (toTextFunc_ != nullptr) { return toTextFunc_(normalized); }
 
-    if (textRep == ParameterTextRepresentation::display) {
-      return formatNumber(float(scale.toDisplay(normalized)), precision);
-    } else if (textRep == ParameterTextRepresentation::raw) {
-      return formatNumber(float(scale.map(normalized)), precision);
+    if (textRep_ == ParameterTextRepresentation::display) {
+      return formatNumber(float(scale_.toDisplay(normalized)), precision);
+    } else if (textRep_ == ParameterTextRepresentation::raw) {
+      return formatNumber(float(scale_.map(normalized)), precision);
     }
     // `ParameterTextRepresentation::normalized` case.
     return formatNumber(normalized, precision);
   }
 
   float getValueForText(const juce::String& text) const override {
-    if (fromTextFunc != nullptr) { return std::clamp(fromTextFunc(text), float(0), float(1)); }
+    if (fromTextFunc_ != nullptr) { return std::clamp(fromTextFunc_(text), float(0), float(1)); }
 
     auto value = text.getFloatValue();
-    if (textRep == ParameterTextRepresentation::display) {
-      value = float(scale.fromDisplay(value));
-    } else if (textRep == ParameterTextRepresentation::raw) {
+    if (textRep_ == ParameterTextRepresentation::display) {
+      value = float(scale_.fromDisplay(value));
+    } else if (textRep_ == ParameterTextRepresentation::raw) {
       value = rawToNormalized(value);
     }
     // `ParameterTextRepresentation::normalized` case.

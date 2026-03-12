@@ -40,26 +40,26 @@ private:
   static constexpr size_t upFold = 16;
   static constexpr std::array<size_t, 3> fold{1, 2, upFold};
 
-  double sampleRate = 44100;
-  double upRate = upFold * 44100;
+  double sampleRate_ = 44100;
+  double upRate_ = upFold * 44100;
 
-  size_t oversampling = 1;
-  size_t overDriveType = 0;
-  bool asymDriveEnabled = true;
-  bool limiterEnabled = true;
+  size_t oversampling_ = 1;
+  size_t overDriveType_ = 0;
+  bool asymDriveEnabled_ = true;
+  bool limiterEnabled_ = true;
 
-  SmootherParameter<double> smoo;
-  ExpSmoother<double> preDriveGain{smoo};
-  ExpSmoother<double> limiterInputGain{smoo};
-  ExpSmoother<double> postDriveGain{smoo};
+  SmootherParameter<double> smoo_;
+  ExpSmoother<double> preDriveGain_{smoo_};
+  ExpSmoother<double> limiterInputGain_{smoo_};
+  ExpSmoother<double> postDriveGain_{smoo_};
 
-  std::array<BadLimiter<double>, 2> overDrive{{{smoo}, {smoo}}};
-  std::array<AsymmetricDrive<double>, 2> asymDrive{{{smoo}, {smoo}}};
-  std::array<BasicLimiter<double>, 2> limiter;
+  std::array<BadLimiter<double>, 2> overDrive_{{{smoo_}, {smoo_}}};
+  std::array<AsymmetricDrive<double>, 2> asymDrive_{{{smoo_}, {smoo_}}};
+  std::array<BasicLimiter<double>, 2> limiter_;
 
-  std::array<CubicUpSampler<double, upFold>, 2> upSampler;
-  std::array<DecimationLowpass<double, Sos16FoldFirstStage<double>>, 2> decimationLowpass;
-  std::array<HalfBandIIR<double, HalfBandCoefficient<double>>, 2> halfbandIir;
+  std::array<CubicUpSampler<double, upFold>, 2> upSampler_;
+  std::array<DecimationLowpass<double, Sos16FoldFirstStage<double>>, 2> decimationLowpass_;
+  std::array<HalfBandIIR<double, HalfBandCoefficient<double>>, 2> halfbandIir_;
 };
 
 } // namespace Uhhyou

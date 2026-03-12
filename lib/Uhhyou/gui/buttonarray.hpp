@@ -19,52 +19,52 @@ template<typename Scale, size_t nParameter> class ButtonArray : public juce::Com
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ButtonArray)
 
-  juce::AudioProcessorEditor& editor;
-  std::array<juce::RangedAudioParameter*, nParameter> parameter;
-  Palette& pal;
-  Scale& scale;
-  ParameterArrayAttachment<nParameter> attachment;
+  juce::AudioProcessorEditor& editor_;
+  std::array<juce::RangedAudioParameter*, nParameter> parameter_;
+  Palette& pal_;
+  Scale& scale_;
+  ParameterArrayAttachment<nParameter> attachment_;
 
-  std::array<int, nParameter> value{};
+  std::array<int, nParameter> value_{};
 
-  bool isMouseEntered = false;
-  bool isTogglingOn = false;
-  juce::Point<float> mousePos;
+  bool isMouseEntered_ = false;
+  bool isTogglingOn_ = false;
+  juce::Point<float> mousePos_;
 
-  inline int getMousePosIndex() { return int((mousePos.x * value.size()) / getWidth()); }
+  inline int getMousePosIndex() { return int((mousePos_.x * value_.size()) / getWidth()); }
 
   inline float getRawValue(int index) {
-    return value[index] == 0 ? float(scale.getMin()) : float(scale.getMax());
+    return value_[index] == 0 ? float(scale_.getMin()) : float(scale_.getMax());
   }
 
   inline void toggleValueAtIndex(int index) {
-    value[index] = isTogglingOn ? 1 : 0;
-    attachment.beginGesture(index);
-    attachment.setValueAsPartOfGesture(index, getRawValue(index));
+    value_[index] = isTogglingOn_ ? 1 : 0;
+    attachment_.beginGesture(index);
+    attachment_.setValueAsPartOfGesture(index, getRawValue(index));
   }
 
 public:
   ButtonArray(juce::AudioProcessorEditor& editor, Palette& palette, juce::UndoManager* undoManager,
               std::array<juce::RangedAudioParameter*, nParameter> parameter, Scale& scale)
-      : editor(editor), parameter(parameter), scale(scale), pal(palette),
-        attachment(
+      : editor_(editor), parameter_(parameter), scale_(scale), pal_(palette),
+        attachment_(
           parameter,
           [&](int index, float rawValue) {
-            if (index < 0 && index >= value.size()) { return; }
-            auto newValue = rawValue <= scale.getMin() ? 0 : 1;
-            if (value[index] != newValue) {
-              value[index] = newValue;
+            if (index < 0 && index >= value_.size()) { return; }
+            auto newValue = rawValue <= scale_.getMin() ? 0 : 1;
+            if (value_[index] != newValue) {
+              value_[index] = newValue;
               repaint();
             }
           },
           undoManager) {
-    attachment.sendInitialUpdate();
+    attachment_.sendInitialUpdate();
   }
 
   virtual ~ButtonArray() override {}
 
   virtual void paint(juce::Graphics& ctx) override {
-    const float lw1 = pal.borderWidth();
+    const float lw1 = pal_.borderWidth();
     const float lw2 = 2 * lw1;
     const float lwHalf = lw1 / 2;
     const float width = float(getWidth());
@@ -73,16 +73,16 @@ public:
     const float innerHeight = height - lw2;
 
     // Background and border.
-    ctx.setColour(pal.surface());
+    ctx.setColour(pal_.surface());
     ctx.fillRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2);
-    ctx.setColour(pal.foreground());
+    ctx.setColour(pal_.foreground());
     ctx.drawRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2, lw1);
 
     // Buttons.
-    const float buttonWidth = innerWidth / value.size();
-    ctx.setColour(pal.main());
-    for (size_t idx = 0; idx < value.size(); ++idx) {
-      if (value[idx] != 0) {
+    const float buttonWidth = innerWidth / value_.size();
+    ctx.setColour(pal_.main());
+    for (size_t idx = 0; idx < value_.size(); ++idx) {
+      if (value_[idx] != 0) {
         ctx.fillRoundedRectangle(idx * buttonWidth + lw2, lw2, buttonWidth - lw2, innerHeight - lw2,
                                  lw2);
       }
@@ -90,51 +90,51 @@ public:
 
     // Highlight.
     const size_t valueIndex = getMousePosIndex();
-    if (isMouseEntered && valueIndex < value.size()) {
-      ctx.setColour(pal.main().withAlpha(0.25f));
+    if (isMouseEntered_ && valueIndex < value_.size()) {
+      ctx.setColour(pal_.main().withAlpha(0.25f));
       ctx.fillRoundedRectangle(valueIndex * buttonWidth + lw1, lw1, buttonWidth, innerHeight, lw2);
     }
   }
 
   void mouseMove(const juce::MouseEvent& event) override {
-    mousePos = event.position;
+    mousePos_ = event.position;
     repaint();
   }
 
   void mouseEnter(const juce::MouseEvent& event) override {
-    isMouseEntered = true;
-    mousePos = event.position;
+    isMouseEntered_ = true;
+    mousePos_ = event.position;
     repaint();
   }
 
   void mouseExit(const juce::MouseEvent& event) override {
-    isMouseEntered = false;
-    mousePos = event.position;
+    isMouseEntered_ = false;
+    mousePos_ = event.position;
     repaint();
   }
 
   void mouseDown(const juce::MouseEvent& event) override {
-    mousePos = event.position;
+    mousePos_ = event.position;
 
     if (event.mods.isRightButtonDown()) {
-      auto hostContext = editor.getHostContext();
+      auto hostContext = editor_.getHostContext();
       if (hostContext == nullptr) { return; }
 
       auto index = getMousePosIndex();
-      if (index >= value.size()) { return; }
+      if (index >= value_.size()) { return; }
 
-      auto hostContextMenu = hostContext->getContextMenuForParameter(parameter[index]);
+      auto hostContextMenu = hostContext->getContextMenuForParameter(parameter_[index]);
       if (hostContextMenu == nullptr) { return; }
 
-      hostContextMenu->showNativeMenu(editor.getMouseXYRelative());
+      hostContextMenu->showNativeMenu(editor_.getMouseXYRelative());
       return;
     }
 
     if (!event.mods.isLeftButtonDown()) { return; }
 
     const auto index = getMousePosIndex();
-    if (index < value.size()) {
-      isTogglingOn = value[index] == 0;
+    if (index < value_.size()) {
+      isTogglingOn_ = value_[index] == 0;
       toggleValueAtIndex(index);
     }
     repaint();
@@ -142,21 +142,21 @@ public:
 
   void mouseDrag(const juce::MouseEvent& event) override {
     if (!event.mods.isLeftButtonDown()) { return; }
-    mousePos = event.position;
+    mousePos_ = event.position;
     const auto index = getMousePosIndex();
-    if (index < value.size()) { toggleValueAtIndex(index); }
+    if (index < value_.size()) { toggleValueAtIndex(index); }
     repaint();
   }
 
-  void mouseUp(const juce::MouseEvent&) override { attachment.endGesture(); }
+  void mouseUp(const juce::MouseEvent&) override { attachment_.endGesture(); }
 
   void mouseDoubleClick(const juce::MouseEvent&) override {}
 
   void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& wheel) override {
     const auto index = getMousePosIndex();
-    if (index < value.size() && wheel.deltaY != 0) {
-      value[index] = value[index] == 0 ? 1 : 0;
-      attachment.setValueAsCompleteGesture(index, getRawValue(index));
+    if (index < value_.size() && wheel.deltaY != 0) {
+      value_[index] = value_[index] == 0 ? 1 : 0;
+      attachment_.setValueAsCompleteGesture(index, getRawValue(index));
     }
     repaint();
   }

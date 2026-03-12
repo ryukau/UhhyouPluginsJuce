@@ -26,33 +26,33 @@ private:
 
   enum class BarState : uint8_t { active, lock };
 
-  juce::AudioProcessorEditor& editor;
-  std::array<juce::RangedAudioParameter*, nParameter> parameter;
-  Scale& scale;
-  Uhhyou::Palette& pal;
-  ParameterArrayAttachment<nParameter> attachment;
+  juce::AudioProcessorEditor& editor_;
+  std::array<juce::RangedAudioParameter*, nParameter> parameter_;
+  Scale& scale_;
+  Uhhyou::Palette& pal_;
+  ParameterArrayAttachment<nParameter> attachment_;
 
-  bool isMouseEntered = false;
-  juce::Point<float> mousePosition{float(-1), float(-1)};
-  juce::Point<float> anchor{float(-1), float(-1)};
-  BarState anchorState = BarState::active;
-  int indexL = 0;
-  int indexR = 0;
-  int indexRange = 0;
-  float sliderWidth = float(1);
-  float barMargin = float(1);
+  bool isMouseEntered_ = false;
+  juce::Point<float> mousePosition_{float(-1), float(-1)};
+  juce::Point<float> anchor_{float(-1), float(-1)};
+  BarState anchorState_ = BarState::active;
+  int indexL_ = 0;
+  int indexR_ = 0;
+  int indexRange_ = 0;
+  float sliderWidth_ = float(1);
+  float barMargin_ = float(1);
 
-  std::string name;
-  std::array<std::string, nParameter> barIndices;
-  std::array<BarState, nParameter> barState{};
-  std::vector<float> active, locked; // Used to store temporary values.
+  std::string name_;
+  std::array<std::string, nParameter> barIndices_;
+  std::array<BarState, nParameter> barState_{};
+  std::vector<float> active_, locked_; // Used to store temporary values.
 
-  std::array<float, nParameter> value{};
-  std::array<float, nParameter> defaultValue{};
-  std::vector<std::array<float, nParameter>> undoValue;
+  std::array<float, nParameter> value_{};
+  std::array<float, nParameter> defaultValue_{};
+  std::vector<std::array<float, nParameter>> undoValue_;
 
-  juce::Font indexFont;
-  juce::Font nameFont;
+  juce::Font indexFont_;
+  juce::Font nameFont_;
 
   auto constructBarIndices() {
     std::array<std::string, nParameter> indices;
@@ -60,21 +60,21 @@ private:
     return indices;
   }
 
-  auto constructDefaultValue(std::array<juce::RangedAudioParameter*, nParameter>& parmeter) {
+  auto constructDefaultValue(std::array<juce::RangedAudioParameter*, nParameter>& params) {
     std::array<float, nParameter> val;
-    for (size_t i = 0; i < val.size(); ++i) { val[i] = parmeter[i]->getDefaultValue(); }
+    for (size_t i = 0; i < val.size(); ++i) { val[i] = params[i]->getDefaultValue(); }
     return val;
   }
 
   void updateValue() {
-    for (int i = 0; i < value.size(); ++i) {
-      attachment.setValueAsPartOfGesture(i, scale.map(value[i]));
+    for (int i = 0; i < value_.size(); ++i) {
+      attachment_.setValueAsPartOfGesture(i, scale_.map(value_[i]));
     }
   }
 
   void editAndUpdateValue() {
     for (int i = 0; i < nParameter; ++i) {
-      attachment.setValueAsCompleteGesture(i, scale.map(value[i]));
+      attachment_.setValueAsCompleteGesture(i, scale_.map(value_[i]));
     }
   }
 
@@ -89,120 +89,120 @@ public:
   BarBox(juce::AudioProcessorEditor& editor, Palette& palette, juce::UndoManager* undoManager,
          std::array<juce::RangedAudioParameter*, nParameter> parameter, Scale& scale,
          std::string name)
-      : editor(editor), parameter(parameter), scale(scale), pal(palette),
-        attachment(
+      : editor_(editor), parameter_(parameter), scale_(scale), pal_(palette),
+        attachment_(
           parameter,
           [&](int index, float rawValue) {
-            if (index < 0 && index >= value.size()) { return; }
-            auto normalized = scale.invmap(rawValue);
-            if (value[index] != normalized) {
-              value[index] = normalized;
+            if (index < 0 && index >= value_.size()) { return; }
+            auto normalized = scale_.invmap(rawValue);
+            if (value_[index] != normalized) {
+              value_[index] = normalized;
               repaint();
             }
           },
           undoManager),
-        name(name), barIndices(constructBarIndices()),
-        defaultValue(constructDefaultValue(parameter)), indexFont(palette.getFont(TextSize::small)),
-        nameFont(palette.getFont(TextSize::large)) {
+        name_(name), barIndices_(constructBarIndices()),
+        defaultValue_(constructDefaultValue(parameter)),
+        indexFont_(palette.getFont(TextSize::small)), nameFont_(palette.getFont(TextSize::large)) {
     setWantsKeyboardFocus(true);
 
     setViewRange(0, 1);
 
-    for (size_t i = 0; i < 4; ++i) { undoValue.emplace_back(defaultValue); }
+    for (size_t i = 0; i < 4; ++i) { undoValue_.emplace_back(defaultValue_); }
 
-    barState.fill(BarState::active);
-    active.reserve(nParameter);
-    locked.reserve(nParameter);
+    barState_.fill(BarState::active);
+    active_.reserve(nParameter);
+    locked_.reserve(nParameter);
 
-    attachment.sendInitialUpdate();
+    attachment_.sendInitialUpdate();
 
-    editor.addAndMakeVisible(*this, 0);
+    editor_.addAndMakeVisible(*this, 0);
   }
 
   virtual void paint(juce::Graphics& ctx) override {
     using namespace juce;
     using RectF = juce::Rectangle<float>;
 
-    const float lw1 = pal.borderWidth(); // Border width.
+    const float lw1 = pal_.borderWidth(); // Border width.
     const float lw2 = 2 * lw1;
     const float lwHalf = lw1 / 2;
-    const float indexTextSize = pal.getFontHeight(TextSize::small) * float(1.25);
+    const float indexTextSize = pal_.getFontHeight(TextSize::small) * float(1.25);
     const float width = float(getWidth());
     const float height = float(getHeight());
 
     // Background.
-    ctx.setColour(pal.surface());
+    ctx.setColour(pal_.surface());
     ctx.fillRoundedRectangle(0.0f, 0.0f, width, height, lw2);
 
     // Value bar.
     float sliderZeroHeight = height * (float(1) - sliderZero);
-    for (int i = indexL; i < indexR; ++i) {
-      auto left = (i - indexL) * sliderWidth;
-      auto barWidth = sliderWidth - barMargin;
-      auto top = height - value[i] * height;
+    for (int i = indexL_; i < indexR_; ++i) {
+      auto left = (i - indexL_) * sliderWidth_;
+      auto barWidth = sliderWidth_ - barMargin_;
+      auto top = height - value_[i] * height;
       auto bottom = sliderZeroHeight;
       if (top > bottom) { std::swap(top, bottom); }
-      ctx.setColour(barState[i] == BarState::active ? pal.main() : pal.border().withAlpha(0.3f));
+      ctx.setColour(barState_[i] == BarState::active ? pal_.main() : pal_.border().withAlpha(0.3f));
       ctx.fillRect(left, top, barWidth, bottom - top);
     }
 
     // Index text.
-    ctx.setFont(indexFont);
-    ctx.setColour(pal.foreground());
-    if (sliderWidth >= indexTextSize) {
-      for (int i = indexL; i < indexR; ++i) {
-        auto left = (i - indexL) * sliderWidth;
-        auto barWidth = sliderWidth - barMargin;
-        ctx.drawText(barIndices[i].c_str(),
+    ctx.setFont(indexFont_);
+    ctx.setColour(pal_.foreground());
+    if (sliderWidth_ >= indexTextSize) {
+      for (int i = indexL_; i < indexR_; ++i) {
+        auto left = (i - indexL_) * sliderWidth_;
+        auto barWidth = sliderWidth_ - barMargin_;
+        ctx.drawText(barIndices_[i].c_str(),
                      RectF(left, height - indexTextSize, barWidth, indexTextSize),
                      Justification::centred, false);
-        if (barState[i] != BarState::active) {
+        if (barState_[i] != BarState::active) {
           ctx.drawText("L", RectF(left, 0, barWidth, indexTextSize), Justification::centred, false);
         }
       }
     }
 
     // Additional index text for zoom in.
-    auto colorOverlayText = pal.foreground().withAlpha(0.25f);
-    auto colorOverlayMain = pal.main().withAlpha(0.25f);
-    if (value.size() != size_t(indexRange)) {
+    auto colorOverlayText = pal_.foreground().withAlpha(0.25f);
+    auto colorOverlayMain = pal_.main().withAlpha(0.25f);
+    if (value_.size() != size_t(indexRange_)) {
       ctx.setColour(colorOverlayText);
-      std::string str = "<- #" + std::to_string(indexL);
+      std::string str = "<- #" + std::to_string(indexL_);
       ctx.drawText(str.c_str(), RectF(2, 2, 10 * indexTextSize, 2 * indexTextSize),
                    Justification::centredLeft);
     }
 
     // Border.
-    ctx.setColour(pal.foreground());
+    ctx.setColour(pal_.foreground());
     ctx.drawRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2, lw1);
 
     // Highlight.
-    if (isMouseEntered) {
-      size_t index = size_t(indexL + indexRange * mousePosition.x / width);
-      if (index < value.size()) {
+    if (isMouseEntered_) {
+      size_t index = size_t(indexL_ + indexRange_ * mousePosition_.x / width);
+      if (index < value_.size()) {
         ctx.setColour(colorOverlayMain);
-        ctx.fillRect((index - indexL) * sliderWidth, 0.0f, sliderWidth, height);
+        ctx.fillRect((index - indexL_) * sliderWidth_, 0.0f, sliderWidth_, height);
 
         // Index text.
-        ctx.setFont(nameFont);
+        ctx.setFont(nameFont_);
         ctx.setColour(colorOverlayText);
         std::ostringstream os;
         os << "#" << std::to_string(index + indexOffset) << ": "
-           << std::to_string(scale.map(value[index]));
+           << std::to_string(scale_.map(value_[index]));
         auto indexText = os.str();
         ctx.drawText(indexText.c_str(), RectF(0, 0, width, height), Justification::centred);
 
-        if (barState[index] != BarState::active) {
-          ctx.setFont(indexFont);
+        if (barState_[index] != BarState::active) {
+          ctx.setFont(indexFont_);
           ctx.drawText("Locked", RectF(0, indexTextSize, width, 2 * indexTextSize),
                        Justification::centred);
         }
       }
     } else {
       // Title.
-      ctx.setFont(nameFont);
+      ctx.setFont(nameFont_);
       ctx.setColour(colorOverlayText);
-      ctx.drawText(name.c_str(), RectF(0, 0, width, height), Justification::centred);
+      ctx.drawText(name_.c_str(), RectF(0, 0, width, height), Justification::centred);
     }
 
     // Zero line.
@@ -212,80 +212,80 @@ public:
   }
 
   void resized() override {
-    indexFont = pal.getFont(TextSize::small);
-    nameFont = pal.getFont(TextSize::large);
+    indexFont_ = pal_.getFont(TextSize::small);
+    nameFont_ = pal_.getFont(TextSize::large);
 
     refreshSliderWidth(float(getWidth()));
   }
 
   void mouseMove(const juce::MouseEvent& event) override {
-    mousePosition = event.position;
+    mousePosition_ = event.position;
     repaint();
   }
 
   void mouseEnter(const juce::MouseEvent&) override {
-    isMouseEntered = true;
+    isMouseEntered_ = true;
     repaint();
   }
 
   void mouseExit(const juce::MouseEvent&) override {
     giveAwayKeyboardFocus();
 
-    isMouseEntered = false;
+    isMouseEntered_ = false;
     repaint();
   }
 
   void mouseDown(const juce::MouseEvent& event) override {
     if (event.mods.isRightButtonDown()) {
-      auto hostContext = editor.getHostContext();
+      auto hostContext = editor_.getHostContext();
       if (hostContext == nullptr) { return; }
 
-      mousePosition = event.position;
-      size_t index = calcIndex(mousePosition);
-      if (index >= parameter.size()) { return; }
+      mousePosition_ = event.position;
+      size_t index = calcIndex(mousePosition_);
+      if (index >= parameter_.size()) { return; }
 
-      auto hostContextMenu = hostContext->getContextMenuForParameter(parameter[index]);
+      auto hostContextMenu = hostContext->getContextMenuForParameter(parameter_[index]);
       if (hostContextMenu == nullptr) { return; }
 
-      hostContextMenu->showNativeMenu(editor.getMouseXYRelative());
+      hostContextMenu->showNativeMenu(editor_.getMouseXYRelative());
       return;
     }
 
     grabKeyboardFocus();
 
-    mousePosition = event.position;
-    anchor = mousePosition;
+    mousePosition_ = event.position;
+    anchor_ = mousePosition_;
 
     if (event.mods.isMiddleButtonDown() && event.mods.isCommandDown() && event.mods.isShiftDown()) {
-      anchorState = setStateFromPosition(mousePosition, BarState::lock);
+      anchorState_ = setStateFromPosition(mousePosition_, BarState::lock);
     } else {
-      setValueFromPosition(mousePosition, event.mods);
+      setValueFromPosition(mousePosition_, event.mods);
     }
     repaint();
   }
 
   void mouseUp(const juce::MouseEvent&) override {
-    attachment.endGesture();
+    attachment_.endGesture();
     pushUndoValue();
   }
 
   void mouseDrag(const juce::MouseEvent& event) override {
-    mousePosition = event.position;
+    mousePosition_ = event.position;
     if (event.mods.isLeftButtonDown()) {
       if (event.mods.isCommandDown() && event.mods.isShiftDown()) {
-        setValueFromPosition(mousePosition, event.mods);
+        setValueFromPosition(mousePosition_, event.mods);
       } else {
-        setValueFromLine(anchor, mousePosition, event.mods);
+        setValueFromLine(anchor_, mousePosition_, event.mods);
       }
-      anchor = mousePosition;
+      anchor_ = mousePosition_;
     } else if (event.mods.isMiddleButtonDown()) {
       if (event.mods.isCommandDown() && event.mods.isShiftDown()) {
-        setStateFromLine(anchor, mousePosition, anchorState);
+        setStateFromLine(anchor_, mousePosition_, anchorState_);
       } else if (event.mods.isShiftDown()) {
-        mousePosition.x = anchor.x;
-        setValueFromPosition(mousePosition, false, false);
+        mousePosition_.x = anchor_.x;
+        setValueFromPosition(mousePosition_, false, false);
       } else {
-        setValueFromLine(anchor, mousePosition, event.mods);
+        setValueFromLine(anchor_, mousePosition_, event.mods);
       }
     }
     repaint(); // Required to refresh highlighting position.
@@ -297,27 +297,27 @@ public:
 
     grabKeyboardFocus();
 
-    size_t index = calcIndex(mousePosition);
-    if (index >= value.size()) { return; }
+    size_t index = calcIndex(mousePosition_);
+    if (index >= value_.size()) { return; }
 
-    if (barState[index] != BarState::active) { return; }
+    if (barState_[index] != BarState::active) { return; }
 
     if (event.mods.isShiftDown()) {
-      setValueAtIndex(index, value[index] + wheel.deltaY * altScrollSensitivity);
+      setValueAtIndex(index, value_[index] + wheel.deltaY * altScrollSensitivity);
     } else {
-      setValueAtIndex(index, value[index] + wheel.deltaY * scrollSensitivity);
+      setValueAtIndex(index, value_[index] + wheel.deltaY * scrollSensitivity);
     }
-    attachment.setValueAsCompleteGesture(int(index), scale.map(value[index]));
+    attachment_.setValueAsCompleteGesture(int(index), scale_.map(value_[index]));
     repaint();
   }
 
   bool keyPressed(const juce::KeyPress& key) override {
     constexpr auto isKey = juce::KeyPress::isKeyCurrentlyDown;
 
-    if (!isMouseEntered || !key.isValid()) { return false; }
+    if (!isMouseEntered_ || !key.isValid()) { return false; }
 
-    size_t index = calcIndex(mousePosition);
-    if (index >= value.size()) { index = 0; }
+    size_t index = calcIndex(mousePosition_);
+    if (index >= value_.size()) { index = 0; }
 
     const auto shift = key.getModifiers().isShiftDown();
     if (isKey('a')) {
@@ -341,7 +341,7 @@ public:
     } else if (shift && isKey('l')) {
       lockAll(index);
     } else if (isKey('l')) {
-      barState[index] = barState[index] == BarState::active ? BarState::lock : BarState::active;
+      barState_[index] = barState_[index] == BarState::active ? BarState::lock : BarState::active;
     } else if (shift && isKey('n')) {
       normalizeFull(index);
     } else if (isKey('n')) {
@@ -350,16 +350,16 @@ public:
       applyAlgorithm(index, [&]() {
         std::random_device device;
         std::mt19937 rng(device());
-        std::shuffle(active.begin(), active.end(), rng);
+        std::shuffle(active_.begin(), active_.end(), rng);
       });
     } else if (shift && isKey('r')) {
       sparseRandomize(index);
     } else if (isKey('r')) {
       totalRandomize(index);
     } else if (shift && isKey('S')) { // Sort ascending order.
-      applyAlgorithm(index, [&]() { std::sort(active.begin(), active.end()); });
+      applyAlgorithm(index, [&]() { std::sort(active_.begin(), active_.end()); });
     } else if (isKey('s')) { // Sort descending order.
-      applyAlgorithm(index, [&]() { std::sort(active.begin(), active.end(), std::greater<>()); });
+      applyAlgorithm(index, [&]() { std::sort(active_.begin(), active_.end(), std::greater<>()); });
     } else if (shift && isKey('t')) { // subTle randomize.
       mixRandomize(index, float(0.02));
     } else if (isKey('t')) { // subTle randomize. Random walk.
@@ -376,10 +376,10 @@ public:
       return true;
     } else if (isKey(',')) { // Rotate back.
       applyAlgorithm(index,
-                     [&]() { std::rotate(active.begin(), active.begin() + 1, active.end()); });
+                     [&]() { std::rotate(active_.begin(), active_.begin() + 1, active_.end()); });
     } else if (isKey('.')) { // Rotate forward.
-      applyAlgorithm(index,
-                     [&]() { std::rotate(active.rbegin(), active.rbegin() + 1, active.rend()); });
+      applyAlgorithm(
+        index, [&]() { std::rotate(active_.rbegin(), active_.rbegin() + 1, active_.rend()); });
     } else if (isKey('1')) { // Decrease.
       multiplySkip(index, 1);
     } else if (isKey('2')) { // Decrease 2n.
@@ -408,21 +408,21 @@ public:
   }
 
   void setViewRange(float left, float right) {
-    indexL = int(std::clamp<float>(left, float(0), float(1)) * value.size());
-    indexR = int(std::clamp<float>(right, float(0), float(1)) * value.size());
-    indexRange = indexR >= indexL ? indexR - indexL : 0;
+    indexL_ = int(std::clamp<float>(left, float(0), float(1)) * value_.size());
+    indexR_ = int(std::clamp<float>(right, float(0), float(1)) * value_.size());
+    indexRange_ = indexR_ >= indexL_ ? indexR_ - indexL_ : 0;
     refreshSliderWidth(float(getWidth()));
     repaint();
   }
 
 private:
   inline size_t calcIndex(juce::Point<float>& position) {
-    return size_t(indexL + position.x / sliderWidth);
+    return size_t(indexL_ + position.x / sliderWidth_);
   }
 
   void refreshSliderWidth(float width) {
-    sliderWidth = indexRange >= 1 ? width / indexRange : width;
-    barMargin = sliderWidth <= float(4) ? float(1) : float(2);
+    sliderWidth_ = indexRange_ >= 1 ? width / indexRange_ : width;
+    barMargin_ = sliderWidth_ <= float(4) ? float(1) : float(2);
   }
 
   float snap(float currentValue) {
@@ -435,16 +435,16 @@ private:
 
   BarState setStateFromPosition(juce::Point<float>& position, BarState state) {
     size_t index = calcIndex(position);
-    if (index >= value.size()) { return BarState::active; }
+    if (index >= value_.size()) { return BarState::active; }
 
-    barState[index] = barState[index] != state ? state : BarState::active;
-    return barState[index];
+    barState_[index] = barState_[index] != state ? state : BarState::active;
+    return barState_[index];
   }
 
   void setStateFromLine(juce::Point<float>& p0, juce::Point<float>& p1, BarState state) {
     if (p0.x > p1.x) { std::swap(p0, p1); }
 
-    int last = int(value.size()) - 1;
+    int last = int(value_.size()) - 1;
     if (last < 0) {
       last = 0; // std::clamp is undefined if low is greater than high.
     }
@@ -457,7 +457,7 @@ private:
     left = std::clamp(left, 0, last);
     right = std::clamp(right, 0, last);
 
-    for (int idx = left; idx >= 0 && idx <= right; ++idx) { barState[idx] = state; }
+    for (int idx = left; idx >= 0 && idx <= right; ++idx) { barState_[idx] = state; }
 
     repaint();
   }
@@ -468,26 +468,26 @@ private:
 
   void setValueFromPosition(juce::Point<float>& position, const bool ctrl, const bool shift) {
     size_t index = calcIndex(position);
-    if (index >= value.size()) { return; }
-    if (barState[index] != BarState::active) { return; }
+    if (index >= value_.size()) { return; }
+    if (barState_[index] != BarState::active) { return; }
 
     if (ctrl && !shift) {
-      setValueAtIndex(index, defaultValue[index]);
+      setValueAtIndex(index, defaultValue_[index]);
     } else if (!ctrl && shift) {
       setValueAtIndex(index, snap(float(1) - position.y / getHeight()));
     } else {
       setValueAtIndex(index, float(1) - position.y / getHeight());
     }
 
-    attachment.setValueAsPartOfGesture(int(index), scale.map(value[index]));
+    attachment_.setValueAsPartOfGesture(int(index), scale_.map(value_[index]));
     repaint();
   }
 
   void setValueAtIndex(size_t index, float normalized) {
-    if (barState[index] != BarState::active) { return; }
-    if (index >= value.size()) { return; }
-    attachment.beginGesture(int(index));
-    value[index] = std::clamp(normalized, float(0), float(1));
+    if (barState_[index] != BarState::active) { return; }
+    if (index >= value_.size()) { return; }
+    attachment_.beginGesture(int(index));
+    value_[index] = std::clamp(normalized, float(0), float(1));
   }
 
   void setValueFromLine(juce::Point<float> p0, juce::Point<float> p1,
@@ -496,29 +496,29 @@ private:
 
     size_t left = calcIndex(p0);
     size_t right = calcIndex(p1);
-    if (left >= value.size() || right >= value.size()) { return; }
+    if (left >= value_.size() || right >= value_.size()) { return; }
 
     const float p0y = p0.y;
     const float p1y = p1.y;
 
     if (left == right) { // p0 and p1 are in a same bar.
-      if (barState[left] != BarState::active) { return; }
+      if (barState_[left] != BarState::active) { return; }
 
       if (modifiers.isCommandDown()) {
-        setValueAtIndex(left, defaultValue[left]);
+        setValueAtIndex(left, defaultValue_[left]);
       } else if (modifiers.isShiftDown()) {
-        setValueAtIndex(left, snap(float(1) - anchor.y / getHeight()));
+        setValueAtIndex(left, snap(float(1) - anchor_.y / getHeight()));
       } else {
-        setValueAtIndex(left, float(1) - anchor.y / getHeight());
+        setValueAtIndex(left, float(1) - anchor_.y / getHeight());
       }
 
-      attachment.setValueAsPartOfGesture(int(left), scale.map(value[left]));
+      attachment_.setValueAsPartOfGesture(int(left), scale_.map(value_[left]));
       repaint();
       return;
     } else if (modifiers.isCommandDown()) {
       for (size_t idx = left; idx >= 0 && idx <= right; ++idx) {
-        if (barState[left] != BarState::active) { return; }
-        setValueAtIndex(idx, defaultValue[idx]);
+        if (barState_[left] != BarState::active) { return; }
+        setValueAtIndex(idx, defaultValue_[idx]);
       }
       if (liveUpdateLineEdit) { updateValue(); }
       return;
@@ -526,24 +526,24 @@ private:
 
     const bool isSnapping = modifiers.isShiftDown();
 
-    if (barState[left] == BarState::active) {
+    if (barState_[left] == BarState::active) {
       auto val = float(1) - p0y / getHeight();
       setValueAtIndex(left, isSnapping ? snap(val) : val);
     }
-    if (barState[right] == BarState::active) {
+    if (barState_[right] == BarState::active) {
       auto val = float(1) - p1y / getHeight();
       setValueAtIndex(right, isSnapping ? snap(val) : val);
     }
 
     // In between.
-    const float p0x = sliderWidth * (left + 1);
-    const float p1x = sliderWidth * right;
+    const float p0x = sliderWidth_ * (left + 1);
+    const float p1x = sliderWidth_ * right;
     float pDiff = p1x - p0x;
     constexpr auto eps = std::numeric_limits<float>::epsilon();
     if (std::abs(pDiff) < eps) { pDiff = std::copysign(eps, pDiff); }
     const float slope = (p1y - p0y) / pDiff;
 
-    const float yInc = slope * sliderWidth;
+    const float yInc = slope * sliderWidth_;
     float y = p0y;
     for (size_t idx = left + 1; idx < right; ++idx) {
       auto val = 1.0f - (y + 0.5f * yInc) / getHeight();
@@ -556,29 +556,29 @@ private:
   }
 
   void pushUndoValue() {
-    std::rotate(undoValue.begin(), undoValue.begin() + 1, undoValue.end());
-    undoValue.back() = value;
+    std::rotate(undoValue_.begin(), undoValue_.begin() + 1, undoValue_.end());
+    undoValue_.back() = value_;
   }
 
   void undo() {
-    std::rotate(undoValue.rbegin(), undoValue.rbegin() + 1, undoValue.rend());
-    value = undoValue.back();
+    std::rotate(undoValue_.rbegin(), undoValue_.rbegin() + 1, undoValue_.rend());
+    value_ = undoValue_.back();
   }
 
   void redo() {
-    std::rotate(undoValue.begin(), undoValue.begin() + 1, undoValue.end());
-    value = undoValue.back();
+    std::rotate(undoValue_.begin(), undoValue_.begin() + 1, undoValue_.end());
+    value_ = undoValue_.back();
   }
 
   template<typename Func> void applyAlgorithm(size_t start, Func func) {
-    active.resize(0);
-    locked.resize(0);
+    active_.resize(0);
+    locked_.resize(0);
 
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] == BarState::active) {
-        active.push_back(value[i]);
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] == BarState::active) {
+        active_.push_back(value_[i]);
       } else {
-        locked.push_back(value[i]);
+        locked_.push_back(value_[i]);
       }
     }
 
@@ -586,60 +586,60 @@ private:
 
     size_t activeIndex = 0;
     size_t lockedIndex = 0;
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] == BarState::active) {
-        value[i] = active[activeIndex];
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] == BarState::active) {
+        value_[i] = active_[activeIndex];
         ++activeIndex;
       } else {
-        value[i] = locked[lockedIndex];
+        value_[i] = locked_[lockedIndex];
         ++lockedIndex;
       }
     }
   }
 
   void resetToDefault() {
-    for (size_t i = 0; i < value.size(); ++i) {
-      if (barState[i] == BarState::active) { value[i] = defaultValue[i]; }
+    for (size_t i = 0; i < value_.size(); ++i) {
+      if (barState_[i] == BarState::active) { value_[i] = defaultValue_[i]; }
     }
   }
 
   void toggleMinMidMax(size_t start) {
     float filler = 0;
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] != BarState::active) { continue; }
-      filler = value[i] == 0 ? float(0.5) : value[i] == float(0.5) ? float(1) : float(0);
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      filler = value_[i] == 0 ? float(0.5) : value_[i] == float(0.5) ? float(1) : float(0);
       start = i;
       break;
     }
 
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] == BarState::active) { value[i] = filler; }
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] == BarState::active) { value_[i] = filler; }
     }
   }
 
   void lockAll(size_t index) {
-    std::fill(barState.begin(), barState.end(),
-              barState[index] == BarState::active ? BarState::lock : BarState::active);
+    std::fill(barState_.begin(), barState_.end(),
+              barState_[index] == BarState::active ? BarState::lock : BarState::active);
   }
 
   void alternateSign(size_t start) {
-    for (size_t i = start; i < value.size(); i += 2) {
-      if (barState[i] != BarState::active) { continue; }
-      setValueAtIndex(i, 2 * sliderZero - value[i]);
+    for (size_t i = start; i < value_.size(); i += 2) {
+      if (barState_[i] != BarState::active) { continue; }
+      setValueAtIndex(i, 2 * sliderZero - value_[i]);
     }
   }
 
   void averageLowpass(size_t start) {
     const int32_t range = 1;
 
-    std::array<float, nParameter> result{value};
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] != BarState::active) { continue; }
+    std::array<float, nParameter> result{value_};
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
       result[i] = 0;
       for (int32_t j = -range; j <= range; ++j) {
         size_t index = i + static_cast<size_t>(j); // Note that index is unsigned.
-        if (index >= value.size()) { continue; }
-        result[i] += value[index] - sliderZero;
+        if (index >= value_.size()) { continue; }
+        result[i] += value_[index] - sliderZero;
       }
       setValueAtIndex(i, sliderZero + result[i] / float(2 * range + 1));
     }
@@ -651,14 +651,14 @@ private:
   Value of index outside of array is assumed to be same as closest element.
   */
   void highpass(size_t start) {
-    std::array<float, nParameter> result{value};
-    size_t last = value.size() - 1;
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] != BarState::active) { continue; }
-      auto val = value[i] - sliderZero;
+    std::array<float, nParameter> result{value_};
+    size_t last = value_.size() - 1;
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      auto val = value_[i] - sliderZero;
       result[i] = 0;
-      result[i] -= (i >= 1) ? value[i - 1] - sliderZero : val;
-      result[i] -= (i < last) ? value[i + 1] - sliderZero : val;
+      result[i] -= (i >= 1) ? value_[i - 1] - sliderZero : val;
+      result[i] -= (i < last) ? value_[i + 1] - sliderZero : val;
       result[i] = val + float(0.5) * result[i];
       setValueAtIndex(i, sliderZero + result[i]);
     }
@@ -668,9 +668,9 @@ private:
     std::random_device dev;
     std::mt19937_64 rng(dev());
     std::uniform_real_distribution<float> dist(float(0), float(1));
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] != BarState::active) { continue; }
-      value[i] = dist(rng);
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      value_[i] = dist(rng);
     }
   }
 
@@ -678,9 +678,9 @@ private:
     std::random_device dev;
     std::mt19937_64 rng(dev());
     amount /= 2;
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] != BarState::active) { continue; }
-      std::uniform_real_distribution<float> dist(value[i] - amount, value[i] + amount);
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      std::uniform_real_distribution<float> dist(value_[i] - amount, value_[i] + amount);
       setValueAtIndex(i, dist(rng));
     }
   }
@@ -689,9 +689,9 @@ private:
     std::random_device dev;
     std::mt19937_64 rng(dev());
     std::uniform_real_distribution<float> dist(sliderZero - float(0.5), sliderZero + float(0.5));
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] != BarState::active) { continue; }
-      setValueAtIndex(i, value[i] + mix * (dist(rng) - value[i]));
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      setValueAtIndex(i, value_[i] + mix * (dist(rng) - value_[i]));
     }
   }
 
@@ -699,9 +699,9 @@ private:
     std::random_device device;
     std::mt19937_64 rng(device());
     std::uniform_real_distribution<float> dist(float(0), float(1));
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] != BarState::active) { continue; }
-      if (dist(rng) < float(0.1)) { value[i] = dist(rng); }
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      if (dist(rng) < float(0.1)) { value_[i] = dist(rng); }
     }
   }
 
@@ -714,14 +714,14 @@ private:
 
   ValuePeak getValuePeak(size_t start, bool skipZero) {
     ValuePeak pk;
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] != BarState::active) { continue; }
-      float val = std::abs(value[i] - sliderZero);
-      if (value[i] == sliderZero) {
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      float val = std::abs(value_[i] - sliderZero);
+      if (value_[i] == sliderZero) {
         if (skipZero) { continue; }
         pk.minNeg = 0;
         pk.minPos = 0;
-      } else if (value[i] < sliderZero) {
+      } else if (value_[i] < sliderZero) {
         if (val > pk.maxNeg) {
           pk.maxNeg = val;
         } else if (val < pk.minNeg) {
@@ -743,23 +743,24 @@ private:
   }
 
   void invertInRange(size_t start) {
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] != BarState::active) { continue; }
-      float val = value[i] >= sliderZero ? float(1) - value[i] + sliderZero : sliderZero - value[i];
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      float val
+        = value_[i] >= sliderZero ? float(1) - value_[i] + sliderZero : sliderZero - value_[i];
       setValueAtIndex(i, val);
     }
   }
 
   void invertFull(size_t start) {
     auto pk = getValuePeak(start, false);
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] != BarState::active) { continue; }
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
 
-      if (value[i] < sliderZero) {
-        auto x = float(1) + value[i] - (value[i] / sliderZero);
+      if (value_[i] < sliderZero) {
+        auto x = float(1) + value_[i] - (value_[i] / sliderZero);
         setValueAtIndex(i, std::clamp(x, sliderZero, float(1)));
       } else {
-        auto x = sliderZero - sliderZero * (value[i] - sliderZero) / (float(1) - sliderZero);
+        auto x = sliderZero - sliderZero * (value_[i] - sliderZero) / (float(1) - sliderZero);
         setValueAtIndex(i, std::clamp(x, float(0), sliderZero));
       }
     }
@@ -768,19 +769,19 @@ private:
   void normalizeFull(size_t start) {
     float min = float(1);
     float max = float(0);
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] != BarState::active) { continue; }
-      if (value[i] < min) { min = value[i]; }
-      if (value[i] > max) { max = value[i]; }
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      if (value_[i] < min) { min = value_[i]; }
+      if (value_[i] > max) { max = value_[i]; }
     }
 
     if (max == min) { return; }
 
     float scaling = float(1) / max - min;
 
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] != BarState::active) { continue; }
-      setValueAtIndex(i, std::clamp(value[i] * scaling, float(0), float(1)));
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      setValueAtIndex(i, std::clamp(value_[i] * scaling, float(0), float(1)));
     }
   }
 
@@ -802,48 +803,48 @@ private:
       pk.minPos = pk.maxPos == float(0) ? float(0) : float(1);
     }
 
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] != BarState::active) { continue; }
-      if (value[i] == sliderZero) { continue; }
-      auto val = value[i] < sliderZero
-        ? (value[i] - sliderZero + pk.minNeg) * mulNeg + sliderZero - pk.minNeg
-        : (value[i] - sliderZero - pk.minPos) * mulPos + sliderZero + pk.minPos;
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      if (value_[i] == sliderZero) { continue; }
+      auto val = value_[i] < sliderZero
+        ? (value_[i] - sliderZero + pk.minNeg) * mulNeg + sliderZero - pk.minNeg
+        : (value_[i] - sliderZero - pk.minPos) * mulPos + sliderZero + pk.minPos;
       setValueAtIndex(i, val);
     }
   }
 
   void multiplySkip(size_t start, size_t interval) noexcept {
-    for (size_t i = start; i < value.size(); i += interval) {
-      if (barState[i] != BarState::active) { continue; }
-      setValueAtIndex(i, (value[i] - sliderZero) * float(0.9) + sliderZero);
+    for (size_t i = start; i < value_.size(); i += interval) {
+      if (barState_[i] != BarState::active) { continue; }
+      setValueAtIndex(i, (value_[i] - sliderZero) * float(0.9) + sliderZero);
     }
   }
 
   void decimateHold(size_t start, size_t interval) {
     size_t counter = 0;
     float hold = 0;
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] != BarState::active) { continue; }
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
 
-      if (counter == 0) { hold = value[i]; }
+      if (counter == 0) { hold = value_[i]; }
       counter = (counter + 1) % interval;
       setValueAtIndex(i, hold);
     }
   }
 
   void emphasizeLow(size_t start) {
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] != BarState::active) { continue; }
-      setValueAtIndex(i,
-                      (value[i] - sliderZero) / std::pow(float(i + 1), float(0.0625)) + sliderZero);
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      setValueAtIndex(
+        i, (value_[i] - sliderZero) / std::pow(float(i + 1), float(0.0625)) + sliderZero);
     }
   }
 
   void emphasizeHigh(size_t start) {
-    for (size_t i = start; i < value.size(); ++i) {
-      if (barState[i] != BarState::active) { continue; }
-      auto emphasis = float(0.9) + float(0.1) * float(i + 1) / value.size();
-      setValueAtIndex(i, (value[i] - sliderZero) * emphasis + sliderZero);
+    for (size_t i = start; i < value_.size(); ++i) {
+      if (barState_[i] != BarState::active) { continue; }
+      auto emphasis = float(0.9) + float(0.1) * float(i + 1) / value_.size();
+      setValueAtIndex(i, (value_[i] - sliderZero) * emphasis + sliderZero);
     }
   }
 };

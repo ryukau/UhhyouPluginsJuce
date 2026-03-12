@@ -20,8 +20,8 @@ public:
   void resized() override;
 
 private:
-  decltype(processor.param.value)& v_() { return processor.param.value; }
-  EnvelopeDisplay envelopeDisplay{*this, palette, v_().inputPeakMax, v_().modEnvelopeOutMax};
+  decltype(processor_.param.value)& val() { return processor_.param.value; }
+  EnvelopeDisplay envelopeDisplay_{*this, palette_, val().inputPeakMax, val().modEnvelopeOutMax};
 };
 
 } // namespace Uhhyou

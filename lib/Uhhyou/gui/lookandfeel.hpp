@@ -15,7 +15,7 @@ namespace Uhhyou {
 
 class LookAndFeel : public juce::LookAndFeel_V4 {
 private:
-  Palette& pal;
+  Palette& pal_;
 
   static constexpr float tooltipLineSpacing = 1.125f;
 
@@ -38,41 +38,41 @@ private:
   }
 
 public:
-  LookAndFeel(Palette& palette) : pal(palette) {
-    setColour(juce::CaretComponent::caretColourId, pal.foreground());
+  LookAndFeel(Palette& palette) : pal_(palette) {
+    setColour(juce::CaretComponent::caretColourId, pal_.foreground());
 
-    setColour(juce::ScrollBar::backgroundColourId, pal.surface());
-    setColour(juce::ScrollBar::thumbColourId, pal.main());
-    setColour(juce::ScrollBar::trackColourId, pal.border());
+    setColour(juce::ScrollBar::backgroundColourId, pal_.surface());
+    setColour(juce::ScrollBar::thumbColourId, pal_.main());
+    setColour(juce::ScrollBar::trackColourId, pal_.border());
 
-    setColour(juce::TextEditor::backgroundColourId, pal.background());
-    setColour(juce::TextEditor::textColourId, pal.foreground());
-    setColour(juce::TextEditor::highlightColourId, pal.main().withAlpha(0.3f));
-    setColour(juce::TextEditor::highlightedTextColourId, pal.foreground());
-    setColour(juce::TextEditor::outlineColourId, pal.border());
-    setColour(juce::TextEditor::focusedOutlineColourId, pal.main());
+    setColour(juce::TextEditor::backgroundColourId, pal_.background());
+    setColour(juce::TextEditor::textColourId, pal_.foreground());
+    setColour(juce::TextEditor::highlightColourId, pal_.main().withAlpha(0.3f));
+    setColour(juce::TextEditor::highlightedTextColourId, pal_.foreground());
+    setColour(juce::TextEditor::outlineColourId, pal_.border());
+    setColour(juce::TextEditor::focusedOutlineColourId, pal_.main());
 
-    setColour(juce::PopupMenu::backgroundColourId, pal.surface());
-    setColour(juce::PopupMenu::textColourId, pal.foreground());
-    setColour(juce::PopupMenu::highlightedBackgroundColourId, pal.main());
-    setColour(juce::PopupMenu::highlightedTextColourId, pal.foreground());
-    setColour(juce::PopupMenu::headerTextColourId, pal.foreground());
+    setColour(juce::PopupMenu::backgroundColourId, pal_.surface());
+    setColour(juce::PopupMenu::textColourId, pal_.foreground());
+    setColour(juce::PopupMenu::highlightedBackgroundColourId, pal_.main());
+    setColour(juce::PopupMenu::highlightedTextColourId, pal_.foreground());
+    setColour(juce::PopupMenu::headerTextColourId, pal_.foreground());
 
-    setColour(juce::TooltipWindow::backgroundColourId, pal.background());
-    setColour(juce::TooltipWindow::outlineColourId, pal.foreground());
-    setColour(juce::TooltipWindow::textColourId, pal.foreground());
+    setColour(juce::TooltipWindow::backgroundColourId, pal_.background());
+    setColour(juce::TooltipWindow::outlineColourId, pal_.foreground());
+    setColour(juce::TooltipWindow::textColourId, pal_.foreground());
 
     juce::LookAndFeel::setDefaultLookAndFeel(this);
   }
 
-  juce::Font getPopupMenuFont() override { return pal.getFont(TextSize::normal); }
+  juce::Font getPopupMenuFont() override { return pal_.getFont(TextSize::normal); }
 
   void getIdealPopupMenuSectionHeaderSizeWithOptions(const juce::String& text,
                                                      int standardMenuItemHeight, int& idealWidth,
                                                      int& idealHeight,
                                                      const juce::PopupMenu::Options&) override {
-    const int borderPx = std::max(1, juce::roundToInt(pal.borderWidth()));
-    auto font = pal.getFont(TextSize::large);
+    const int borderPx = std::max(1, juce::roundToInt(pal_.borderWidth()));
+    auto font = pal_.getFont(TextSize::large);
     constexpr float scalar = 2.0f;
 
     if (standardMenuItemHeight > 0 && font.getHeight() > standardMenuItemHeight / scalar) {
@@ -88,10 +88,10 @@ public:
 
   void drawPopupMenuSectionHeader(juce::Graphics& g, const juce::Rectangle<int>& area,
                                   const juce::String& sectionName) override {
-    const int em = juce::roundToInt(pal.getFontHeight(TextSize::normal));
+    const int em = juce::roundToInt(pal_.getFontHeight(TextSize::normal));
     const int margin = em;
 
-    auto font = pal.getFont(TextSize::large).boldened();
+    auto font = pal_.getFont(TextSize::large).boldened();
     g.setFont(font);
 
     juce::Colour textCol = findColour(juce::PopupMenu::headerTextColourId);
@@ -119,8 +119,8 @@ public:
   void getIdealPopupMenuItemSize(const juce::String& text, const bool isSeparator,
                                  int standardMenuItemHeight, int& idealWidth,
                                  int& idealHeight) override {
-    const int em = juce::roundToInt(pal.getFontHeight(TextSize::normal));
-    const int borderPx = std::max(1, juce::roundToInt(pal.borderWidth()));
+    const int em = juce::roundToInt(pal_.getFontHeight(TextSize::normal));
+    const int borderPx = std::max(1, juce::roundToInt(pal_.borderWidth()));
 
     if (isSeparator) {
       idealWidth = em * 4;
@@ -146,9 +146,9 @@ public:
                          const bool isTicked, const bool hasSubMenu, const juce::String& text,
                          const juce::String& shortcutKeyText, const juce::Drawable* icon,
                          const juce::Colour* const textColourToUse) override {
-    const int em = juce::roundToInt(pal.getFontHeight(TextSize::normal));
+    const int em = juce::roundToInt(pal_.getFontHeight(TextSize::normal));
     const int margin = em;
-    const int borderPx = std::max(1, juce::roundToInt(pal.borderWidth()));
+    const int borderPx = std::max(1, juce::roundToInt(pal_.borderWidth()));
 
     if (isSeparator) {
       g.setColour(findColour(juce::PopupMenu::textColourId).withAlpha(0.2f));
@@ -240,9 +240,9 @@ public:
                                         juce::Rectangle<int> parentArea) override {
     if (tipText.isEmpty()) { return {}; }
 
-    const float textSize = pal.getFontHeight(TextSize::normal);
+    const float textSize = pal_.getFontHeight(TextSize::normal);
     const auto em = static_cast<int>(std::ceil(textSize));
-    juce::Font font = pal.getFont(TextSize::normal);
+    juce::Font font = pal_.getFont(TextSize::normal);
 
     juce::TextLayout tl;
     layoutTooltipText(tl, tipText, font, 480.0f, findColour(juce::TooltipWindow::textColourId));
@@ -260,7 +260,7 @@ public:
   void drawTooltip(juce::Graphics& ctx, const juce::String& text, int width, int height) override {
     if (text.isEmpty()) { return; }
 
-    const float textSize = pal.getFontHeight(TextSize::normal);
+    const float textSize = pal_.getFontHeight(TextSize::normal);
     const auto em = static_cast<int>(std::ceil(textSize));
     juce::Rectangle<int> bounds(width, height);
 
@@ -295,7 +295,7 @@ public:
     auto textArea
       = bounds.reduced(2 * em, int(1.5f * em)).translated(int(0.125f * em), 0).toFloat();
     juce::TextLayout tl;
-    layoutTooltipText(tl, text, pal.getFont(TextSize::normal), textArea.getWidth(),
+    layoutTooltipText(tl, text, pal_.getFont(TextSize::normal), textArea.getWidth(),
                       findColour(juce::TooltipWindow::textColourId));
 
     float yOffset = (textArea.getHeight() - tl.getHeight()) * 0.5f;

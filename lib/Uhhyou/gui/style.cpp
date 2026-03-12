@@ -114,21 +114,21 @@ void Palette::load() {
 
   // Single source of truth for config mappings
   auto visitProperties = [&](auto&& visitor) {
-    visitor("keyboardFocusEnabled", _keyboardFocusEnabled);
-    visitor("windowScale", _windowScale);
+    visitor("keyboardFocusEnabled", keyboardFocusEnabled_);
+    visitor("windowScale", windowScale_);
 
-    visitor("fontUiName", _fontUiName);
-    visitor("fontUiStyle", _fontUiStyle);
-    visitor("fontMonoName", _fontMonoName);
-    visitor("fontMonoStyle", _fontMonoStyle);
+    visitor("fontUiName", fontUiName_);
+    visitor("fontUiStyle", fontUiStyle_);
+    visitor("fontMonoName", fontMonoName_);
+    visitor("fontMonoStyle", fontMonoStyle_);
 
-    visitor("foreground", _foreground);
-    visitor("background", _background);
-    visitor("surface", _surface);
-    visitor("border", _border);
-    visitor("main", _main);
-    visitor("accent", _accent);
-    visitor("warning", _warning);
+    visitor("foreground", foreground_);
+    visitor("background", background_);
+    visitor("surface", surface_);
+    visitor("border", border_);
+    visitor("main", main_);
+    visitor("accent", accent_);
+    visitor("warning", warning_);
   };
 
   // Helper lambda to attempt loading the JSON (early returns on failure)
@@ -268,13 +268,13 @@ template<typename T> inline void updateSettingImpl(const std::string& key, T val
 
 void Palette::updateSetting(const std::string& key, bool value) {
   std::lock_guard<std::mutex> lock(styleMutex);
-  if (key == "keyboardFocusEnabled") { _keyboardFocusEnabled = value; }
+  if (key == "keyboardFocusEnabled") { keyboardFocusEnabled_ = value; }
   updateSettingImpl(key, value);
 }
 
 void Palette::updateSetting(const std::string& key, float value) {
   std::lock_guard<std::mutex> lock(styleMutex);
-  if (key == "windowScale") { _windowScale = value; }
+  if (key == "windowScale") { windowScale_ = value; }
   updateSettingImpl(key, value);
 }
 

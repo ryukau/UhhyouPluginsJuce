@@ -19,8 +19,8 @@ public:
   void resized() override;
 
 private:
-  juce::ParameterAttachment oversamplingAttachment;
-  juce::ParameterAttachment limiterEnabledAttachment;
+  juce::ParameterAttachment oversamplingAttachment_;
+  juce::ParameterAttachment limiterEnabledAttachment_;
 };
 
 } // namespace Uhhyou

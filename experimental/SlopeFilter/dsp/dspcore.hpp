@@ -31,8 +31,8 @@ public:
   void process(const size_t length, const float* in0, const float* in1, float* out0, float* out1);
 
 private:
-  double sampleRate = 44100;
-  std::array<SlopeFilter<double, 12>, 2> slopeFilter;
+  double sampleRate_ = 44100;
+  std::array<SlopeFilter<double, 12>, 2> slopeFilter_;
 };
 
 } // namespace Uhhyou

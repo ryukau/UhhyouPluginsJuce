@@ -11,27 +11,27 @@
 
 namespace Uhhyou {
 
-void DSPCore::setup(Real sampleRate_) {
-  sampleRate = Real(sampleRate_);
-  upRate = sampleRate * upFold;
+void DSPCore::setup(Real sampleRate) {
+  sampleRate_ = Real(sampleRate);
+  upRate_ = sampleRate_ * upFold;
 
-  smoo.setTime(upRate, smootherTimeInSecond);
+  smoo_.setTime(upRate_, smootherTimeInSecond);
 
   const Real maxDelayTimeSeconds = Real(0.001) * param.scale.delayTimeMs.getMax();
-  for (auto& x : fdn) { x.setup(upRate * maxDelayTimeSeconds); }
+  for (auto& x : fdn_) { x.setup(upRate_ * maxDelayTimeSeconds); }
 
   reset();
   startup();
 }
 
 void DSPCore::updateUpRate() {
-  upRate = sampleRate * (overSampling ? 2 : 1);
-  smoo.setTime(upRate, smootherTimeInSecond);
-  lfo.setSyncRate(secondToEmaAlpha(upRate, Real(0.002)));
-  for (auto& x : fdn) { x.updateSamplingRate(upRate); }
-  for (auto& x : halfbandIir) { x.reset(); }
-  fadeKp = cutoffToEmaAlpha<Real>(Real(2) / upRate);
-  noteKp = cutoffToEmaAlpha<Real>(Real(500) / upRate);
+  upRate_ = sampleRate_ * (overSampling_ ? 2 : 1);
+  smoo_.setTime(upRate_, smootherTimeInSecond);
+  lfo_.setSyncRate(secondToEmaAlpha(upRate_, Real(0.002)));
+  for (auto& x : fdn_) { x.updateSamplingRate(upRate_); }
+  for (auto& x : halfbandIir_) { x.reset(); }
+  fadeKp_ = cutoffToEmaAlpha<Real>(Real(2) / upRate_);
+  noteKp_ = cutoffToEmaAlpha<Real>(Real(500) / upRate_);
 }
 
 size_t DSPCore::getLatency() { return 0; }
@@ -45,31 +45,31 @@ template<typename Func> void DSPCore::applyToParameters(Func apply) {
   auto L
     = [](const std::atomic<float>* const value) { return value->load(std::memory_order_relaxed); };
 
-  noteReceive = L(pv.noteReceive) >= Real(0.5);
-  notePitchScalar = -L(pv.notePitchRange);
-  noteGainScalar = L(pv.noteGainRange);
+  noteReceive_ = L(pv.noteReceive) >= Real(0.5);
+  notePitchScalar_ = -L(pv.notePitchRange);
+  noteGainScalar_ = L(pv.noteGainRange);
 
-  useFeedbackGate = L(pv.feedbackGate) >= Real(0.5);
+  useFeedbackGate_ = L(pv.feedbackGate) >= Real(0.5);
   const auto newSaturatorType = static_cast<Saturator<Real>::Function>(L(pv.saturationType) + 0.5f);
-  if (saturatorType != newSaturatorType) {
-    for (auto& x : fdn) { x.softReset(); }
+  if (saturatorType_ != newSaturatorType) {
+    for (auto& x : fdn_) { x.softReset(); }
   }
-  saturatorType = newSaturatorType;
+  saturatorType_ = newSaturatorType;
 
   const auto satGain = L(pv.saturationGain);
-  apply(saturationGain, satGain);
-  apply(inputBlend, L(pv.inputBlend));
-  apply(feedback0, L(pv.feedback0));
-  apply(feedback1, L(pv.feedback1));
-  apply(lfoPhaseInitial, L(pv.lfoPhaseInitial));
-  apply(lfoPhaseStereoOffset, L(pv.lfoPhaseStereoOffset));
+  apply(saturationGain_, satGain);
+  apply(inputBlend_, L(pv.inputBlend));
+  apply(feedback0_, L(pv.feedback0));
+  apply(feedback1_, L(pv.feedback1));
+  apply(lfoPhaseInitial_, L(pv.lfoPhaseInitial));
+  apply(lfoPhaseStereoOffset_, L(pv.lfoPhaseStereoOffset));
 
-  const auto delayTime = L(pv.delayTimeMs) * upRate / Real(1000);
-  apply(delayTimeSample0, delayTime);
-  apply(delayTimeSample1, L(pv.delayTimeRatio) * delayTime);
+  const auto delayTime = L(pv.delayTimeMs) * upRate_ / Real(1000);
+  apply(delayTimeSample0_, delayTime);
+  apply(delayTimeSample1_, L(pv.delayTimeRatio) * delayTime);
 
-  apply(viscosityCutoff, L(pv.viscosityLowpassHz) / upRate);
-  apply(sigModMode, L(pv.sigModMode));
+  apply(viscosityCutoff_, L(pv.viscosityLowpassHz) / upRate_);
+  apply(sigModMode_, L(pv.sigModMode));
 
   const auto setMod = [&](Real invTime, Real mod, Real tracking) -> Real {
     constexpr auto invLn2 = Real(1) / std::numbers::ln2_v<Real>;
@@ -77,34 +77,34 @@ template<typename Func> void DSPCore::applyToParameters(Func apply) {
     const auto scaled = std::lerp(weakBound, mod, tracking);
     return std::copysign(scaled, mod);
   };
-  const auto weakScalar = upRate * Real(0.01);
-  const auto invTime0 = weakScalar / std::max(Real(1), delayTimeSample0.target());
-  const auto invTime1 = weakScalar / std::max(Real(1), delayTimeSample1.target());
+  const auto weakScalar = upRate_ * Real(0.01);
+  const auto invTime0 = weakScalar / std::max(Real(1), delayTimeSample0_.target());
+  const auto invTime1 = weakScalar / std::max(Real(1), delayTimeSample1_.target());
   const auto modTracking = L(pv.modulationTracking);
   const auto modAdjust = (satGain >= Real(1)) ? Real(1) : satGain;
   const auto cMod0 = L(pv.sigTimeMod0) / modAdjust;
   const auto cMod1 = L(pv.sigTimeMod1) / modAdjust;
-  apply(sigTimeMod0, setMod(invTime0, cMod0, modTracking));
-  apply(sigTimeMod1, setMod(invTime1, cMod1, modTracking));
-  apply(lfoTimeMod0, setMod(invTime0, L(pv.lfoTimeMod0), modTracking));
-  apply(lfoTimeMod1, setMod(invTime1, L(pv.lfoTimeMod1), modTracking));
-  apply(sigAmpMod0, L(pv.sigAmpMod0));
-  apply(sigAmpMod1, L(pv.sigAmpMod1));
+  apply(sigTimeMod0_, setMod(invTime0, cMod0, modTracking));
+  apply(sigTimeMod1_, setMod(invTime1, cMod1, modTracking));
+  apply(lfoTimeMod0_, setMod(invTime0, L(pv.lfoTimeMod0), modTracking));
+  apply(lfoTimeMod1_, setMod(invTime1, L(pv.lfoTimeMod1), modTracking));
+  apply(sigAmpMod0_, L(pv.sigAmpMod0));
+  apply(sigAmpMod1_, L(pv.sigAmpMod1));
 
   const auto& cutoffMax = scl.cutoffHz.getMax();
-  apply(lowpassCutoff, L(pv.lowpassCutoffHz) / upRate);
-  apply(lowpassFade, (L(pv.lowpassCutoffHz) >= cutoffMax) ? Real(0) : Real(1));
-  apply(highpassCutoff, L(pv.highpassCutoffHz) / upRate);
-  apply(highpassFade, (L(pv.highpassCutoffHz) <= 0) ? Real(0) : Real(1));
+  apply(lowpassCutoff_, L(pv.lowpassCutoffHz) / upRate_);
+  apply(lowpassFade_, (L(pv.lowpassCutoffHz) >= cutoffMax) ? Real(0) : Real(1));
+  apply(highpassCutoff_, L(pv.highpassCutoffHz) / upRate_);
+  apply(highpassFade_, (L(pv.highpassCutoffHz) <= 0) ? Real(0) : Real(1));
 
   const auto flange = L(pv.flangeBlend);
-  apply(flangeBlend, flange);
-  apply(safeFeedback, L(pv.safeFeedback) * flange);
-  apply(flangePolarity, L(pv.flangePolarity) < Real(0.5) ? -flange : flange);
+  apply(flangeBlend_, flange);
+  apply(safeFeedback_, L(pv.safeFeedback) * flange);
+  apply(flangePolarity_, L(pv.flangePolarity) < Real(0.5) ? -flange : flange);
 
-  apply(dryGain, L(pv.dryGain));
+  apply(dryGain_, L(pv.dryGain));
   const auto wetSign = static_cast<bool>(L(pv.wetInvert)) ? Real(-1) : Real(1);
-  apply(wetGain, std::copysign(L(pv.wetGain), wetSign));
+  apply(wetGain_, std::copysign(L(pv.wetGain), wetSign));
 
   using SyncMode = TempoSyncedLfo<Real>::Synchronization;
   SyncMode mode = static_cast<SyncMode>(L(pv.lfoSyncType));
@@ -112,9 +112,9 @@ template<typename Func> void DSPCore::applyToParameters(Func apply) {
   constexpr auto lower = Real(1);
   const auto lfoBeat = std::max(Real(L(pv.lfoBeat)), eps);
   const auto lfoRate = lfoBeat >= scl.lfoBeat.getMax() ? 0 : Real(1) / lfoBeat;
-  lfo.update(mode, tempo, lfoRate, upper, lower, upRate);
+  lfo_.update(mode, tempo, lfoRate, upper, lower, upRate_);
 
-  isResettingLfoPhase = L(pv.lfoPhaseReset) >= Real(0.5);
+  isResettingLfoPhase_ = L(pv.lfoPhaseReset) >= Real(0.5);
 }
 
 void DSPCore::reset() {
@@ -122,17 +122,17 @@ void DSPCore::reset() {
 
   applyToParameters([](auto& target, auto value) { target.reset(value); });
 
-  noteIdStack.clear();
-  notePitch.reset(Real(1));
-  noteGain.reset(Real(1));
-  globalPitchBend.reset(Real(1));
+  noteIdStack_.clear();
+  notePitch_.reset(Real(1));
+  noteGain_.reset(Real(1));
+  globalPitchBend_.reset(Real(1));
 
-  modPhase.fill({});
-  lfo.reset();
+  modPhase_.fill({});
+  lfo_.reset();
 
-  for (auto& x : fdn) { x.reset(); }
-  for (auto& x : halfbandInput) { x.fill({}); }
-  for (auto& x : halfbandIir) { x.reset(); }
+  for (auto& x : fdn_) { x.reset(); }
+  for (auto& x : halfbandInput_) { x.fill({}); }
+  for (auto& x : halfbandIir_) { x.reset(); }
 
   startup();
 }
@@ -141,90 +141,90 @@ void DSPCore::startup() {}
 
 void DSPCore::setParameters() {
   unsigned newOverSampling = unsigned(param.value.oversampling->load());
-  if (overSampling != newOverSampling) {
-    overSampling = newOverSampling;
+  if (overSampling_ != newOverSampling) {
+    overSampling_ = newOverSampling;
     updateUpRate();
   }
 
   applyToParameters([](auto& target, auto value) { target.push(value); });
 
   // Prepare for this cycle.
-  preSaturationPeak.fill({});
-  outputPeak.fill({});
+  preSaturationPeak_.fill({});
+  outputPeak_.fill({});
 
   for (size_t i = 0; i < nChannel; ++i) {
     for (size_t j = 0; j < 2; ++j) {
-      displayTime[i].upper[j] = Real(0);
-      displayTime[i].lower[j] = std::numeric_limits<Real>::max();
+      displayTime_[i].upper[j] = Real(0);
+      displayTime_[i].lower[j] = std::numeric_limits<Real>::max();
     }
   }
 }
 
 auto DSPCore::processSample(const std::array<Real, 2> in) -> std::array<Real, 2> {
-  saturationGain.process();
+  saturationGain_.process();
   constexpr auto gateThresholdBase = Real{0.05};
-  const auto gateThresholdAdjusted = useFeedbackGate
-    ? (saturationGain.value() >= Real(1) ? gateThresholdBase
-                                         : gateThresholdBase * saturationGain.value())
+  const auto gateThresholdAdjusted = useFeedbackGate_
+    ? (saturationGain_.value() >= Real(1) ? gateThresholdBase
+                                          : gateThresholdBase * saturationGain_.value())
     : Real(0);
 
-  modPhase[0] = lfo.process(isPlaying, isResettingLfoPhase, lfoPhaseInitial.process(), upRate,
-                            beatsElapsed, tempo);
-  modPhase[1] = modPhase[0] + lfoPhaseStereoOffset.process();
-  modPhase[1] -= std::floor(modPhase[1]);
+  modPhase_[0] = lfo_.process(isPlaying, isResettingLfoPhase_, lfoPhaseInitial_.process(), upRate_,
+                              beatsElapsed, tempo);
+  modPhase_[1] = modPhase_[0] + lfoPhaseStereoOffset_.process();
+  modPhase_[1] -= std::floor(modPhase_[1]);
 
-  const auto ntPitch = notePitch.process(noteKp) * globalPitchBend.process(noteKp);
+  const auto ntPitch = notePitch_.process(noteKp_) * globalPitchBend_.process(noteKp_);
   const Fdn2<Real>::Parameters params = {
     .feedbackGateThreshold = gateThresholdAdjusted,
-    .feedback0 = feedback0.process(),
-    .feedback1 = feedback1.process(),
-    .inputBlend = inputBlend.process(),
-    .timeInSamples0 = delayTimeSample0.process() * ntPitch,
-    .timeInSamples1 = delayTimeSample1.process() * ntPitch,
-    .viscosityCutoff = viscosityCutoff.process(),
-    .sigModMode = sigModMode.process(),
-    .sigTimeMod0 = sigTimeMod0.process(),
-    .sigTimeMod1 = sigTimeMod1.process(),
-    .lfoTimeMod0 = lfoTimeMod0.process(),
-    .lfoTimeMod1 = lfoTimeMod1.process(),
-    .sigAmpMod0 = sigAmpMod0.process(),
-    .sigAmpMod1 = sigAmpMod1.process(),
-    .highpassCutoff = highpassCutoff.process(),
-    .highpassFade = highpassFade.process(fadeKp),
-    .flangeBlend = flangeBlend.process(),
-    .safeFeedback = safeFeedback.process(),
-    .flangeSign = flangePolarity.process(),
-    .lowpassCutoff = lowpassCutoff.process(),
-    .lowpassFade = lowpassFade.process(fadeKp),
-    .saturatorType = saturatorType,
+    .feedback0 = feedback0_.process(),
+    .feedback1 = feedback1_.process(),
+    .inputBlend = inputBlend_.process(),
+    .timeInSamples0 = delayTimeSample0_.process() * ntPitch,
+    .timeInSamples1 = delayTimeSample1_.process() * ntPitch,
+    .viscosityCutoff = viscosityCutoff_.process(),
+    .sigModMode = sigModMode_.process(),
+    .sigTimeMod0 = sigTimeMod0_.process(),
+    .sigTimeMod1 = sigTimeMod1_.process(),
+    .lfoTimeMod0 = lfoTimeMod0_.process(),
+    .lfoTimeMod1 = lfoTimeMod1_.process(),
+    .sigAmpMod0 = sigAmpMod0_.process(),
+    .sigAmpMod1 = sigAmpMod1_.process(),
+    .highpassCutoff = highpassCutoff_.process(),
+    .highpassFade = highpassFade_.process(fadeKp_),
+    .flangeBlend = flangeBlend_.process(),
+    .safeFeedback = safeFeedback_.process(),
+    .flangeSign = flangePolarity_.process(),
+    .lowpassCutoff = lowpassCutoff_.process(),
+    .lowpassFade = lowpassFade_.process(fadeKp_),
+    .saturatorType = saturatorType_,
   };
 
-  const auto gain = noteGain.process(noteKp) * saturationGain.value();
+  const auto gain = noteGain_.process(noteKp_) * saturationGain_.value();
   auto sig0 = gain * in[0];
   auto sig1 = gain * in[1];
 
-  preSaturationPeak[0] = std::max(std::abs(sig0), preSaturationPeak[0]);
-  preSaturationPeak[1] = std::max(std::abs(sig1), preSaturationPeak[1]);
+  preSaturationPeak_[0] = std::max(std::abs(sig0), preSaturationPeak_[0]);
+  preSaturationPeak_[1] = std::max(std::abs(sig1), preSaturationPeak_[1]);
 
-  sig0 = fdn[0].process(sig0, modPhase[0], displayTime[0], params);
-  sig1 = fdn[1].process(sig1, modPhase[1], displayTime[1], params);
+  sig0 = fdn_[0].process(sig0, modPhase_[0], displayTime_[0], params);
+  sig1 = fdn_[1].process(sig1, modPhase_[1], displayTime_[1], params);
 
-  if (saturationGain.value() < Real(1)) {
+  if (saturationGain_.value() < Real(1)) {
     constexpr auto eps = std::numeric_limits<Real>::epsilon();
-    const auto& g = saturationGain.value();
+    const auto& g = saturationGain_.value();
     const auto cleanUpGain = std::copysign(std::max(std::abs(g), eps), g);
     sig0 /= cleanUpGain;
     sig1 /= cleanUpGain;
   }
 
-  dryGain.process();
-  wetGain.process();
+  dryGain_.process();
+  wetGain_.process();
 
-  sig0 = dryGain.value() * in[0] + wetGain.value() * sig0;
-  sig1 = dryGain.value() * in[1] + wetGain.value() * sig1;
+  sig0 = dryGain_.value() * in[0] + wetGain_.value() * sig0;
+  sig1 = dryGain_.value() * in[1] + wetGain_.value() * sig1;
 
-  outputPeak[0] = std::max(std::abs(sig0), outputPeak[0]);
-  outputPeak[1] = std::max(std::abs(sig1), outputPeak[1]);
+  outputPeak_[0] = std::max(std::abs(sig0), outputPeak_[0]);
+  outputPeak_[1] = std::max(std::abs(sig1), outputPeak_[1]);
 
   return {sig0, sig1};
 }
@@ -236,20 +236,20 @@ void DSPCore::process(const size_t length, const float* in0, const float* in1, f
     const auto inSig0 = Real(in0[i]);
     const auto inSig1 = Real(in1[i]);
 
-    if (overSampling == 1) { // 2x sampling.
+    if (overSampling_ == 1) { // 2x sampling.
       frame = processSample({
-        Real(0.5) * (halfbandInput[0][0] + inSig0),
-        Real(0.5) * (halfbandInput[0][1] + inSig1),
+        Real(0.5) * (halfbandInput_[0][0] + inSig0),
+        Real(0.5) * (halfbandInput_[0][1] + inSig1),
       });
-      halfbandInput[0][0] = frame[0];
-      halfbandInput[1][0] = frame[1];
+      halfbandInput_[0][0] = frame[0];
+      halfbandInput_[1][0] = frame[1];
 
       frame = processSample({inSig0, inSig1});
-      halfbandInput[0][1] = frame[0];
-      halfbandInput[1][1] = frame[1];
+      halfbandInput_[0][1] = frame[0];
+      halfbandInput_[1][1] = frame[1];
 
-      frame[0] = halfbandIir[0].process(halfbandInput[0]);
-      frame[1] = halfbandIir[1].process(halfbandInput[1]);
+      frame[0] = halfbandIir_[0].process(halfbandInput_[0]);
+      frame[1] = halfbandIir_[1].process(halfbandInput_[1]);
     } else { // 1x sampling.
       frame = processSample({inSig0, inSig1});
     }
@@ -257,8 +257,8 @@ void DSPCore::process(const size_t length, const float* in0, const float* in1, f
     out0[i] = float(frame[0]);
     out1[i] = float(frame[1]);
 
-    halfbandInput[0][0] = inSig0;
-    halfbandInput[0][1] = inSig1;
+    halfbandInput_[0][0] = inSig0;
+    halfbandInput_[0][1] = inSig1;
   }
 
   // Send values to GUI.
@@ -271,22 +271,22 @@ void DSPCore::process(const size_t length, const float* in0, const float* in1, f
     if (current < candidate) { target.store(candidate, mem); }
   };
 
-  storeMax(pv.displayPreSaturationPeak[0], preSaturationPeak[0]);
-  storeMax(pv.displayPreSaturationPeak[1], preSaturationPeak[1]);
-  storeMax(pv.displayOutputPeak[0], outputPeak[0]);
-  storeMax(pv.displayOutputPeak[1], outputPeak[1]);
-  pv.displayLfoPhase[0].store(float(modPhase[0]), mem);
-  pv.displayLfoPhase[1].store(float(modPhase[1]), mem);
+  storeMax(pv.displayPreSaturationPeak[0], preSaturationPeak_[0]);
+  storeMax(pv.displayPreSaturationPeak[1], preSaturationPeak_[1]);
+  storeMax(pv.displayOutputPeak[0], outputPeak_[0]);
+  storeMax(pv.displayOutputPeak[1], outputPeak_[1]);
+  pv.displayLfoPhase[0].store(float(modPhase_[0]), mem);
+  pv.displayLfoPhase[1].store(float(modPhase_[1]), mem);
 
-  const Real invUpRate = Real(1) / upRate;
-  pv.displayDelayTimeUpper[0][0].store(float(displayTime[0].upper[0] * invUpRate), mem);
-  pv.displayDelayTimeUpper[0][1].store(float(displayTime[0].upper[1] * invUpRate), mem);
-  pv.displayDelayTimeLower[0][0].store(float(displayTime[0].lower[0] * invUpRate), mem);
-  pv.displayDelayTimeLower[0][1].store(float(displayTime[0].lower[1] * invUpRate), mem);
-  pv.displayDelayTimeUpper[1][0].store(float(displayTime[1].upper[0] * invUpRate), mem);
-  pv.displayDelayTimeUpper[1][1].store(float(displayTime[1].upper[1] * invUpRate), mem);
-  pv.displayDelayTimeLower[1][0].store(float(displayTime[1].lower[0] * invUpRate), mem);
-  pv.displayDelayTimeLower[1][1].store(float(displayTime[1].lower[1] * invUpRate), mem);
+  const Real invUpRate = Real(1) / upRate_;
+  pv.displayDelayTimeUpper[0][0].store(float(displayTime_[0].upper[0] * invUpRate), mem);
+  pv.displayDelayTimeUpper[0][1].store(float(displayTime_[0].upper[1] * invUpRate), mem);
+  pv.displayDelayTimeLower[0][0].store(float(displayTime_[0].lower[0] * invUpRate), mem);
+  pv.displayDelayTimeLower[0][1].store(float(displayTime_[0].lower[1] * invUpRate), mem);
+  pv.displayDelayTimeUpper[1][0].store(float(displayTime_[1].upper[0] * invUpRate), mem);
+  pv.displayDelayTimeUpper[1][1].store(float(displayTime_[1].upper[1] * invUpRate), mem);
+  pv.displayDelayTimeLower[1][0].store(float(displayTime_[1].lower[0] * invUpRate), mem);
+  pv.displayDelayTimeLower[1][1].store(float(displayTime_[1].lower[1] * invUpRate), mem);
 }
 
 template<typename Real> inline Real semitoneToRatio(Real scaler, Real semitone) {
@@ -294,55 +294,55 @@ template<typename Real> inline Real semitoneToRatio(Real scaler, Real semitone) 
 }
 
 void DSPCore::noteOn(int noteId, Real pitchSemitone, Real velocity) {
-  if (!noteReceive) { return; }
+  if (!noteReceive_) { return; }
 
-  noteIdStack.push_back({
-    .pitch = semitoneToRatio(notePitchScalar, pitchSemitone),
-    .gain = ScaleTools::dbToAmp(noteGainScalar * Real(velocity)),
+  noteIdStack_.push_back({
+    .pitch = semitoneToRatio(notePitchScalar_, pitchSemitone),
+    .gain = ScaleTools::dbToAmp(noteGainScalar_ * Real(velocity)),
     .noteId = noteId,
   });
-  notePitch.push(noteIdStack.back().pitch);
-  noteGain.push(noteIdStack.back().gain);
+  notePitch_.push(noteIdStack_.back().pitch);
+  noteGain_.push(noteIdStack_.back().gain);
 }
 
 void DSPCore::noteOff(int noteId) {
   auto reset = [&]() {
-    notePitch.push(Real(1));
-    noteGain.push(Real(1));
+    notePitch_.push(Real(1));
+    noteGain_.push(Real(1));
   };
 
-  if (noteIdStack.empty()) [[unlikely]] {
+  if (noteIdStack_.empty()) [[unlikely]] {
     reset();
     return;
   }
 
-  auto it = std::ranges::find(noteIdStack, noteId, &NoteData::noteId);
-  if (it == noteIdStack.end()) { return; }
+  auto it = std::ranges::find(noteIdStack_, noteId, &NoteData::noteId);
+  if (it == noteIdStack_.end()) { return; }
 
-  const bool latestNoteIsOff = (it == std::prev(noteIdStack.end()));
-  noteIdStack.erase(it);
+  const bool latestNoteIsOff = (it == std::prev(noteIdStack_.end()));
+  noteIdStack_.erase(it);
   if (!latestNoteIsOff) { return; }
 
-  if (noteIdStack.empty()) {
+  if (noteIdStack_.empty()) {
     reset();
   } else {
-    notePitch.push(noteIdStack.back().pitch);
-    noteGain.push(noteIdStack.back().gain);
+    notePitch_.push(noteIdStack_.back().pitch);
+    noteGain_.push(noteIdStack_.back().gain);
   }
 }
 
 void DSPCore::notePitchBend(int noteId, Real pitchSemitone) {
-  if (!noteReceive || noteIdStack.empty()) { return; }
+  if (!noteReceive_ || noteIdStack_.empty()) { return; }
 
-  auto it = std::find_if(noteIdStack.rbegin(), noteIdStack.rend(),
+  auto it = std::find_if(noteIdStack_.rbegin(), noteIdStack_.rend(),
                          [noteId](const auto& data) { return data.noteId == noteId; });
 
-  if (it != noteIdStack.rend()) {
-    it->pitch = semitoneToRatio(notePitchScalar, pitchSemitone);
-    if (it == noteIdStack.rbegin()) { notePitch.push(it->pitch); }
+  if (it != noteIdStack_.rend()) {
+    it->pitch = semitoneToRatio(notePitchScalar_, pitchSemitone);
+    if (it == noteIdStack_.rbegin()) { notePitch_.push(it->pitch); }
   }
 }
 
-void DSPCore::setPitchBend(Real bend) { globalPitchBend.push(std::exp2(bend)); }
+void DSPCore::setPitchBend(Real bend) { globalPitchBend_.push(std::exp2(bend)); }
 
 } // namespace Uhhyou

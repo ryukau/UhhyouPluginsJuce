@@ -37,29 +37,29 @@ private:
   std::array<double, 2> processSample(const std::array<double, 2> in);
 
   static constexpr unsigned upFold = 2;
-  unsigned overSampling = 2;
-  double sampleRate = 44100;
-  double upRate = upFold * 44100.0;
+  unsigned overSampling_ = 2;
+  double sampleRate_ = 44100;
+  double upRate_ = upFold * 44100.0;
 
-  std::array<float, 2> inputPeakMax{};
-  std::array<float, 2> modEnvelopeOutMax{};
+  std::array<float, 2> inputPeakMax_{};
+  std::array<float, 2> modEnvelopeOutMax_{};
 
   static constexpr double smootherTimeInSecond = double(0.2);
-  SmootherParameter<double> smoo;
-  ExpSmoother<double> crossoverCutoff{smoo};
-  ExpSmoother<double> shaperDecaySample{smoo};
-  ExpSmoother<double> shaperRefreshRatio{smoo};
-  ExpSmoother<double> shaperIntensity{smoo};
-  ExpSmoother<double> shaperPostLowpassCutoff{smoo};
-  ExpSmoother<double> lowGain{smoo};
-  ExpSmoother<double> highGain{smoo};
+  SmootherParameter<double> smoo_;
+  ExpSmoother<double> crossoverCutoff_{smoo_};
+  ExpSmoother<double> shaperDecaySample_{smoo_};
+  ExpSmoother<double> shaperRefreshRatio_{smoo_};
+  ExpSmoother<double> shaperIntensity_{smoo_};
+  ExpSmoother<double> shaperPostLowpassCutoff_{smoo_};
+  ExpSmoother<double> lowGain_{smoo_};
+  ExpSmoother<double> highGain_{smoo_};
 
-  std::array<BandSplitter<double, 63>, 2> splitter;
-  std::array<EnvelopeFollowerExpDecay<double>, 2> envelopeHigh;
-  std::array<Butterworth<double, 8>, 2> lowpass;
+  std::array<BandSplitter<double, 63>, 2> splitter_;
+  std::array<EnvelopeFollowerExpDecay<double>, 2> envelopeHigh_;
+  std::array<Butterworth<double, 8>, 2> lowpass_;
 
-  std::array<std::array<double, 2>, 2> halfbandInput{};
-  std::array<HalfBandIIR<double, HalfBandCoefficient<double>>, 2> halfbandIir;
+  std::array<std::array<double, 2>, 2> halfbandInput_{};
+  std::array<HalfBandIIR<double, HalfBandCoefficient<double>>, 2> halfbandIir_;
 };
 
 } // namespace Uhhyou

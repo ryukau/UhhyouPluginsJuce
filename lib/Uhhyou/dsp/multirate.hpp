@@ -10,36 +10,37 @@
 namespace Uhhyou {
 
 template<typename Sample, typename Sos> class DecimationLowpass {
+private:
   struct State {
     Sample s1 = 0;
     Sample s2 = 0;
   };
-  alignas(64) std::array<State, Sos::co.size()> states{};
-  Sample last = 0;
+  alignas(64) std::array<State, Sos::co.size()> states_{};
+  Sample last_ = 0;
 
 public:
   void reset() {
-    states.fill({});
-    last = 0;
+    states_.fill({});
+    last_ = 0;
   }
 
   inline void push(Sample x) {
     for (size_t i = 0; i < Sos::co.size(); ++i) {
       const auto& c = Sos::co[i];
-      Sample y = c[0] * x + states[i].s1;
-      states[i].s1 = states[i].s2 + c[1] * x - c[3] * y;
-      states[i].s2 = c[2] * x - c[4] * y;
+      Sample y = c[0] * x + states_[i].s1;
+      states_[i].s1 = states_[i].s2 + c[1] * x - c[3] * y;
+      states_[i].s2 = c[2] * x - c[4] * y;
       x = y;
     }
-    last = x;
+    last_ = x;
   }
 
-  inline Sample output() const { return last; }
+  inline Sample output() const { return last_; }
 };
 
 template<typename Sample, const auto& Coefficients> class AllpassCascade {
 private:
-  std::array<Sample, Coefficients.size()> s{};
+  std::array<Sample, Coefficients.size()> s_{};
 
   template<std::size_t... I> inline Sample process_impl(Sample input, std::index_sequence<I...>) {
     ((input = process_section<I>(input)), ...);
@@ -48,13 +49,13 @@ private:
 
   template<std::size_t Index> inline Sample process_section(Sample input) {
     constexpr auto coeff = Coefficients[Index];
-    Sample y = coeff * input + s[Index];
-    s[Index] = input - coeff * y;
+    Sample y = coeff * input + s_[Index];
+    s_[Index] = input - coeff * y;
     return y;
   }
 
 public:
-  void reset() { s.fill(Sample(0)); }
+  void reset() { s_.fill(Sample(0)); }
 
   inline Sample process(Sample input) {
     return process_impl(input, std::make_index_sequence<Coefficients.size()>{});
@@ -63,74 +64,79 @@ public:
 
 template<typename Sample, typename Coefficient> class HalfBandIIR {
 private:
-  AllpassCascade<Sample, Coefficient::h0_a> ap0;
-  AllpassCascade<Sample, Coefficient::h1_a> ap1;
+  AllpassCascade<Sample, Coefficient::h0_a> ap0_;
+  AllpassCascade<Sample, Coefficient::h1_a> ap1_;
 
 public:
   void reset() {
-    ap0.reset();
-    ap1.reset();
+    ap0_.reset();
+    ap1_.reset();
   }
 
   // For down-sampling. input[0] is earlier sample (z^-1).
   inline Sample process(const std::array<Sample, 2>& input) {
-    auto s0 = ap0.process(input[0]);
-    auto s1 = ap1.process(input[1]);
+    auto s0 = ap0_.process(input[0]);
+    auto s1 = ap1_.process(input[1]);
     return Sample(0.5) * (s0 + s1);
   }
 
   // For up-sampling.
-  std::array<Sample, 2> processUp(Sample input) { return {ap1.process(input), ap0.process(input)}; }
+  std::array<Sample, 2> processUp(Sample input) {
+    return {ap1_.process(input), ap0_.process(input)};
+  }
 };
 
 template<typename Sample, typename FractionalDelayFIR> class FirUpSampler {
-  std::array<Sample, FractionalDelayFIR::bufferSize> buf{};
+private:
+  std::array<Sample, FractionalDelayFIR::bufferSize> buf_{};
 
 public:
   std::array<Sample, FractionalDelayFIR::upfold> output;
 
-  void reset() { buf.fill(Sample(0)); }
+  void reset() { buf_.fill(Sample(0)); }
 
   void process(Sample input) {
-    std::rotate(buf.rbegin(), buf.rbegin() + 1, buf.rend());
-    buf[0] = input;
+    std::rotate(buf_.rbegin(), buf_.rbegin() + 1, buf_.rend());
+    buf_[0] = input;
 
     std::fill(output.begin(), output.end(), Sample(0));
     for (size_t i = 0; i < FractionalDelayFIR::coefficient.size(); ++i) {
       auto&& phase = FractionalDelayFIR::coefficient[i];
-      for (size_t n = 0; n < phase.size(); ++n) { output[i] += buf[n] * phase[n]; }
+      for (size_t n = 0; n < phase.size(); ++n) { output[i] += buf_[n] * phase[n]; }
     }
   }
 };
 
 template<typename Sample, typename FractionalDelayFIR> class TruePeakMeterConvolver {
-  std::array<Sample, FractionalDelayFIR::bufferSize> buf{};
+private:
+  std::array<Sample, FractionalDelayFIR::bufferSize> buf_{};
 
 public:
   std::array<Sample, FractionalDelayFIR::upfold> output;
 
-  void reset() { buf.fill(Sample(0)); }
+  void reset() { buf_.fill(Sample(0)); }
 
   void process(Sample input) {
-    std::rotate(buf.rbegin(), buf.rbegin() + 1, buf.rend());
-    buf[0] = input;
+    std::rotate(buf_.rbegin(), buf_.rbegin() + 1, buf_.rend());
+    buf_[0] = input;
 
     std::fill(output.begin(), output.end() - 1, Sample(0));
-    output.back() = buf[FractionalDelayFIR::intDelay];
+    output.back() = buf_[FractionalDelayFIR::intDelay];
     for (size_t i = 0; i < FractionalDelayFIR::coefficient.size(); ++i) {
       auto&& phase = FractionalDelayFIR::coefficient[i];
-      for (size_t n = 0; n < phase.size(); ++n) { output[i] += buf[n] * phase[n]; }
+      for (size_t n = 0; n < phase.size(); ++n) { output[i] += buf_[n] * phase[n]; }
     }
   }
 };
 
 template<typename Sample, size_t upSample> class CubicUpSampler {
-  std::array<Sample, 4> buf{};
+private:
+  std::array<Sample, 4> buf_{};
 
 public:
   std::array<Sample, upSample> output;
 
-  void reset() { buf.fill(Sample(0)); }
+  void reset() { buf_.fill(Sample(0)); }
 
   // 3rd order Lagrange Interpolation.
   // Range of t is in [0, 1]. Interpolates between y1 and y2.
@@ -143,31 +149,32 @@ public:
   }
 
   void process(Sample input) {
-    std::rotate(buf.begin(), buf.begin() + 1, buf.end());
-    buf.back() = input;
+    std::rotate(buf_.begin(), buf_.begin() + 1, buf_.end());
+    buf_.back() = input;
 
     std::fill(output.begin() + 1, output.end(), Sample(0));
-    output[0] = buf[1];
+    output[0] = buf_[1];
     for (size_t i = 1; i < output.size(); ++i) {
-      output[i] = cubicInterp(buf, Sample(i) / Sample(upSample));
+      output[i] = cubicInterp(buf_, Sample(i) / Sample(upSample));
     }
   }
 };
 
 template<typename Sample, size_t upSample> class LinearUpSampler {
-  Sample buf = 0;
+private:
+  Sample buf_ = 0;
 
 public:
   std::array<Sample, upSample> output;
 
-  void reset() { buf = 0; }
+  void reset() { buf_ = 0; }
 
   void process(Sample input) {
-    Sample diff = input - buf;
+    Sample diff = input - buf_;
     for (size_t i = 0; i < output.size(); ++i) {
-      output[i] = buf + diff * Sample(i) / Sample(upSample);
+      output[i] = buf_ + diff * Sample(i) / Sample(upSample);
     }
-    buf = input;
+    buf_ = input;
   }
 };
 

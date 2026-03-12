@@ -50,9 +50,9 @@ private:
     juce::WeakReference<FocusScope> scope;
   };
 
-  std::vector<ScopeEntry> stack;
-  juce::Component::SafePointer<juce::Component> lastFocusedComponent;
-  bool isFocusInside = false;
+  std::vector<ScopeEntry> stack_;
+  juce::Component::SafePointer<juce::Component> lastFocusedComponent_;
+  bool isFocusInside_ = false;
 
 public:
   NavigationManager() { juce::Desktop::getInstance().addFocusChangeListener(this); }
@@ -60,21 +60,21 @@ public:
   ~NavigationManager() override { juce::Desktop::getInstance().removeFocusChangeListener(this); }
 
   void pushScope(juce::Component* owner, FocusScope* scope) {
-    if (owner && scope) { stack.push_back({owner, scope}); }
+    if (owner && scope) { stack_.push_back({owner, scope}); }
   }
 
   void popScope(juce::Component* owner) {
-    auto it = std::remove_if(stack.begin(), stack.end(),
+    auto it = std::remove_if(stack_.begin(), stack_.end(),
                              [&](const ScopeEntry& entry) { return entry.owner == owner; });
 
-    stack.erase(it, stack.end());
+    stack_.erase(it, stack_.end());
   }
 
   bool handleTab(bool isShiftDown) {
     cleanupStack();
-    if (stack.empty()) { return false; }
+    if (stack_.empty()) { return false; }
 
-    FocusScope* scope = stack.back().scope;
+    FocusScope* scope = stack_.back().scope;
     if (scope == nullptr || scope->components.empty()) { return false; }
 
     std::vector<juce::Component*> focusable;
@@ -112,9 +112,9 @@ public:
   bool handleEscape() {
     cleanupStack();
 
-    if (stack.size() <= 1) { return false; }
+    if (stack_.size() <= 1) { return false; }
 
-    if (auto* owner = stack.back().owner.getComponent()) {
+    if (auto* owner = stack_.back().owner.getComponent()) {
       bool handled = owner->keyPressed(juce::KeyPress(juce::KeyPress::escapeKey));
       if (!handled && owner->getWantsKeyboardFocus()) { owner->grabKeyboardFocus(); }
       return true;
@@ -125,9 +125,9 @@ public:
 
 private:
   void cleanupStack() {
-    while (!stack.empty()) {
-      if (stack.back().owner != nullptr && stack.back().scope != nullptr) { break; }
-      stack.pop_back();
+    while (!stack_.empty()) {
+      if (stack_.back().owner != nullptr && stack_.back().scope != nullptr) { break; }
+      stack_.pop_back();
     }
   }
 
@@ -139,11 +139,11 @@ private:
     bool currentlyInside = isComponentInside(focusedComponent);
 
     if (currentlyInside) {
-      if (!isFocusInside) {
-        isFocusInside = true;
+      if (!isFocusInside_) {
+        isFocusInside_ = true;
 
         bool isSpecificTarget = false;
-        for (const auto& entry : stack) {
+        for (const auto& entry : stack_) {
           FocusScope* scope = entry.scope;
           if (scope != nullptr && scope->contains(focusedComponent)) {
             isSpecificTarget = true;
@@ -164,36 +164,36 @@ private:
       }
 
       if (isValidTarget(focusedComponent)) {
-        for (const auto& entry : stack) {
+        for (const auto& entry : stack_) {
           FocusScope* scope = entry.scope;
           if (scope != nullptr && scope->contains(focusedComponent)) {
-            lastFocusedComponent = focusedComponent;
+            lastFocusedComponent_ = focusedComponent;
             break;
           }
         }
       }
     } else {
-      isFocusInside = false;
+      isFocusInside_ = false;
     }
   }
 
   bool isComponentInside(juce::Component* c) {
     if (!c) { return false; }
-    if (stack.empty()) { return false; }
+    if (stack_.empty()) { return false; }
 
-    auto* root = stack.front().owner.getComponent();
+    auto* root = stack_.front().owner.getComponent();
     if (!root) { return false; }
     return c == root || root->isParentOf(c);
   }
 
   juce::Component* findResumeTarget() {
     cleanupStack();
-    if (stack.empty()) { return nullptr; }
+    if (stack_.empty()) { return nullptr; }
 
-    FocusScope* currentScope = stack.back().scope;
+    FocusScope* currentScope = stack_.back().scope;
     if (currentScope == nullptr) { return nullptr; }
 
-    auto* last = lastFocusedComponent.getComponent();
+    auto* last = lastFocusedComponent_.getComponent();
     if (isValidTarget(last) && currentScope->contains(last)) { return last; }
 
     for (auto& safePtr : currentScope->components) {
@@ -208,7 +208,7 @@ private:
 
 class FocusRingOverlay : public juce::Component, private juce::FocusChangeListener {
 public:
-  FocusRingOverlay(Palette& palette) : pal(palette) {
+  FocusRingOverlay(Palette& palette) : pal_(palette) {
     setInterceptsMouseClicks(false, false);
     juce::Desktop::getInstance().addFocusChangeListener(this);
   }
@@ -229,15 +229,15 @@ public:
 
     if (focused != parent && parent->isParentOf(focused)) {
       auto bounds = getLocalArea(focused, focused->getLocalBounds()).toFloat();
-      float thickness = pal.borderWidth() * float(3);
+      float thickness = pal_.borderWidth() * float(3);
       auto ringBounds = bounds.expanded(thickness);
-      ctx.setColour(pal.foreground().withAlpha(float(0.5)));
+      ctx.setColour(pal_.foreground().withAlpha(float(0.5)));
       ctx.drawRect(ringBounds, thickness);
     }
   }
 
 private:
-  Palette& pal;
+  Palette& pal_;
 };
 
 } // namespace Uhhyou

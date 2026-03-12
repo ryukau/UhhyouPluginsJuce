@@ -26,7 +26,7 @@ const juce::String Processor::getProgramName(int) { return {}; }
 void Processor::changeProgramName(int, const juce::String&) {}
 
 void Processor::prepareToPlay(double sampleRate, int) {
-  std::lock_guard<std::mutex> guard(setupMutex);
+  std::lock_guard<std::mutex> guard(setupMutex_);
 
   if (previousSampleRate != sampleRate) {
     dsp.setup(sampleRate);
@@ -57,7 +57,7 @@ void Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&
   // Mutex shouldn't be used here. However, this is a mitigation of a crash on old version
   // of FL when refreshing a plugin. It seems like `prepareToPlay` and `processBlock`
   // might be called at the same time.
-  std::unique_lock<std::mutex> lock(setupMutex, std::try_to_lock);
+  std::unique_lock<std::mutex> lock(setupMutex_, std::try_to_lock);
   if (!lock.owns_lock()) {
     buffer.clear(); // Output silence as the plugin is resetting.
     return;

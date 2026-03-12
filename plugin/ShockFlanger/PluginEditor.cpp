@@ -51,7 +51,7 @@ const juce::String sMod{"Modulation"};
 const juce::String sMIDI{"MIDI"};
 
 Editor::Editor(Processor& processor) : EditorBase(processor, informationText) {
-  auto& s_ = processor.param.scale;
+  auto& sc = processor.param.scale;
 
   auto snapsToNormalized = [&](const auto& source, auto converter) {
     std::vector<float> keys;
@@ -61,12 +61,12 @@ Editor::Editor(Processor& processor) : EditorBase(processor, informationText) {
     return keys;
   };
 
-  addTextKnob(sMix, "dryGain", s_.gain,
-              {s_.gain.invmap(-1.0f), s_.gain.invmap(0), s_.gain.invmap(1.0f)}, 5);
-  addTextKnob(sMix, "wetGain", s_.gain,
-              {s_.gain.invmap(-1.0f), s_.gain.invmap(0), s_.gain.invmap(1.0f)}, 5);
-  addToggleButton(sMix, "wetInvert", s_.boolean);
-  addToggleButton(sMix, "oversampling", s_.boolean);
+  addTextKnob(sMix, "dryGain", sc.gain,
+              {sc.gain.invmap(-1.0f), sc.gain.invmap(0), sc.gain.invmap(1.0f)}, 5);
+  addTextKnob(sMix, "wetGain", sc.gain,
+              {sc.gain.invmap(-1.0f), sc.gain.invmap(0), sc.gain.invmap(1.0f)}, 5);
+  addToggleButton(sMix, "wetInvert", sc.boolean);
+  addToggleButton(sMix, "oversampling", sc.boolean);
 
   auto formatSaturationType = [](std::string s) {
     if (!s.empty()) {
@@ -75,83 +75,83 @@ Editor::Editor(Processor& processor) : EditorBase(processor, informationText) {
     }
     return s;
   };
-  addComboBox(sSat, "saturationType", s_.saturationType,
+  addComboBox(sSat, "saturationType", sc.saturationType,
               {
 #define X(name) formatSaturationType(#name),
                 UHHYOU_SATURATOR_FUNCTIONS(X)
 #undef X
               },
               "Type");
-  addTextKnob(sSat, "saturationGain", s_.saturationGain, {s_.saturationGain.invmapDB(0)}, 5,
+  addTextKnob(sSat, "saturationGain", sc.saturationGain, {sc.saturationGain.invmapDB(0)}, 5,
               "Gain");
 
-  addTextKnob(sDelay, "delayTimeMs", s_.delayTimeMs, {s_.delayTimeMs.invmap(1.0f)}, 5);
-  addTextKnob(sDelay, "delayTimeRatio", s_.unipolar,
-              {s_.unipolar.invmap(1.0f / 2), s_.unipolar.invmap(1.0f / 3),
-               s_.unipolar.invmap(1.0f / 4), s_.unipolar.invmap(1.0f / 5),
-               s_.unipolar.invmap(1.0f / 6), s_.unipolar.invmap(1.0f / 7),
-               s_.unipolar.invmap(1.0f / 8)},
+  addTextKnob(sDelay, "delayTimeMs", sc.delayTimeMs, {sc.delayTimeMs.invmap(1.0f)}, 5);
+  addTextKnob(sDelay, "delayTimeRatio", sc.unipolar,
+              {sc.unipolar.invmap(1.0f / 2), sc.unipolar.invmap(1.0f / 3),
+               sc.unipolar.invmap(1.0f / 4), sc.unipolar.invmap(1.0f / 5),
+               sc.unipolar.invmap(1.0f / 6), sc.unipolar.invmap(1.0f / 7),
+               sc.unipolar.invmap(1.0f / 8)},
               5);
-  addTextKnob(sDelay, "inputBlend", s_.unipolar, {s_.unipolar.invmap(0.0f)}, 5);
-  addTextKnob(sDelay, "flangeBlend", s_.unipolar, {s_.unipolar.invmap(0.0f)}, 5);
-  addToggleButton(sDelay, "flangePolarity", s_.boolean);
-  addTextKnob(sDelay, "feedback0", s_.feedback, {s_.feedback.invmap(0)}, 5);
-  addTextKnob(sDelay, "feedback1", s_.feedback, {s_.feedback.invmap(0)}, 5);
-  addToggleButton(sDelay, "safeFeedback", s_.boolean);
-  addToggleButton(sDelay, "feedbackGate", s_.boolean);
-  addTextKnob(sDelay, "lowpassCutoffHz", s_.cutoffHz, {s_.cutoffHz.invmap(10000.0f)}, 5);
-  addTextKnob(sDelay, "highpassCutoffHz", s_.cutoffHz,
-              {s_.cutoffHz.invmap(1.0f), s_.cutoffHz.invmap(5.0f), s_.cutoffHz.invmap(12.0f),
-               s_.cutoffHz.invmap(20.0f)},
+  addTextKnob(sDelay, "inputBlend", sc.unipolar, {sc.unipolar.invmap(0.0f)}, 5);
+  addTextKnob(sDelay, "flangeBlend", sc.unipolar, {sc.unipolar.invmap(0.0f)}, 5);
+  addToggleButton(sDelay, "flangePolarity", sc.boolean);
+  addTextKnob(sDelay, "feedback0", sc.feedback, {sc.feedback.invmap(0)}, 5);
+  addTextKnob(sDelay, "feedback1", sc.feedback, {sc.feedback.invmap(0)}, 5);
+  addToggleButton(sDelay, "safeFeedback", sc.boolean);
+  addToggleButton(sDelay, "feedbackGate", sc.boolean);
+  addTextKnob(sDelay, "lowpassCutoffHz", sc.cutoffHz, {sc.cutoffHz.invmap(10000.0f)}, 5);
+  addTextKnob(sDelay, "highpassCutoffHz", sc.cutoffHz,
+              {sc.cutoffHz.invmap(1.0f), sc.cutoffHz.invmap(5.0f), sc.cutoffHz.invmap(12.0f),
+               sc.cutoffHz.invmap(20.0f)},
               5);
 
-  addTextKnob(sLFO, "lfoBeat", s_.lfoBeat,
-              snapsToNormalized(s_.lfoBeatSnaps, [&](auto v) { return s_.lfoBeat.invmap(v); }), 5);
-  addComboBox(sLFO, "lfoSyncType", s_.lfoSyncType, {"Phase", "Frequency", "Off (Fixed to 120 BPM)"},
+  addTextKnob(sLFO, "lfoBeat", sc.lfoBeat,
+              snapsToNormalized(sc.lfoBeatSnaps, [&](auto v) { return sc.lfoBeat.invmap(v); }), 5);
+  addComboBox(sLFO, "lfoSyncType", sc.lfoSyncType, {"Phase", "Frequency", "Off (Fixed to 120 BPM)"},
               "Tempo Sync.");
-  std::vector<float> phaseSnaps{s_.unipolar.invmap(0.0f / 8), s_.unipolar.invmap(1.0f / 8),
-                                s_.unipolar.invmap(2.0f / 8), s_.unipolar.invmap(3.0f / 8),
-                                s_.unipolar.invmap(4.0f / 8), s_.unipolar.invmap(5.0f / 8),
-                                s_.unipolar.invmap(6.0f / 8), s_.unipolar.invmap(7.0f / 8)};
-  addRotaryTextKnob(sLFO, "lfoPhaseInitial", s_.unipolar, phaseSnaps, 5);
-  addRotaryTextKnob(sLFO, "lfoPhaseStereoOffset", s_.unipolar, phaseSnaps, 5);
-  addMomentaryButton(sLFO, "lfoPhaseReset", s_.boolean);
+  std::vector<float> phaseSnaps{sc.unipolar.invmap(0.0f / 8), sc.unipolar.invmap(1.0f / 8),
+                                sc.unipolar.invmap(2.0f / 8), sc.unipolar.invmap(3.0f / 8),
+                                sc.unipolar.invmap(4.0f / 8), sc.unipolar.invmap(5.0f / 8),
+                                sc.unipolar.invmap(6.0f / 8), sc.unipolar.invmap(7.0f / 8)};
+  addRotaryTextKnob(sLFO, "lfoPhaseInitial", sc.unipolar, phaseSnaps, 5);
+  addRotaryTextKnob(sLFO, "lfoPhaseStereoOffset", sc.unipolar, phaseSnaps, 5);
+  addMomentaryButton(sLFO, "lfoPhaseReset", sc.boolean);
 
-  addTextKnob(sMod, "lfoTimeMod0", s_.lfoToDelayTimeOctave, {s_.lfoToDelayTimeOctave.invmap(0)}, 5);
-  addTextKnob(sMod, "lfoTimeMod1", s_.lfoToDelayTimeOctave, {s_.lfoToDelayTimeOctave.invmap(0)}, 5);
-  addTextKnob(sMod, "modulationTracking", s_.unipolar, {s_.unipolar.invmap(1.0f)}, 5);
-  addTextKnob(sMod, "sigModMode", s_.unipolar, {s_.unipolar.invmap(0.0f)}, 5);
-  addTextKnob(sMod, "viscosityLowpassHz", s_.cutoffHz,
-              {s_.cutoffHz.invmap(20.0f), s_.cutoffHz.invmap(200.0f), s_.cutoffHz.invmap(2000.0f),
-               s_.cutoffHz.invmap(20000.0f)},
+  addTextKnob(sMod, "lfoTimeMod0", sc.lfoToDelayTimeOctave, {sc.lfoToDelayTimeOctave.invmap(0)}, 5);
+  addTextKnob(sMod, "lfoTimeMod1", sc.lfoToDelayTimeOctave, {sc.lfoToDelayTimeOctave.invmap(0)}, 5);
+  addTextKnob(sMod, "modulationTracking", sc.unipolar, {sc.unipolar.invmap(1.0f)}, 5);
+  addTextKnob(sMod, "sigModMode", sc.unipolar, {sc.unipolar.invmap(0.0f)}, 5);
+  addTextKnob(sMod, "viscosityLowpassHz", sc.cutoffHz,
+              {sc.cutoffHz.invmap(20.0f), sc.cutoffHz.invmap(200.0f), sc.cutoffHz.invmap(2000.0f),
+               sc.cutoffHz.invmap(20000.0f)},
               5);
-  addTextKnob(sMod, "sigTimeMod0", s_.timeModOctave, {s_.timeModOctave.invmap(0)}, 5);
-  addTextKnob(sMod, "sigTimeMod1", s_.timeModOctave, {s_.timeModOctave.invmap(0)}, 5);
-  addTextKnob(sMod, "sigAmpMod0", s_.unipolar, {s_.unipolar.invmap(0.0f)}, 5);
-  addTextKnob(sMod, "sigAmpMod1", s_.unipolar, {s_.unipolar.invmap(0.0f)}, 5);
+  addTextKnob(sMod, "sigTimeMod0", sc.timeModOctave, {sc.timeModOctave.invmap(0)}, 5);
+  addTextKnob(sMod, "sigTimeMod1", sc.timeModOctave, {sc.timeModOctave.invmap(0)}, 5);
+  addTextKnob(sMod, "sigAmpMod0", sc.unipolar, {sc.unipolar.invmap(0.0f)}, 5);
+  addTextKnob(sMod, "sigAmpMod1", sc.unipolar, {sc.unipolar.invmap(0.0f)}, 5);
 
-  addToggleButton(sMIDI, "noteReceive", s_.boolean);
-  addTextKnob(sMIDI, "notePitchRange", s_.notePitchRange, {s_.notePitchRange.invmap(float(0))}, 5);
-  addTextKnob(sMIDI, "noteGainRange", s_.noteGainRange,
-              {s_.noteGainRange.invmap(float(10)), s_.noteGainRange.invmap(float(20)),
-               s_.noteGainRange.invmap(float(30)), s_.noteGainRange.invmap(float(40)),
-               s_.noteGainRange.invmap(float(50))},
+  addToggleButton(sMIDI, "noteReceive", sc.boolean);
+  addTextKnob(sMIDI, "notePitchRange", sc.notePitchRange, {sc.notePitchRange.invmap(float(0))}, 5);
+  addTextKnob(sMIDI, "noteGainRange", sc.noteGainRange,
+              {sc.noteGainRange.invmap(float(10)), sc.noteGainRange.invmap(float(20)),
+               sc.noteGainRange.invmap(float(30)), sc.noteGainRange.invmap(float(40)),
+               sc.noteGainRange.invmap(float(50))},
               5);
 
-  addXYPad(sXY0, "delayTimeMs", "delayTimeRatio", {s_.delayTimeMs.invmap(1.0f)},
-           {s_.unipolar.invmap(0.75f)});
-  addXYPad(sXY0, "feedback0", "feedback1", {s_.feedback.invmap(0)}, {s_.feedback.invmap(0)});
-  addXYPad(sXY0, "lfoBeat", "saturationGain", {}, {s_.saturationGain.invmapDB(float(0))});
-  addXYPad(sXY0, "flangeBlend", "inputBlend", {s_.unipolar.invmap(0.0f)},
-           {s_.unipolar.invmap(0.0f)});
+  addXYPad(sXY0, "delayTimeMs", "delayTimeRatio", {sc.delayTimeMs.invmap(1.0f)},
+           {sc.unipolar.invmap(0.75f)});
+  addXYPad(sXY0, "feedback0", "feedback1", {sc.feedback.invmap(0)}, {sc.feedback.invmap(0)});
+  addXYPad(sXY0, "lfoBeat", "saturationGain", {}, {sc.saturationGain.invmapDB(float(0))});
+  addXYPad(sXY0, "flangeBlend", "inputBlend", {sc.unipolar.invmap(0.0f)},
+           {sc.unipolar.invmap(0.0f)});
 
-  addXYPad(sXY1, "lfoTimeMod0", "lfoTimeMod1", {s_.lfoToDelayTimeOctave.invmap(0)},
-           {s_.lfoToDelayTimeOctave.invmap(0)});
-  addXYPad(sXY1, "sigTimeMod0", "sigTimeMod1", {s_.timeModOctave.invmap(0)},
-           {s_.timeModOctave.invmap(0)});
-  addXYPad(sXY1, "sigAmpMod0", "sigAmpMod1", {s_.unipolar.invmap(0)}, {s_.unipolar.invmap(0)});
-  addXYPad(sXY1, "sigModMode", "viscosityLowpassHz", {s_.unipolar.invmap(0)},
-           {s_.cutoffHz.invmap(2000.0f)});
+  addXYPad(sXY1, "lfoTimeMod0", "lfoTimeMod1", {sc.lfoToDelayTimeOctave.invmap(0)},
+           {sc.lfoToDelayTimeOctave.invmap(0)});
+  addXYPad(sXY1, "sigTimeMod0", "sigTimeMod1", {sc.timeModOctave.invmap(0)},
+           {sc.timeModOctave.invmap(0)});
+  addXYPad(sXY1, "sigAmpMod0", "sigAmpMod1", {sc.unipolar.invmap(0)}, {sc.unipolar.invmap(0)});
+  addXYPad(sXY1, "sigModMode", "viscosityLowpassHz", {sc.unipolar.invmap(0)},
+           {sc.cutoffHz.invmap(2000.0f)});
 
   // `setSize` must be called at last.
   const float scale = getWindowScale();
@@ -183,20 +183,20 @@ void Editor::resized() {
   const int nameTop0 = layoutActionSectionAndPluginInfo(left0, top0, mt.sectionWidth, mt.labelW,
                                                         mt.labelX, mt.labelH, mt.labelY, scale);
 
-  lfoPhaseDisplay.setBounds(Rect{left0, nameTop0 + mt.labelY, mt.labelW, mt.labelW});
+  lfoPhaseDisplay_.setBounds(Rect{left0, nameTop0 + mt.labelY, mt.labelW, mt.labelW});
 
   const int delayTimeTop = nameTop0 + mt.labelY + mt.labelW + 2 * mt.margin;
-  delayTimeDisplay.setBounds(
+  delayTimeDisplay_.setBounds(
     Rect{left0, delayTimeTop, mt.sectionWidth, 4 * mt.labelY - 2 * mt.margin});
 
   const int meterTop0 = delayTimeTop + 4 * mt.labelY;
   const int meterH = 6 * mt.labelY - 2 * mt.margin;
-  meterPreSaturationPeak.setBounds(Rect{left0, meterTop0, mt.labelW, meterH});
-  meterOutputPeak.setBounds(Rect{left0 + mt.labelX, meterTop0, mt.labelW, meterH});
+  meterPreSaturationPeak_.setBounds(Rect{left0, meterTop0, mt.labelW, meterH});
+  meterOutputPeak_.setBounds(Rect{left0 + mt.labelX, meterTop0, mt.labelW, meterH});
 
   auto addSection = [&](int& top, int left, const juce::String& sectionTitle) {
-    if (auto sc = sections.find(sectionTitle); sc != sections.end()) {
-      top = layoutVerticalSection(groupLabels, left, top, mt.sectionWidth, mt.labelH, mt.labelY,
+    if (auto sc = sections_.find(sectionTitle); sc != sections_.end()) {
+      top = layoutVerticalSection(groupLabels_, left, top, mt.sectionWidth, mt.labelH, mt.labelY,
                                   sc->first, sc->second);
     }
   };
@@ -206,7 +206,7 @@ void Editor::resized() {
   addSection(currentTop, left1, sMix);
   addSection(currentTop, left1, sSat);
   addSection(currentTop, left1, sDelay);
-  statusBar.setBounds(Rect{left1, currentTop, mt.totalWidth - left1 - mt.uiMargin, mt.labelH});
+  statusBar_.setBounds(Rect{left1, currentTop, mt.totalWidth - left1 - mt.uiMargin, mt.labelH});
 
   currentTop = top0;
   addSection(currentTop, left2, sLFO);
@@ -214,16 +214,16 @@ void Editor::resized() {
   addSection(currentTop, left2, sMIDI);
 
   currentTop = top0;
-  if (auto sc = sections.find(sXY0); sc != sections.end()) {
+  if (auto sc = sections_.find(sXY0); sc != sections_.end()) {
     currentTop
-      = layoutVerticalSection(groupLabels, leftXy0, currentTop, mt.xypadWidth, mt.xypadWidth,
+      = layoutVerticalSection(groupLabels_, leftXy0, currentTop, mt.xypadWidth, mt.xypadWidth,
                               mt.xypadWidth + 2 * mt.margin, "", sc->second);
   }
 
   currentTop = top0;
-  if (auto sc = sections.find(sXY1); sc != sections.end()) {
+  if (auto sc = sections_.find(sXY1); sc != sections_.end()) {
     currentTop
-      = layoutVerticalSection(groupLabels, leftXy1, currentTop, mt.xypadWidth, mt.xypadWidth,
+      = layoutVerticalSection(groupLabels_, leftXy1, currentTop, mt.xypadWidth, mt.xypadWidth,
                               mt.xypadWidth + 2 * mt.margin, "", sc->second);
   }
 }

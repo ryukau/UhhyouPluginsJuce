@@ -18,32 +18,32 @@ namespace Uhhyou {
 // similar to SciPy's sos, but the first 1 in denominator (typically denoted as $a_0$)
 // is omitted.
 template<typename Sample, typename Sos> class SosFilter {
-  std::array<Sample, Sos::co.size()> x1{};
-  std::array<Sample, Sos::co.size()> x2{};
-  std::array<Sample, Sos::co.size()> y1{};
-  std::array<Sample, Sos::co.size()> y2{};
+  std::array<Sample, Sos::co.size()> x1_{};
+  std::array<Sample, Sos::co.size()> x2_{};
+  std::array<Sample, Sos::co.size()> y1_{};
+  std::array<Sample, Sos::co.size()> y2_{};
 
 public:
   void reset() {
-    x1.fill(0);
-    x2.fill(0);
-    y1.fill(0);
-    y2.fill(0);
+    x1_.fill(0);
+    x2_.fill(0);
+    y1_.fill(0);
+    y2_.fill(0);
   }
 
   Sample process(Sample input) {
     for (size_t i = 0; i < Sos::co.size(); ++i) {
-      Sample y0                  //
-        = Sos::co[i][0] * input  //
-        + Sos::co[i][1] * x1[i]  //
-        + Sos::co[i][2] * x2[i]  //
-        - Sos::co[i][3] * y1[i]  //
-        - Sos::co[i][4] * y2[i]; //
+      Sample y0                   //
+        = Sos::co[i][0] * input   //
+        + Sos::co[i][1] * x1_[i]  //
+        + Sos::co[i][2] * x2_[i]  //
+        - Sos::co[i][3] * y1_[i]  //
+        - Sos::co[i][4] * y2_[i]; //
 
-      x2[i] = x1[i];
-      x1[i] = input;
-      y2[i] = y1[i];
-      y1[i] = y0;
+      x2_[i] = x1_[i];
+      x1_[i] = input;
+      y2_[i] = y1_[i];
+      y1_[i] = y0;
 
       input = y0;
     }
@@ -163,55 +163,55 @@ private:
                                               Sample(0.9765975895081993),
                                               Sample(0.9974992559355491)};
 
-  std::array<Sample, coRe.size()> x1Re{};
-  std::array<Sample, coRe.size()> x2Re{};
-  std::array<Sample, coRe.size()> y1Re{};
-  std::array<Sample, coRe.size()> y2Re{};
+  std::array<Sample, coRe.size()> x1Re_{};
+  std::array<Sample, coRe.size()> x2Re_{};
+  std::array<Sample, coRe.size()> y1Re_{};
+  std::array<Sample, coRe.size()> y2Re_{};
 
-  std::array<Sample, coIm.size()> x1Im{};
-  std::array<Sample, coIm.size()> x2Im{};
-  std::array<Sample, coIm.size()> y1Im{};
-  std::array<Sample, coIm.size()> y2Im{};
+  std::array<Sample, coIm.size()> x1Im_{};
+  std::array<Sample, coIm.size()> x2Im_{};
+  std::array<Sample, coIm.size()> y1Im_{};
+  std::array<Sample, coIm.size()> y2Im_{};
 
-  Sample delayedIm = 0;
+  Sample delayedIm_ = 0;
 
 public:
   void reset() {
-    x1Re.fill(0);
-    x2Re.fill(0);
-    y1Re.fill(0);
-    y2Re.fill(0);
+    x1Re_.fill(0);
+    x2Re_.fill(0);
+    y1Re_.fill(0);
+    y2Re_.fill(0);
 
-    x1Im.fill(0);
-    x2Im.fill(0);
-    y1Im.fill(0);
-    y2Im.fill(0);
+    x1Im_.fill(0);
+    x2Im_.fill(0);
+    y1Im_.fill(0);
+    y2Im_.fill(0);
 
-    delayedIm = 0;
+    delayedIm_ = 0;
   }
 
   std::complex<Sample> process(Sample input) {
     auto sigRe = input;
     for (size_t i = 0; i < coRe.size(); ++i) {
-      auto y0 = coRe[i] * (sigRe + y2Re[i]) - x2Re[i];
-      x2Re[i] = x1Re[i];
-      x1Re[i] = sigRe;
-      y2Re[i] = y1Re[i];
-      y1Re[i] = y0;
+      auto y0 = coRe[i] * (sigRe + y2Re_[i]) - x2Re_[i];
+      x2Re_[i] = x1Re_[i];
+      x1Re_[i] = sigRe;
+      y2Re_[i] = y1Re_[i];
+      y1Re_[i] = y0;
       sigRe = y0;
     }
 
     auto sigIm = input;
     for (size_t i = 0; i < coIm.size(); ++i) {
-      auto y0 = coIm[i] * (sigIm + y2Im[i]) - x2Im[i];
-      x2Im[i] = x1Im[i];
-      x1Im[i] = sigIm;
-      y2Im[i] = y1Im[i];
-      y1Im[i] = y0;
+      auto y0 = coIm[i] * (sigIm + y2Im_[i]) - x2Im_[i];
+      x2Im_[i] = x1Im_[i];
+      x1Im_[i] = sigIm;
+      y2Im_[i] = y1Im_[i];
+      y1Im_[i] = y0;
       sigIm = y0;
     }
-    auto outIm = delayedIm;
-    delayedIm = sigIm; // 1 sample delay.
+    auto outIm = delayedIm_;
+    delayedIm_ = sigIm; // 1 sample delay.
 
     return std::complex<Sample>{sigRe, outIm};
   }
@@ -219,24 +219,24 @@ public:
 
 template<typename Sample> class FrequencyShifter {
 private:
-  AnalyticSignalFilter<Sample> hilbert;
-  Sample phase = 0;
+  AnalyticSignalFilter<Sample> hilbert_;
+  Sample phase_ = 0;
 
 public:
   void reset() {
-    hilbert.reset();
-    phase = 0;
+    hilbert_.reset();
+    phase_ = 0;
   }
 
   // `shiftFreq` is normalized frequency in [0, 0.5).
   Sample process(Sample input, Sample shiftFreq) {
-    auto sig = hilbert.process(input);
+    auto sig = hilbert_.process(input);
     auto norm = std::sqrt(sig.real() * sig.real() + sig.imag() * sig.imag());
     auto theta = std::atan2(sig.imag(), sig.real());
 
-    phase += shiftFreq;
-    phase -= std::floor(phase);
-    return norm * std::cos(theta + Sample(2 * std::numbers::pi) * phase);
+    phase_ += shiftFreq;
+    phase_ -= std::floor(phase_);
+    return norm * std::cos(theta + Sample(2 * std::numbers::pi) * phase_);
   }
 };
 
@@ -249,57 +249,57 @@ public:
 
 template<typename Sample> class AmplitudeModulatorUpperAA {
 private:
-  HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbCar;
-  HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbMod;
-  HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbDown;
+  HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbCar_;
+  HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbMod_;
+  HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbDown_;
 
 public:
   void reset() {
-    hbCar.reset();
-    hbMod.reset();
-    hbDown.reset();
+    hbCar_.reset();
+    hbMod_.reset();
+    hbDown_.reset();
   }
 
   Sample process(Sample carrior, Sample modulator) {
-    auto upCar = hbCar.processUp(carrior);
-    auto upMod = hbMod.processUp(modulator);
-    return hbDown.process({upCar[0] * upMod[0], upCar[1] * upMod[1]});
+    auto upCar = hbCar_.processUp(carrior);
+    auto upMod = hbMod_.processUp(modulator);
+    return hbDown_.process({upCar[0] * upMod[0], upCar[1] * upMod[1]});
   }
 };
 
 template<typename Sample> class AmplitudeModulatorFullAA {
 private:
-  SosFilter<Sample, SosOneThirdLowpass<Sample>> lowpassCar;
-  SosFilter<Sample, SosOneThirdLowpass<Sample>> lowpassMod;
-  SosFilter<Sample, SosOneThirdLowpass<Sample>> lowpassDown;
-  SosFilter<Sample, SosOneThirdBandpass<Sample>> bandpassAm;
-  FrequencyShifter<Sample> forwardShifter;
-  FrequencyShifter<Sample> backwardShifter;
+  SosFilter<Sample, SosOneThirdLowpass<Sample>> lowpassCar_;
+  SosFilter<Sample, SosOneThirdLowpass<Sample>> lowpassMod_;
+  SosFilter<Sample, SosOneThirdLowpass<Sample>> lowpassDown_;
+  SosFilter<Sample, SosOneThirdBandpass<Sample>> bandpassAm_;
+  FrequencyShifter<Sample> forwardShifter_;
+  FrequencyShifter<Sample> backwardShifter_;
 
 public:
   void reset() {
-    lowpassCar.reset();
-    lowpassMod.reset();
-    lowpassDown.reset();
-    bandpassAm.reset();
-    forwardShifter.reset();
-    backwardShifter.reset();
+    lowpassCar_.reset();
+    lowpassMod_.reset();
+    lowpassDown_.reset();
+    bandpassAm_.reset();
+    forwardShifter_.reset();
+    backwardShifter_.reset();
   }
 
   Sample process(Sample carrior, Sample modulator) {
     Sample output;
     for (size_t idx = 0; idx < 3; ++idx) {
-      carrior = lowpassCar.process(carrior);
-      modulator = lowpassMod.process(modulator);
+      carrior = lowpassCar_.process(carrior);
+      modulator = lowpassMod_.process(modulator);
 
       constexpr Sample shiftFreq = Sample(1) / Sample(6);
-      auto am = modulator * forwardShifter.process(carrior, shiftFreq);
-      auto filtered = bandpassAm.process(am);
-      auto result = backwardShifter.process(filtered, -shiftFreq);
+      auto am = modulator * forwardShifter_.process(carrior, shiftFreq);
+      auto filtered = bandpassAm_.process(am);
+      auto result = backwardShifter_.process(filtered, -shiftFreq);
 
       carrior = Sample(0);
       modulator = Sample(0);
-      output = lowpassDown.process(result);
+      output = lowpassDown_.process(result);
     }
 
     // Multiply by 9 comes from `(3-fold expanded carrior) * (3-fold expanded modulator)`.
@@ -309,18 +309,18 @@ public:
 
 template<typename Sample> class UpperSideBandAmplitudeModulator {
 private:
-  AnalyticSignalFilter<Sample> carFilter;
-  AnalyticSignalFilter<Sample> modFilter;
+  AnalyticSignalFilter<Sample> carFilter_;
+  AnalyticSignalFilter<Sample> modFilter_;
 
 public:
   void reset() {
-    carFilter.reset();
-    modFilter.reset();
+    carFilter_.reset();
+    modFilter_.reset();
   }
 
   Sample process(Sample carrior, Sample modulator) {
-    auto c0 = carFilter.process(carrior);
-    auto m0 = modFilter.process(modulator);
+    auto c0 = carFilter_.process(carrior);
+    auto m0 = modFilter_.process(modulator);
     return c0.real() * m0.real() - c0.imag() * m0.imag();
   }
 };
@@ -329,79 +329,79 @@ public:
 // `dspcore.cpp`.
 template<typename Sample> class LowerSideBandAmplitudeModulator {
 private:
-  AnalyticSignalFilter<Sample> carFilter;
-  AnalyticSignalFilter<Sample> modFilter;
+  AnalyticSignalFilter<Sample> carFilter_;
+  AnalyticSignalFilter<Sample> modFilter_;
 
 public:
   void reset() {
-    carFilter.reset();
-    modFilter.reset();
+    carFilter_.reset();
+    modFilter_.reset();
   }
 
   Sample process(Sample carrior, Sample modulator) {
-    auto c0 = carFilter.process(carrior);
-    auto m0 = modFilter.process(modulator);
+    auto c0 = carFilter_.process(carrior);
+    auto m0 = modFilter_.process(modulator);
     return c0.real() * m0.real() + c0.imag() * m0.imag();
   }
 };
 
 template<typename Sample> class UpperSideBandAmplitudeModulatorAA {
 private:
-  HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbCar;
-  HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbMod;
-  UpperSideBandAmplitudeModulator<Sample> usb;
-  HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbDown;
+  HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbCar_;
+  HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbMod_;
+  UpperSideBandAmplitudeModulator<Sample> usb_;
+  HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbDown_;
 
 public:
   void reset() {
-    hbCar.reset();
-    hbMod.reset();
-    usb.reset();
-    hbDown.reset();
+    hbCar_.reset();
+    hbMod_.reset();
+    usb_.reset();
+    hbDown_.reset();
   }
 
   Sample process(Sample carrior, Sample modulator) {
-    auto upCar = hbCar.processUp(carrior);
-    auto upMod = hbMod.processUp(modulator);
-    auto s0 = usb.process(upCar[0], upMod[0]);
-    auto s1 = usb.process(upCar[1], upMod[1]);
-    return hbDown.process({s0, s1});
+    auto upCar = hbCar_.processUp(carrior);
+    auto upMod = hbMod_.processUp(modulator);
+    auto s0 = usb_.process(upCar[0], upMod[0]);
+    auto s1 = usb_.process(upCar[1], upMod[1]);
+    return hbDown_.process({s0, s1});
   }
 };
 
 template<typename Sample> class LowerSideBandAmplitudeModulatorAA {
 private:
-  HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbCar;
-  HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbMod;
-  HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbDown;
-  FrequencyShifter<Sample> forwardShifter;
-  LowerSideBandAmplitudeModulator<Sample> lsb;
-  SosFilter<Sample, SosHalfHighpass<Sample>> highpass;
-  FrequencyShifter<Sample> backwardShifter;
+  HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbCar_;
+  HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbMod_;
+  HalfBandIIR<Sample, HalfBandCoefficient<Sample>> hbDown_;
+  FrequencyShifter<Sample> forwardShifter_;
+  LowerSideBandAmplitudeModulator<Sample> lsb_;
+  SosFilter<Sample, SosHalfHighpass<Sample>> highpass_;
+  FrequencyShifter<Sample> backwardShifter_;
 
 public:
   void reset() {
-    hbCar.reset();
-    hbMod.reset();
-    hbDown.reset();
-    forwardShifter.reset();
-    lsb.reset();
-    highpass.reset();
-    backwardShifter.reset();
+    hbCar_.reset();
+    hbMod_.reset();
+    hbDown_.reset();
+    forwardShifter_.reset();
+    lsb_.reset();
+    highpass_.reset();
+    backwardShifter_.reset();
   }
 
   Sample process(Sample carrior, Sample modulator) {
-    auto upCar = hbCar.processUp(carrior);
-    auto upMod = hbMod.processUp(modulator);
+    auto upCar = hbCar_.processUp(carrior);
+    auto upMod = hbMod_.processUp(modulator);
     std::array<Sample, 2> output{};
     for (size_t idx = 0; idx < 2; ++idx) {
       constexpr Sample shiftFreq = Sample(0.25);
-      auto shiftedCar = forwardShifter.process(upCar[idx], shiftFreq);
-      auto am = lsb.process(shiftedCar, upMod[idx]);
-      auto filtered = highpass.process(am);
-      output[idx] = backwardShifter.process(filtered, -shiftFreq);
+      auto shiftedCar = forwardShifter_.process(upCar[idx], shiftFreq);
+      auto am = lsb_.process(shiftedCar, upMod[idx]);
+      auto filtered = highpass_.process(am);
+      output[idx] = backwardShifter_.process(filtered, -shiftFreq);
     }
-    return hbDown.process(output);
+    return hbDown_.process(output);
   }
 };
 

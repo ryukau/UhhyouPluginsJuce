@@ -24,8 +24,8 @@ class MeterDisplay : public juce::AnimatedAppComponent {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MeterDisplay)
 
-  Palette& pal;
-  std::array<std::atomic<float>, nChannel>& peakAmp;
+  Palette& pal_;
+  std::array<std::atomic<float>, nChannel>& peakAmp_;
 
   struct MeterState {
     float peakN{}; // N: normalized in [0, 1].
@@ -33,12 +33,12 @@ private:
     float holdDecibel = -std::numeric_limits<float>::infinity();
     int holdTimer{};
   };
-  std::array<MeterState, nChannel> meter{};
+  std::array<MeterState, nChannel> meter_{};
 
-  juce::String labelTitle;
-  juce::Font fontLabel;
-  juce::Font fontSmall;
-  juce::PathStrokeType stroke;
+  juce::String labelTitle_;
+  juce::Font fontLabel_;
+  juce::Font fontSmall_;
+  juce::PathStrokeType stroke_;
 
   static constexpr float minDecibel = float(-80);
   static constexpr float maxDecibel = float(+80);
@@ -60,10 +60,10 @@ private:
 public:
   MeterDisplay(Component& parent, Palette& palette,
                std::array<std::atomic<float>, nChannel>& peakAmplitude, const juce::String& label)
-      : pal(palette), peakAmp(peakAmplitude), labelTitle(label),
-        fontLabel(palette.getFont(TextSize::normal)), fontSmall(palette.getFont(TextSize::small)),
-        stroke(palette.borderWidth(), juce::PathStrokeType::JointStyle::curved,
-               juce::PathStrokeType::EndCapStyle::rounded) {
+      : pal_(palette), peakAmp_(peakAmplitude), labelTitle_(label),
+        fontLabel_(palette.getFont(TextSize::normal)), fontSmall_(palette.getFont(TextSize::small)),
+        stroke_(palette.borderWidth(), juce::PathStrokeType::JointStyle::curved,
+                juce::PathStrokeType::EndCapStyle::rounded) {
     setSynchroniseToVBlank(true);
     parent.addAndMakeVisible(*this, 0);
   }
@@ -71,9 +71,9 @@ public:
   virtual ~MeterDisplay() override {}
 
   virtual void resized() override {
-    fontLabel = pal.getFont(TextSize::normal);
-    fontSmall = pal.getFont(TextSize::small);
-    stroke.setStrokeThickness(pal.borderWidth());
+    fontLabel_ = pal_.getFont(TextSize::normal);
+    fontSmall_ = pal_.getFont(TextSize::small);
+    stroke_.setStrokeThickness(pal_.borderWidth());
   }
 
   virtual void update() override {
@@ -89,20 +89,20 @@ public:
     const float holdDecay = (dt > float(0)) ? std::exp(-dt / holdTau) : float(1);
 
     auto updateHold = [&](size_t i, float db) {
-      if (meter[i].holdN < meter[i].peakN) {
-        meter[i].holdN = meter[i].peakN;
-        meter[i].holdDecibel = db;
-        meter[i].holdTimer = 0;
+      if (meter_[i].holdN < meter_[i].peakN) {
+        meter_[i].holdN = meter_[i].peakN;
+        meter_[i].holdDecibel = db;
+        meter_[i].holdTimer = 0;
         return;
       }
-      if (meter[i].holdTimer >= holdMilliseconds) {
-        meter[i].holdN *= holdDecay;
+      if (meter_[i].holdTimer >= holdMilliseconds) {
+        meter_[i].holdN *= holdDecay;
         return;
       }
-      meter[i].holdTimer += elapsed;
-      if (meter[i].holdTimer >= holdMilliseconds) {
-        const float excess = float(0.001) * (meter[i].holdTimer - holdMilliseconds);
-        meter[i].holdN *= std::exp(-excess / holdTau);
+      meter_[i].holdTimer += elapsed;
+      if (meter_[i].holdTimer >= holdMilliseconds) {
+        const float excess = float(0.001) * (meter_[i].holdTimer - holdMilliseconds);
+        meter_[i].holdN *= std::exp(-excess / holdTau);
       }
     };
 
@@ -111,16 +111,16 @@ public:
     };
 
     for (size_t i = 0; i < nChannel; ++i) {
-      const float amplitude = peakAmp[i].exchange(float(0), std::memory_order_relaxed);
+      const float amplitude = peakAmp_[i].exchange(float(0), std::memory_order_relaxed);
       const float db = ScaleTools::ampToDB(amplitude);
 
-      meter[i].peakN = std::max(decibelToNormalized(db), meter[i].peakN * peakDecay);
-      flushToZero(meter[i].peakN);
+      meter_[i].peakN = std::max(decibelToNormalized(db), meter_[i].peakN * peakDecay);
+      flushToZero(meter_[i].peakN);
 
       updateHold(i, db);
-      flushToZero(meter[i].holdN);
-      if (meter[i].holdN <= float(0)) {
-        meter[i].holdDecibel = -std::numeric_limits<float>::infinity();
+      flushToZero(meter_[i].holdN);
+      if (meter_[i].holdN <= float(0)) {
+        meter_[i].holdDecibel = -std::numeric_limits<float>::infinity();
       }
     }
   }
@@ -129,43 +129,43 @@ public:
     const auto fullBounds = getLocalBounds().toFloat();
     auto bounds = fullBounds;
 
-    const float tickEm = fontSmall.getHeight();
-    const float tickWidth = juce::GlyphArrangement::getStringWidth(fontSmall, " 80 ");
+    const float tickEm = fontSmall_.getHeight();
+    const float tickWidth = juce::GlyphArrangement::getStringWidth(fontSmall_, " 80 ");
 
     // Background.
-    ctx.setColour(pal.background());
+    ctx.setColour(pal_.background());
     ctx.fillAll();
 
     // Label.
-    auto labelBounds = bounds.removeFromTop(fontLabel.getHeight() * float(5.0 / 3.0));
+    auto labelBounds = bounds.removeFromTop(fontLabel_.getHeight() * float(5.0 / 3.0));
     labelBounds.removeFromLeft(tickWidth);
-    ctx.setColour(pal.foreground());
-    ctx.setFont(fontLabel);
-    ctx.drawText(labelTitle, labelBounds.toNearestInt(), juce::Justification::centred);
+    ctx.setColour(pal_.foreground());
+    ctx.setFont(fontLabel_);
+    ctx.drawText(labelTitle_, labelBounds.toNearestInt(), juce::Justification::centred);
 
     // Numeric display.
     auto numberBounds = bounds.removeFromTop(tickEm);
     numberBounds.removeFromLeft(tickWidth);
 
     const float channelWidth = numberBounds.getWidth() / float(nChannel);
-    ctx.setColour(pal.foreground());
-    ctx.setFont(fontSmall);
+    ctx.setColour(pal_.foreground());
+    ctx.setFont(fontSmall_);
     for (size_t i = 0; i < nChannel; ++i) {
       auto area = numberBounds.removeFromLeft(channelWidth);
-      ctx.drawText(std::format("{:+3.1f} dB", meter[i].holdDecibel), area.toNearestInt(),
+      ctx.drawText(std::format("{:+3.1f} dB", meter_[i].holdDecibel), area.toNearestInt(),
                    juce::Justification::centred);
     }
 
     // Ticks.
     bounds.removeFromBottom(float(0.5) * tickEm);
     const auto tickBounds = bounds.removeFromLeft(tickWidth);
-    ctx.setColour(pal.border());
+    ctx.setColour(pal_.border());
 
     for (float db = minDecibel; db <= maxDecibel; db += tickStepDecibel) {
       const float bottom = tickBounds.getY() + decibelToHeight(db, tickBounds.getHeight());
 
       ctx.drawLine(tickBounds.getRight(), bottom, fullBounds.getWidth(), bottom,
-                   float(0.25) * pal.borderWidth());
+                   float(0.25) * pal_.borderWidth());
 
       // if (db <= minDecibel) continue;
 
@@ -179,29 +179,29 @@ public:
     // Meter.
     auto meterBounds = bounds;
 
-    juce::ColourGradient gradient{pal.main(), meterBounds.getBottomLeft(), pal.warning(),
+    juce::ColourGradient gradient{pal_.main(), meterBounds.getBottomLeft(), pal_.warning(),
                                   meterBounds.getTopLeft(), false};
-    gradient.addColour(std::nextafter(float(0.5), 0.0), pal.main());
-    gradient.addColour(float(0.5), pal.warning());
+    gradient.addColour(std::nextafter(float(0.5), 0.0), pal_.main());
+    gradient.addColour(float(0.5), pal_.warning());
     ctx.setGradientFill(gradient);
 
     auto channelArea = meterBounds;
     for (size_t i = 0; i < nChannel; ++i) {
       auto barRect = channelArea.removeFromLeft(channelWidth);
-      barRect.reduce(pal.borderWidth(), 0);
-      auto filledPart = barRect.removeFromBottom(barRect.getHeight() * meter[i].peakN);
+      barRect.reduce(pal_.borderWidth(), 0);
+      auto filledPart = barRect.removeFromBottom(barRect.getHeight() * meter_[i].peakN);
       ctx.fillRect(filledPart);
     }
 
     float holdL = meterBounds.getX();
     for (size_t i = 0; i < nChannel; ++i) {
       const float holdR = holdL + channelWidth;
-      const float& holdN = meter[i].holdN;
+      const float& holdN = meter_[i].holdN;
       const float holdH = meterBounds.getY() + meterBounds.getHeight() * (float(1) - holdN)
-        + float(0.5) * pal.borderWidth();
+        + float(0.5) * pal_.borderWidth();
       const float alpha = std::min(float(1), holdN * meterBounds.getHeight());
       ctx.setColour(gradient.getColourAtPosition(holdN).withAlpha(alpha));
-      ctx.drawLine(holdL, holdH, holdR, holdH, pal.borderWidth());
+      ctx.drawLine(holdL, holdH, holdR, holdH, pal_.borderWidth());
       holdL = holdR;
     }
   }
