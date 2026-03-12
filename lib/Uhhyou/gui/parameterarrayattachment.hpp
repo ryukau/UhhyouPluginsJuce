@@ -28,7 +28,7 @@ Advantage of using APPG is easier parameter ID management. Only a group ID is re
 instead of all parameter IDs in a group. Also template can be omitted. Disadvantage is
 dynamic allocation.
 */
-template<int nParameter>
+template<size_t nParameter>
 class ParameterArrayAttachment : private juce::AudioProcessorParameter::Listener,
                                  private juce::AsyncUpdater {
 public:
@@ -41,8 +41,8 @@ public:
 
     for (auto& x : parameter_) { x->addListener(this); }
 
-    for (int i = 0; i < nParameter; ++i) {
-      indexMap_.emplace(std::make_pair(parameter_[static_cast<size_t>(i)]->getParameterIndex(), i));
+    for (size_t i = 0; i < nParameter; ++i) {
+      indexMap_.emplace(std::make_pair(parameter_[i]->getParameterIndex(), i));
     }
   }
 
@@ -52,9 +52,8 @@ public:
   }
 
   void sendInitialUpdate() {
-    for (int i = 0; i < nParameter; ++i) {
-      auto idx = static_cast<size_t>(i);
-      parameterValueChanged(parameter_[idx]->getParameterIndex(), parameter_[idx]->getValue());
+    for (size_t i = 0; i < nParameter; ++i) {
+      parameterValueChanged(parameter_[i]->getParameterIndex(), parameter_[i]->getValue());
     }
   }
 
@@ -69,9 +68,9 @@ public:
 
   void setValueAsCompleteGesture(const std::array<float, nParameter>& newRawValue) {
     beginGesture();
-    for (int index = 0; index < nParameter; ++index) {
+    for (size_t index = 0; index < nParameter; ++index) {
       callIfParameterValueChanged(
-        index, newRawValue[static_cast<size_t>(index)],
+        static_cast<int>(index), newRawValue[index],
         [this](int i, float v) { parameter_[static_cast<size_t>(i)]->setValueNotifyingHost(v); });
     }
     endGesture();
@@ -79,9 +78,8 @@ public:
 
   void beginGesture() {
     if (undoManager_ != nullptr) { undoManager_->beginNewTransaction(); }
-    for (int index = 0; index < nParameter; ++index) {
-      auto idx = static_cast<size_t>(index);
-      if (!isEditing_[idx]) { parameter_[idx]->beginChangeGesture(); }
+    for (size_t index = 0; index < nParameter; ++index) {
+      if (!isEditing_[index]) { parameter_[index]->beginChangeGesture(); }
     }
     isEditing_.fill(true);
   }
@@ -101,17 +99,16 @@ public:
   }
 
   void setValueAsPartOfGesture(const std::array<float, nParameter>& newRawValue) {
-    for (int index = 0; index < nParameter; ++index) {
+    for (size_t index = 0; index < nParameter; ++index) {
       callIfParameterValueChanged(
-        index, newRawValue[static_cast<size_t>(index)],
+        static_cast<int>(index), newRawValue[index],
         [this](int i, float v) { parameter_[static_cast<size_t>(i)]->setValueNotifyingHost(v); });
     }
   }
 
   void endGesture() {
-    for (int index = 0; index < nParameter; ++index) {
-      auto idx = static_cast<size_t>(index);
-      if (isEditing_[idx]) { parameter_[idx]->endChangeGesture(); }
+    for (size_t index = 0; index < nParameter; ++index) {
+      if (isEditing_[index]) { parameter_[index]->endChangeGesture(); }
     }
     isEditing_.fill(false);
   }
@@ -134,11 +131,11 @@ private:
   void parameterValueChanged(int parameterIndex, float newValue) override {
     if (!indexMap_.contains(parameterIndex)) { return; }
     auto index = indexMap_[parameterIndex];
-    lastValue_[static_cast<size_t>(index)] = newValue;
+    lastValue_[index] = newValue;
 
     if (juce::MessageManager::getInstance()->isThisTheMessageThread()) {
       cancelPendingUpdate();
-      handleAsyncUpdate(index);
+      handleAsyncUpdate(static_cast<int>(index));
     } else {
       triggerAsyncUpdate();
     }
@@ -148,9 +145,9 @@ private:
 
   void handleAsyncUpdate() override {
     if (parameterChangedCallback_ != nullptr) {
-      for (int i = 0; i < nParameter; ++i) {
-        auto idx = static_cast<size_t>(i);
-        parameterChangedCallback_(i, parameter_[idx]->convertFrom0to1(lastValue_[idx]));
+      for (size_t i = 0; i < nParameter; ++i) {
+        parameterChangedCallback_(static_cast<int>(i),
+                                  parameter_[i]->convertFrom0to1(lastValue_[i]));
       }
     }
   }
@@ -164,7 +161,7 @@ private:
 
   // JUCE 7 holds parameters in a single `juce::Array`. `indexMap_` is used to map the index of
   // `juce::Array` to the internal index used in this class.
-  std::unordered_map<int, int> indexMap_;
+  std::unordered_map<int, size_t> indexMap_;
 
   std::array<juce::RangedAudioParameter*, nParameter> parameter_;
   std::array<bool, nParameter> isEditing_{};

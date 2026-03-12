@@ -38,8 +38,8 @@ struct Metrics {
 
 const juce::String sSlopeFilter{"Slope Filter"};
 
-Editor::Editor(Processor& processor) : EditorBase(processor, informationText) {
-  auto& sc = processor.param.scale;
+Editor::Editor(Processor& proc) : EditorBase(proc, informationText) {
+  auto& sc = proc.param.scale;
 
   addComboBox(sSlopeFilter, "shelvingType", sc.boolean, {"Low Shelf", "High Shelf"}, "Type");
   addTextKnob(sSlopeFilter, "startHz", sc.startHz, {}, 5, "Slope Start [Hz]");

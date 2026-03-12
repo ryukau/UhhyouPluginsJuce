@@ -59,10 +59,10 @@ private:
 
   class XYPadAccessibilityHandler : public juce::AccessibilityHandler {
   public:
-    explicit XYPadAccessibilityHandler(XYPad& padToWrap, juce::AccessibilityActions actions)
-        : juce::AccessibilityHandler(padToWrap, juce::AccessibilityRole::slider, std::move(actions),
-                                     Interfaces{std::make_unique<XYPadValueInterface>(padToWrap)}),
-          pad_(padToWrap) {}
+    explicit XYPadAccessibilityHandler(XYPad& xypad, juce::AccessibilityActions a)
+        : juce::AccessibilityHandler(xypad, juce::AccessibilityRole::slider, std::move(a),
+                                     Interfaces{std::make_unique<XYPadValueInterface>(xypad)}),
+          pad_(xypad) {}
 
     juce::String getTitle() const override {
       return std::format("XY Pad, {} versus {}", pad_.parameter_[0]->getName(64).toRawUTF8(),
@@ -528,10 +528,9 @@ private:
   private:
     class SnapToggleAccessibilityHandler : public juce::AccessibilityHandler {
     public:
-      SnapToggleAccessibilityHandler(SnapToggle& toggleToWrap, juce::AccessibilityActions actions)
-          : juce::AccessibilityHandler(toggleToWrap, juce::AccessibilityRole::toggleButton,
-                                       std::move(actions)),
-            toggle_(toggleToWrap) {}
+      SnapToggleAccessibilityHandler(SnapToggle& st, juce::AccessibilityActions act)
+          : juce::AccessibilityHandler(st, juce::AccessibilityRole::toggleButton, std::move(act)),
+            toggle_(st) {}
 
       juce::AccessibleState getCurrentState() const override {
         auto accessibleState = juce::AccessibilityHandler::getCurrentState().withCheckable();

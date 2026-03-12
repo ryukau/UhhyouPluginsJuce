@@ -25,8 +25,8 @@ private:
 
   class PresetManagerAccessibilityHandler : public juce::AccessibilityHandler {
   public:
-    PresetManagerAccessibilityHandler(PresetManager& pm, juce::AccessibilityActions actions)
-        : juce::AccessibilityHandler(pm, juce::AccessibilityRole::comboBox, std::move(actions)),
+    PresetManagerAccessibilityHandler(PresetManager& pm, juce::AccessibilityActions act)
+        : juce::AccessibilityHandler(pm, juce::AccessibilityRole::comboBox, std::move(act)),
           presetManager_(pm) {}
 
     juce::String getTitle() const override { return "Preset: " + presetManager_.text_; }

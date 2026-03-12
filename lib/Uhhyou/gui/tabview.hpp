@@ -47,7 +47,7 @@ protected:
     std::vector<juce::Component*> components;
     std::function<void(juce::Graphics& ctx)> paintCallback = nullptr;
 
-    Tab(const juce::String& label) : label(label) {}
+    Tab(const juce::String& lbl) : label(lbl) {}
 
     void paint(juce::Graphics& ctx) {
       if (paintCallback != nullptr) { paintCallback(ctx); }

@@ -55,11 +55,9 @@ public:
 private:
   class LockableLabelAccessibilityHandler : public juce::AccessibilityHandler {
   public:
-    LockableLabelAccessibilityHandler(LockableLabel& labelToWrap,
-                                      juce::AccessibilityActions actions)
-        : juce::AccessibilityHandler(labelToWrap, juce::AccessibilityRole::toggleButton,
-                                     std::move(actions)),
-          label_(labelToWrap) {}
+    LockableLabelAccessibilityHandler(LockableLabel& lbl, juce::AccessibilityActions act)
+        : juce::AccessibilityHandler(lbl, juce::AccessibilityRole::toggleButton, std::move(act)),
+          label_(lbl) {}
 
     juce::AccessibleState getCurrentState() const override {
       auto state = juce::AccessibilityHandler::getCurrentState().withCheckable();

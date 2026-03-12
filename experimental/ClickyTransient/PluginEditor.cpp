@@ -38,8 +38,8 @@ struct Metrics {
 
 const juce::String sShaper{"Shaper"};
 
-Editor::Editor(Processor& processor) : EditorBase(processor, informationText) {
-  auto& sc = processor.param.scale;
+Editor::Editor(Processor& proc) : EditorBase(proc, informationText) {
+  auto& sc = proc.param.scale;
 
   addTextKnob(sShaper, "lowGain", sc.gain, {}, 5);
   addTextKnob(sShaper, "highGain", sc.gain, {}, 5);

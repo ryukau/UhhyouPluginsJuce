@@ -38,8 +38,8 @@ struct Metrics {
 
 const juce::String sStereoControl{"Stereo Control"};
 
-Editor::Editor(Processor& processor) : EditorBase(processor, informationText) {
-  auto& sc = processor.param.scale;
+Editor::Editor(Processor& proc) : EditorBase(proc, informationText) {
+  auto& sc = proc.param.scale;
 
   addTextKnob(sStereoControl, "crossoverHz", sc.crossoverHz, {}, 5);
   addTextKnob(sStereoControl, "upperStereoSpread", sc.unipolar, {}, 5);

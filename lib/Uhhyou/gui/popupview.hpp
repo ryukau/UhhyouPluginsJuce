@@ -26,8 +26,8 @@ private:
 
   class CloseInfoButtonAccessibilityHandler : public juce::AccessibilityHandler {
   public:
-    CloseInfoButtonAccessibilityHandler(CloseInfoButton& btn, juce::AccessibilityActions actions)
-        : juce::AccessibilityHandler(btn, juce::AccessibilityRole::button, std::move(actions)) {}
+    CloseInfoButtonAccessibilityHandler(CloseInfoButton& btn, juce::AccessibilityActions act)
+        : juce::AccessibilityHandler(btn, juce::AccessibilityRole::button, std::move(act)) {}
 
     juce::String getTitle() const override { return "Close Popup"; }
     juce::String getHelp() const override { return "Closes the information view."; }
@@ -308,8 +308,8 @@ private:
 
   class PluginInfoButtonAccessibilityHandler : public juce::AccessibilityHandler {
   public:
-    PluginInfoButtonAccessibilityHandler(PluginInfoButton& btn, juce::AccessibilityActions actions)
-        : juce::AccessibilityHandler(btn, juce::AccessibilityRole::button, std::move(actions)),
+    PluginInfoButtonAccessibilityHandler(PluginInfoButton& btn, juce::AccessibilityActions act)
+        : juce::AccessibilityHandler(btn, juce::AccessibilityRole::button, std::move(act)),
           button_(btn) {}
 
     juce::String getTitle() const override { return button_.label_; }

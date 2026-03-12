@@ -29,27 +29,29 @@
 
 namespace Uhhyou {
 
-struct GroupLabel {
-  juce::String text;
-  juce::Rectangle<int> rect;
-  juce::Justification justification = juce::Justification::centred;
+class GroupLabel {
+private:
+  juce::String text_;
+  juce::Rectangle<int> rect_;
+  juce::Justification justification_ = juce::Justification::centred;
 
-  GroupLabel(const juce::String& text) : text(text), rect({0, 0, 0, 0}) {}
+public:
+  GroupLabel(const juce::String& text) : text_(text), rect_({0, 0, 0, 0}) {}
 
   GroupLabel(const juce::String& text, const juce::Rectangle<int>& rect,
              juce::Justification justification = juce::Justification::centred)
-      : text(text), rect(rect), justification(justification) {}
+      : text_(text), rect_(rect), justification_(justification) {}
 
   void paint(juce::Graphics& ctx, juce::Font& font, float lineWidth, float marginWidth) const {
     juce::Graphics::ScopedSaveState saveState(ctx);
-    ctx.addTransform(juce::AffineTransform::translation(float(rect.getX()), float(rect.getY())));
-    auto localBounds = rect.withZeroOrigin().toFloat();
+    ctx.addTransform(juce::AffineTransform::translation(float(rect_.getX()), float(rect_.getY())));
+    auto localBounds = rect_.withZeroOrigin().toFloat();
 
     // Text.
-    ctx.drawText(text, localBounds, justification);
+    ctx.drawText(text_, localBounds, justification_);
 
     // Decoration.
-    auto textWidth = juce::GlyphArrangement::getStringWidth(font, text);
+    auto textWidth = juce::GlyphArrangement::getStringWidth(font, text_);
     auto centerY = localBounds.getCentreY();
     auto centerX = localBounds.getCentreX();
     auto offsetFromCenter = marginWidth + float(0.5) * textWidth;

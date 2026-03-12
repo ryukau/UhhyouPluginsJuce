@@ -14,7 +14,7 @@ namespace Uhhyou {
 
 class DSPCore {
 public:
-  DSPCore(ParameterStore& param) : param(param) {}
+  DSPCore(ParameterStore& p) : param(p) {}
 
   ParameterStore& param;
   bool isPlaying = false;

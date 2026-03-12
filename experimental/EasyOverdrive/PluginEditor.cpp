@@ -41,16 +41,16 @@ const juce::String sAsym{"Asym. Drive"};
 const juce::String sLimiter{"Limiter"};
 const juce::String sMisc{"Misc."};
 
-Editor::Editor(Processor& processor)
-    : EditorBase(processor, informationText),
+Editor::Editor(Processor& proc)
+    : EditorBase(proc, informationText),
       oversamplingAttachment_(
-        *processor.param.tree.getParameter("oversampling"),
+        *proc.param.tree.getParameter("oversampling"),
         [this](float) { processor_.setLatencySamples(int(processor_.dsp.getLatency())); }, nullptr),
       limiterEnabledAttachment_(
-        *processor.param.tree.getParameter("limiterEnabled"),
+        *proc.param.tree.getParameter("limiterEnabled"),
         [this](float) { processor_.setLatencySamples(int(processor_.dsp.getLatency())); },
         nullptr) {
-  auto& sc = processor.param.scale;
+  auto& sc = proc.param.scale;
 
   addTextKnob(sDrive, "preDriveGain", sc.gain, {}, 5);
   addTextKnob(sDrive, "postDriveGain", sc.gain, {}, 5);

@@ -38,8 +38,8 @@ struct Metrics {
 
 const juce::String sAM{"Amplitude Modulator"};
 
-Editor::Editor(Processor& processor) : EditorBase(processor, informationText) {
-  auto& sc = processor.param.scale;
+Editor::Editor(Processor& proc) : EditorBase(proc, informationText) {
+  auto& sc = proc.param.scale;
 
   addComboBox(sAM, "amType", sc.amType,
               {

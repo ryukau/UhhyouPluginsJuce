@@ -58,11 +58,10 @@ protected:
 
   class KnobAccessibilityHandler : public juce::AccessibilityHandler {
   public:
-    explicit KnobAccessibilityHandler(KnobBase& knobToWrap, juce::AccessibilityActions actions)
-        : juce::AccessibilityHandler(knobToWrap, juce::AccessibilityRole::slider,
-                                     std::move(actions),
-                                     Interfaces{std::make_unique<KnobValueInterface>(knobToWrap)}),
-          knob_(knobToWrap) {}
+    explicit KnobAccessibilityHandler(KnobBase& knb, juce::AccessibilityActions act)
+        : juce::AccessibilityHandler(knb, juce::AccessibilityRole::slider, std::move(act),
+                                     Interfaces{std::make_unique<KnobValueInterface>(knb)}),
+          knob_(knb) {}
 
     juce::String getTitle() const override {
       if (knob_.parameter_ != nullptr) { return knob_.parameter_->getName(256); }
@@ -543,10 +542,11 @@ public:
 
   TextKnobPainter(juce::AudioProcessorEditor& editor, Palette& palette,
                   juce::UndoManager* undoManager, juce::RangedAudioParameter* parameter,
-                  Scale& scale, StatusBar& statusBar, NumberEditor& numberEditor, int precision = 0)
+                  Scale& scale, StatusBar& statusBar, NumberEditor& numberEditor,
+                  int precisionDigits = 0)
       : KnobBase<Scale, knobType>(editor, palette, undoManager, parameter, scale, statusBar,
                                   numberEditor),
-        font_(palette.getFont(TextSize::normal)), precision(precision) {
+        font_(palette.getFont(TextSize::normal)), precision(precisionDigits) {
     this->sensitivity = float(0.002);
     this->lowSensitivity = this->sensitivity / float(10);
   }

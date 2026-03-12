@@ -365,9 +365,9 @@ protected:
                    const juce::String& label = "",
                    LabeledWidget::Layout layoutOption = LabeledWidget::showLabel,
                    RandomizeFn randomizer = nullptr) {
-    using KnobType = TextKnob<Scale, style>;
-    return addKnob_<KnobType>(sectionTitle, paramId, scale, snaps, precision, label, layoutOption,
-                              std::move(randomizer));
+    using KnobT = TextKnob<Scale, style>;
+    return addKnob_<KnobT>(sectionTitle, paramId, scale, snaps, precision, label, layoutOption,
+                           std::move(randomizer));
   }
 
   template<Style style = Style::common, typename Scale>
@@ -376,9 +376,9 @@ protected:
                          const juce::String& label = "",
                          LabeledWidget::Layout layoutOption = LabeledWidget::showLabel,
                          RandomizeFn randomizer = nullptr) {
-    using KnobType = RotaryTextKnob<Scale, style>;
-    return addKnob_<KnobType>(sectionTitle, paramId, scale, snaps, precision, label, layoutOption,
-                              std::move(randomizer));
+    using KnobT = RotaryTextKnob<Scale, style>;
+    return addKnob_<KnobT>(sectionTitle, paramId, scale, snaps, precision, label, layoutOption,
+                           std::move(randomizer));
   }
 
   template<Style style = Style::common, typename Scale>

@@ -50,8 +50,8 @@ const juce::String sLFO{"LFO"};
 const juce::String sMod{"Modulation"};
 const juce::String sMIDI{"MIDI"};
 
-Editor::Editor(Processor& processor) : EditorBase(processor, informationText) {
-  auto& sc = processor.param.scale;
+Editor::Editor(Processor& proc) : EditorBase(proc, informationText) {
+  auto& sc = proc.param.scale;
 
   auto snapsToNormalized = [&](const auto& source, auto converter) {
     std::vector<float> keys;

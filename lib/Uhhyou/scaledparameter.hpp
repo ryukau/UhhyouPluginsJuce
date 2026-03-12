@@ -46,14 +46,14 @@ private:
 public:
   ScaledParameter(float defaultNormalized, Scale& scale, const juce::String& parameterId,
                   const juce::String& parameterName,
-                  juce::AudioProcessorParameter::Category category, int versionHint,
+                  juce::AudioProcessorParameter::Category parameterCategory, int versionHint,
                   const juce::String& unitLabel = "",
                   ParameterTextRepresentation textRep = ParameterTextRepresentation::display,
                   ToTextFn toText = nullptr, FromTextFn fromText = nullptr)
-      : RangedAudioParameter(
-          juce::ParameterID(parameterId, versionHint), parameterName,
-          juce::AudioProcessorParameterWithIDAttributes().withCategory(category).withLabel(
-            unitLabel)),
+      : RangedAudioParameter(juce::ParameterID(parameterId, versionHint), parameterName,
+                             juce::AudioProcessorParameterWithIDAttributes()
+                               .withCategory(parameterCategory)
+                               .withLabel(unitLabel)),
         defaultNormalized_(defaultNormalized), raw_(float(scale.map(defaultNormalized))),
         scale_(scale),
         range_(

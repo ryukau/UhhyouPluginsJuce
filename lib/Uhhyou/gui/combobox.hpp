@@ -63,11 +63,10 @@ protected:
 
   class ComboBoxAccessibilityHandler : public juce::AccessibilityHandler {
   public:
-    explicit ComboBoxAccessibilityHandler(ComboBox& cbToWrap, juce::AccessibilityActions actions)
-        : juce::AccessibilityHandler(
-            cbToWrap, juce::AccessibilityRole::comboBox, std::move(actions),
-            Interfaces{std::make_unique<ComboBoxValueInterface>(cbToWrap)}),
-          cb_(cbToWrap) {}
+    explicit ComboBoxAccessibilityHandler(ComboBox& cb, juce::AccessibilityActions act)
+        : juce::AccessibilityHandler(cb, juce::AccessibilityRole::comboBox, std::move(act),
+                                     Interfaces{std::make_unique<ComboBoxValueInterface>(cb)}),
+          cb_(cb) {}
 
     juce::String getTitle() const override {
       if (cb_.parameter_ != nullptr) { return cb_.parameter_->getName(256); }

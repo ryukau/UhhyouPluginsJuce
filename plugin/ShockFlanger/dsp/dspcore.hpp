@@ -18,7 +18,7 @@ class DSPCore {
 public:
   using Real = double;
 
-  DSPCore(ParameterStore& param) : param(param) { noteIdStack_.reserve(1024); }
+  DSPCore(ParameterStore& p) : param(p) { noteIdStack_.reserve(1024); }
 
   ParameterStore& param;
   Real tempo = Real(120);
