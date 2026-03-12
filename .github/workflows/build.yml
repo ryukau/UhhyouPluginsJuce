@@ -15,7 +15,7 @@ jobs:
     outputs:
       plugins: ${{ steps.set-matrix.outputs.plugins }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Generate Matrix from Directories
         id: set-matrix
         run: |
@@ -37,13 +37,13 @@ jobs:
         plugin: ${{ fromJSON(needs.setup-matrix.outputs.plugins) }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
     - name: Run script
       run: ci/ci_ubuntu.sh ${{ matrix.plugin }}
     - name: Upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: plugins_ubuntu_${{ matrix.plugin }}
         path: plugins_ubuntu
@@ -57,13 +57,13 @@ jobs:
         plugin: ${{ fromJSON(needs.setup-matrix.outputs.plugins) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Run script
         run: ci/ci_windows.ps1 -Plugin ${{ matrix.plugin }}
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: plugins_windows_${{ matrix.plugin }}
           path: plugins_windows
@@ -77,13 +77,13 @@ jobs:
         plugin: ${{ fromJSON(needs.setup-matrix.outputs.plugins) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Run script
         run: ci/ci_macOS.sh ${{ matrix.plugin }}
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: plugins_macOS_${{ matrix.plugin }}
           path: plugins_macOS
@@ -96,11 +96,11 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Download Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: ${{ env.package_path }}
           pattern: plugins_*

@@ -17,15 +17,16 @@ sudo apt install libasound2-dev libjack-jackd2-dev \
   libfreetype-dev libfontconfig1-dev \
   libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev \
   libwebkit2gtk-4.1-dev \
-  libglu1-mesa-dev mesa-common-dev
+  libglu1-mesa-dev mesa-common-dev \
+  ninja-build
 
 cmake --version
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
 if [ "$PLUGIN" = "ALL" ] ||[ -z "$PLUGIN" ]; then
-  cmake --build build -j --config Release
+  cmake --build build
 else
-  cmake --build build -j --config Release --target "${PLUGIN}_All"
+  cmake --build build --target "${PLUGIN}_All"
 fi
 
 echo "UhhyouDebug: Printing ./build"
