@@ -287,7 +287,7 @@ public:
   }
 
   Sample process(Sample carrior, Sample modulator) {
-    Sample output;
+    Sample output{};
     for (size_t idx = 0; idx < 3; ++idx) {
       carrior = lowpassCar_.process(carrior);
       modulator = lowpassMod_.process(modulator);

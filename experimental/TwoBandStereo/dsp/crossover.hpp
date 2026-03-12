@@ -6,13 +6,16 @@
 #include <array>
 #include <cmath>
 #include <complex>
+#include <cstddef>
 #include <numbers>
 
 namespace Uhhyou {
 
-template<typename Sample, int length> class FixedIntDelay {
+template<typename Sample, size_t length> class FixedIntDelay {
 private:
-  int ptr_ = 0;
+  static_assert(length > 0);
+
+  size_t ptr_ = 0;
   std::array<Sample, length> buf_{};
 
 public:

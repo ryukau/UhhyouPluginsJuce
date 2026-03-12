@@ -101,7 +101,7 @@ std::array<double, 2> DSPCore::processSample(const std::array<double, 2> in) {
     lowGain_.value() * split0.low + highGain_.value() * split0.high,
     lowGain_.value() * split1.low + highGain_.value() * split1.high,
   };
-};
+}
 
 void DSPCore::process(const size_t length, const float* in0, const float* in1, float* out0,
                       float* out1) {

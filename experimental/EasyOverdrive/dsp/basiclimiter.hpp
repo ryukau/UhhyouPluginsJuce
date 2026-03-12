@@ -47,10 +47,10 @@ public:
     return v2;
   }
 
-  Sample processKp(Sample input, Sample kp) {
+  Sample processKp(Sample input, Sample alpha) {
     auto&& v0 = input;
-    v1 += kp * (v0 - v1);
-    v2 += kp * (v1 - v2);
+    v1 += alpha * (v0 - v1);
+    v2 += alpha * (v1 - v2);
     return v2;
   }
 };

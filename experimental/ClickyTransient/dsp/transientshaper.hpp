@@ -23,15 +23,15 @@ template<typename Sample> struct SplittedBand2 {
   inline Sample sum() { return low + high; }
 };
 
-template<typename Sample, int length = 63> class BandSplitter {
+template<typename Sample, size_t length = 63> class BandSplitter {
 private:
-  static_assert(length > 0);
+  static_assert(length > 0, "Length must be greater than zero");
 
-  int wptr_ = 0;
+  size_t wptr_ = 0;
   std::array<Sample, length> buf_{};
 
 public:
-  static constexpr int latency = length / 2;
+  static constexpr size_t latency = length / 2;
 
   void reset() {
     wptr_ = 0;
@@ -39,7 +39,7 @@ public:
   }
 
   SplittedBand2<Sample> process(Sample input, Sample cutoffNormalized) {
-    if constexpr (length == 1) { return Sample(2) * cutoffNormalized * input; }
+    if constexpr (length == 1) { return {Sample(2) * cutoffNormalized * input, Sample(0)}; }
 
     // Write to buffer.
     if (++wptr_ >= length) { wptr_ = 0; }
@@ -48,28 +48,27 @@ public:
     // Setup recursive sine oscillator.
     constexpr Sample pi = std::numbers::pi_v<Sample>;
     const Sample omega = Sample(2) * pi * cutoffNormalized;
-    const Sample phi = -latency * omega;
+    const Sample phi = -Sample(latency) * omega;
     const Sample k = Sample(2) * std::cos(omega);
     Sample u1 = std::sin(phi - omega);
     Sample u2 = std::sin(phi - Sample(2) * omega);
 
     // Convolution.
-    int rptr = wptr_;
+    size_t rptr = wptr_;
     Sample sum = 0;
-    for (int i = 0; i < length; ++i) {
+    for (size_t i = 0; i < length; ++i) {
       const Sample u0 = k * u1 - u2;
       u2 = u1;
       u1 = u0;
 
-      const Sample x = Sample(i) - latency;
+      const Sample x = Sample(i) - Sample(latency);
       const Sample sinc = x == 0 ? Sample(2) * cutoffNormalized : u0 / (pi * x);
 
       if (++rptr >= length) { rptr = 0; }
       sum += sinc * buf_[rptr];
     }
 
-    int center = wptr_ - latency;
-    if (center < 0) { center += length; }
+    size_t center = (wptr_ >= latency) ? (wptr_ - latency) : (wptr_ + length - latency);
     return {sum, buf_[center] - sum};
   }
 };
@@ -124,10 +123,10 @@ public:
   }
 };
 
-template<typename Sample, int order = 2> class Butterworth {
+template<typename Sample, size_t order = 2> class Butterworth {
 private:
   static_assert(order > 0 && order % 2 == 0);
-  static constexpr int nSection = order / 2;
+  static constexpr size_t nSection = order / 2;
 
   std::array<Sample, nSection> x1_{};
   std::array<Sample, nSection> x2_{};
@@ -146,9 +145,8 @@ public:
     constexpr Sample pi = std::numbers::pi_v<Sample>;
 
     const Sample omega = Sample(2) * pi * std::clamp(cutoffNormalized, Sample(1e-6), Sample(0.499));
-    for (int i = 0; i < nSection; ++i) {
-      // const Sample Q = Sample(0.5) / std::sin(Sample(2 * idx + 1) * pi /
-      // Sample(order));
+    for (size_t i = 0; i < nSection; ++i) {
+      // const Sample Q = Sample(0.5) / std::sin(Sample(2 * idx + 1) * pi / Sample(order));
       const Sample Q = Sample(0.5) / std::cos(pi * Sample(i) / Sample(order));
 
       const Sample sn = std::sin(omega);
