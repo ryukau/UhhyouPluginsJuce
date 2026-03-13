@@ -83,13 +83,13 @@ private:
   ExpSmoother<Real> delayTimeSample0_{smoo_};
   ExpSmoother<Real> delayTimeSample1_{smoo_};
   ExpSmoother<Real> viscosityCutoff_{smoo_};
-  ExpSmoother<Real> sigModMode_{smoo_};
-  ExpSmoother<Real> sigTimeMod0_{smoo_};
-  ExpSmoother<Real> sigTimeMod1_{smoo_};
+  ExpSmoother<Real> audioModMode_{smoo_};
+  ExpSmoother<Real> audioTimeMod0_{smoo_};
+  ExpSmoother<Real> audioTimeMod1_{smoo_};
   ExpSmoother<Real> lfoTimeMod0_{smoo_};
   ExpSmoother<Real> lfoTimeMod1_{smoo_};
-  ExpSmoother<Real> sigAmpMod0_{smoo_};
-  ExpSmoother<Real> sigAmpMod1_{smoo_};
+  ExpSmoother<Real> audioAmpMod0_{smoo_};
+  ExpSmoother<Real> audioAmpMod1_{smoo_};
   ExpSmoother<Real> highpassCutoff_{smoo_};
   ExpSmootherLocal<Real> highpassFade_;
   ExpSmoother<Real> flangeBlend_{smoo_};

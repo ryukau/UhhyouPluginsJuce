@@ -1,20 +1,17 @@
 // Copyright Takamitsu Endo (ryukau@gmail.com).
 // SPDX-License-Identifier: AGPL-3.0-only
 
+#pragma once
+
+#include <Uhhyou/gui/informationtext.hpp>
+
 #include <juce_core/juce_core.h>
 
 namespace Uhhyou {
 
-const char *informationText = JucePlugin_Name " version " JucePlugin_VersionString R"(
+const char* informationText = JucePlugin_Name " version " JucePlugin_VersionString R"(
 
-Click outside to close this message.
-
-## Controls
-### Knobs & Number Sliders
-Right Click: Open host context menu.
-Wheel Click: Rotate throught min/default/max value.
-Ctrl + Left Click: Reset to default.
-Ctrl + Wheel Click: Take floor of current value.
-)";
+To close this message, click the margin outside of tab view.
+)" UHHYOU_TEXT_CONTROLS;
 
 } // namespace Uhhyou

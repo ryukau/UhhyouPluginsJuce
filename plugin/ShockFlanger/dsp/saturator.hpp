@@ -77,9 +77,222 @@ template<typename Real> inline Real sum_of_sqrt(uint64_t N) {
   }
 }
 
-/**
-`HardclipAdaa4` uses uniform cubic B-spline kernel and Gauss-Legendre quadrature.
-*/
+template<std::floating_point T> class HalfwaveAdaa1 {
+private:
+  T x1_ = T(0);
+
+public:
+  void reset() { x1_ = T(0); }
+
+  T process(T input) {
+    const T x_a = x1_;
+    const T x_b = input;
+    x1_ = input;
+
+    if (x_a <= T(0) && x_b <= T(0)) { return T(0); }
+    if (x_a >= T(0) && x_b >= T(0)) { return T(0.5) * (x_a + x_b); }
+
+    const T min_x = std::min(x_a, x_b);
+    const T max_x = std::max(x_a, x_b);
+    const T abs_diff = max_x - min_x;
+
+    const T integral = T(0.5) * max_x * max_x;
+    return integral / abs_diff;
+  }
+};
+
+template<std::floating_point T> class HalfwaveAdaa2 {
+private:
+  static constexpr int nSegment = 2;
+
+  static constexpr std::array<T, nSegment> basisAreas = {T(1) / T(2), T(1) / T(2)};
+  static constexpr std::array<T, nSegment> basisMoments = {T(1) / T(3), T(1) / T(6)};
+
+  std::array<T, nSegment + 1> buffer_{};
+
+  template<int seg_idx> static inline T calc_lin(T t0, T t1, T x_a, T diff) {
+    const T dt = t1 - t0;
+    const T dt2_half = T(0.5) * (t1 * t1 - t0 * t0);
+    const T dt3_third = T(1.0 / 3.0) * (t1 * t1 * t1 - t0 * t0 * t0);
+
+    T i0, i1;
+    if constexpr (seg_idx == 0) {
+      i0 = dt2_half;
+      i1 = dt3_third;
+    } else {
+      i0 = dt - dt2_half;
+      i1 = dt2_half - dt3_third;
+    }
+    return x_a * i0 + diff * i1;
+  }
+
+  template<int seg_idx> inline void process_segment(T x_a, T x_b, T& value) {
+    if (x_a >= T(0) && x_b >= T(0)) {
+      const T diff = x_b - x_a;
+      value += x_a * basisAreas[seg_idx] + diff * basisMoments[seg_idx];
+      return;
+    }
+
+    if (x_a <= T(0) && x_b <= T(0)) { return; }
+
+    const T diff = x_b - x_a;
+    const T inv_diff = T(1) / diff;
+    const T t_zero = -x_a * inv_diff;
+    if (diff > T(0)) {
+      value += calc_lin<seg_idx>(t_zero, T(1), x_a, diff);
+    } else {
+      value += calc_lin<seg_idx>(T(0), t_zero, x_a, diff);
+    }
+  }
+
+public:
+  void reset() { buffer_.fill(T(0)); }
+
+  T process(T input) {
+    buffer_[2] = buffer_[1];
+    buffer_[1] = buffer_[0];
+    buffer_[0] = input;
+
+    T value = T(0);
+
+    process_segment<0>(buffer_[2], buffer_[1], value);
+    process_segment<1>(buffer_[1], buffer_[0], value);
+
+    return value;
+  }
+};
+
+template<std::floating_point T> class HardclipAdaa1 {
+private:
+  T x1_ = T(0);
+
+public:
+  void reset() { x1_ = T(0); }
+
+  T process(T input) {
+    const T x_a = x1_;
+    const T x_b = input;
+    x1_ = input;
+
+    if (std::abs(x_a) <= T(1) && std::abs(x_b) <= T(1)) { return T(0.5) * (x_a + x_b); }
+    if (x_a >= T(1) && x_b >= T(1)) { return T(1); }
+    if (x_a <= T(-1) && x_b <= T(-1)) { return T(-1); }
+
+    const T min_x = std::min(x_a, x_b);
+    const T max_x = std::max(x_a, x_b);
+    const T abs_diff = max_x - min_x;
+
+    const T lin_start = std::max(min_x, T(-1));
+    const T lin_end = std::min(max_x, T(1));
+
+    const T lin_integral = T(0.5) * (lin_end - lin_start) * (lin_end + lin_start);
+    const T integral = (max_x - lin_end) - (lin_start - min_x) + lin_integral;
+    return integral / abs_diff;
+  }
+};
+
+template<std::floating_point T> class HardclipAdaa2 {
+private:
+  static constexpr int nSegment = 2;
+
+  static constexpr std::array<T, nSegment> basisAreas = {T(1) / T(2), T(1) / T(2)};
+  static constexpr std::array<T, nSegment> basisMoments = {T(1) / T(3), T(1) / T(6)};
+
+  std::array<T, nSegment + 1> buffer_{};
+
+  template<int seg_idx> static inline T calc_i0(T t0, T t1) {
+    const T dt = t1 - t0;
+    const T dt2_half = T(0.5) * (t1 * t1 - t0 * t0);
+
+    if constexpr (seg_idx == 0) {
+      return dt2_half;
+    } else {
+      return dt - dt2_half;
+    }
+  }
+
+  template<int seg_idx> static inline T calc_lin(T t0, T t1, T x_a, T diff) {
+    const T dt = t1 - t0;
+    const T dt2_half = T(0.5) * (t1 * t1 - t0 * t0);
+    const T dt3_third = T(1.0 / 3.0) * (t1 * t1 * t1 - t0 * t0 * t0);
+
+    T i0, i1;
+    if constexpr (seg_idx == 0) {
+      i0 = dt2_half;
+      i1 = dt3_third;
+    } else {
+      i0 = dt - dt2_half;
+      i1 = dt2_half - dt3_third;
+    }
+    return x_a * i0 + diff * i1;
+  }
+
+  template<int seg_idx> inline void process_segment(T x_a, T x_b, T& value) {
+    if (std::abs(x_a) <= T(1) && std::abs(x_b) <= T(1)) {
+      const T diff = x_b - x_a;
+      value += x_a * basisAreas[seg_idx] + diff * basisMoments[seg_idx];
+      return;
+    }
+    if (x_a >= T(1) && x_b >= T(1)) {
+      value += basisAreas[seg_idx];
+      return;
+    }
+    if (x_a <= T(-1) && x_b <= T(-1)) {
+      value -= basisAreas[seg_idx];
+      return;
+    }
+
+    const T diff = x_b - x_a;
+    const T inv_diff = T(1) / diff;
+
+    const T t_pos = (T(1) - x_a) * inv_diff;
+    const T t_neg = (T(-1) - x_a) * inv_diff;
+
+    T t_curr = T(0);
+    if (diff > T(0)) {
+      if (x_a < T(-1)) {
+        const T t_next = (t_neg > T(0) && t_neg < T(1)) ? t_neg : T(1);
+        value -= calc_i0<seg_idx>(t_curr, t_next);
+        t_curr = t_next;
+      }
+      if (t_curr < T(1)) {
+        const T t_next = (t_pos > t_curr && t_pos < T(1)) ? t_pos : T(1);
+        value += calc_lin<seg_idx>(t_curr, t_next, x_a, diff);
+        t_curr = t_next;
+      }
+      if (t_curr < T(1)) { value += calc_i0<seg_idx>(t_curr, T(1)); }
+    } else {
+      if (x_a > T(1)) {
+        const T t_next = (t_pos > T(0) && t_pos < T(1)) ? t_pos : T(1);
+        value += calc_i0<seg_idx>(t_curr, t_next);
+        t_curr = t_next;
+      }
+      if (t_curr < T(1)) {
+        const T t_next = (t_neg > t_curr && t_neg < T(1)) ? t_neg : T(1);
+        value += calc_lin<seg_idx>(t_curr, t_next, x_a, diff);
+        t_curr = t_next;
+      }
+      if (t_curr < T(1)) { value -= calc_i0<seg_idx>(t_curr, T(1)); }
+    }
+  }
+
+public:
+  void reset() { buffer_.fill(T(0)); }
+
+  T process(T input) {
+    buffer_[2] = buffer_[1];
+    buffer_[1] = buffer_[0];
+    buffer_[0] = input;
+
+    T value = T(0);
+    process_segment<0>(buffer_[2], buffer_[1], value);
+    process_segment<1>(buffer_[1], buffer_[0], value);
+
+    return value;
+  }
+};
+
+// `HardclipAdaa4` uses uniform cubic B-spline kernel and Gauss-Legendre quadrature.
 template<std::floating_point T> class HardclipAdaa4 {
 private:
   static constexpr int nPoints = 3;
@@ -234,9 +447,7 @@ public:
   }
 };
 
-/**
-`ModuloQuadAdaa4` uses triangular kernel and Gauss-Legendre quadrature.
-*/
+// `ModuloQuadAdaa4` uses triangular kernel and Gauss-Legendre quadrature.
 template<std::floating_point T> class ModuloQuadAdaa4 {
 private:
   static constexpr T offset_factor = T(5.77350269189625731e-01); // 1 / sqrt(3).
@@ -958,6 +1169,7 @@ template<typename Real> struct ChebyshevClenshaw {
 // Using 1st order antiderivative anti-aliasing (ADAA).
 template<typename Real> class Saturator {
 private:
+  HardclipAdaa1<Real> hardclip1_;
   HardclipAdaa4<Real> hardclip4_;
   ModuloQuadAdaa4<Real> modulo_quad4_;
   TriangleAdaa4<Real> triangle4_;
@@ -1007,6 +1219,7 @@ public:
   };
 
   void reset() {
+    hardclip1_.reset();
     hardclip4_.reset();
     modulo_quad4_.reset();
     triangle4_.reset();
@@ -1022,7 +1235,7 @@ public:
       case Function::hardclip_cleaner:
         return hardclip4_.process(input);
       case Function::hardclip:
-        return processInternal<Hardclip<Real>>(input);
+        return hardclip1_.process(input);
       case Function::softsign:
         return processInternal<Softsign<Real>>(input);
       case Function::softsign3:

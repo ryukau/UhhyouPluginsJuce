@@ -69,7 +69,7 @@ template<typename Func> void DSPCore::applyToParameters(Func apply) {
   apply(delayTimeSample1_, L(pv.delayTimeRatio) * delayTime);
 
   apply(viscosityCutoff_, L(pv.viscosityLowpassHz) / upRate_);
-  apply(sigModMode_, L(pv.sigModMode));
+  apply(audioModMode_, L(pv.audioModMode));
 
   const auto setMod = [&](Real invTime, Real mod, Real tracking) -> Real {
     constexpr auto invLn2 = Real(1) / std::numbers::ln2_v<Real>;
@@ -82,14 +82,14 @@ template<typename Func> void DSPCore::applyToParameters(Func apply) {
   const auto invTime1 = weakScalar / std::max(Real(1), delayTimeSample1_.target());
   const auto modTracking = L(pv.modulationTracking);
   const auto modAdjust = (satGain >= Real(1)) ? Real(1) : satGain;
-  const auto cMod0 = L(pv.sigTimeMod0) / modAdjust;
-  const auto cMod1 = L(pv.sigTimeMod1) / modAdjust;
-  apply(sigTimeMod0_, setMod(invTime0, cMod0, modTracking));
-  apply(sigTimeMod1_, setMod(invTime1, cMod1, modTracking));
+  const auto cMod0 = L(pv.audioTimeMod0) / modAdjust;
+  const auto cMod1 = L(pv.audioTimeMod1) / modAdjust;
+  apply(audioTimeMod0_, setMod(invTime0, cMod0, modTracking));
+  apply(audioTimeMod1_, setMod(invTime1, cMod1, modTracking));
   apply(lfoTimeMod0_, setMod(invTime0, L(pv.lfoTimeMod0), modTracking));
   apply(lfoTimeMod1_, setMod(invTime1, L(pv.lfoTimeMod1), modTracking));
-  apply(sigAmpMod0_, L(pv.sigAmpMod0));
-  apply(sigAmpMod1_, L(pv.sigAmpMod1));
+  apply(audioAmpMod0_, L(pv.audioAmpMod0));
+  apply(audioAmpMod1_, -L(pv.audioAmpMod1));
 
   const auto& cutoffMax = scl.cutoffHz.getMax();
   apply(lowpassCutoff_, L(pv.lowpassCutoffHz) / upRate_);
@@ -100,7 +100,7 @@ template<typename Func> void DSPCore::applyToParameters(Func apply) {
   const auto flange = L(pv.flangeBlend);
   apply(flangeBlend_, flange);
   apply(safeFeedback_, L(pv.safeFeedback) * flange);
-  apply(flangePolarity_, L(pv.flangePolarity) < Real(0.5) ? -flange : flange);
+  apply(flangePolarity_, L(pv.flangePolarity));
 
   apply(dryGain_, L(pv.dryGain));
   const auto wetSign = static_cast<bool>(L(pv.wetInvert)) ? Real(-1) : Real(1);
@@ -182,13 +182,13 @@ auto DSPCore::processSample(const std::array<Real, 2> in) -> std::array<Real, 2>
     .timeInSamples0 = delayTimeSample0_.process() * ntPitch,
     .timeInSamples1 = delayTimeSample1_.process() * ntPitch,
     .viscosityCutoff = viscosityCutoff_.process(),
-    .sigModMode = sigModMode_.process(),
-    .sigTimeMod0 = sigTimeMod0_.process(),
-    .sigTimeMod1 = sigTimeMod1_.process(),
+    .audioModMode = audioModMode_.process(),
+    .audioTimeMod0 = audioTimeMod0_.process(),
+    .audioTimeMod1 = audioTimeMod1_.process(),
     .lfoTimeMod0 = lfoTimeMod0_.process(),
     .lfoTimeMod1 = lfoTimeMod1_.process(),
-    .sigAmpMod0 = sigAmpMod0_.process(),
-    .sigAmpMod1 = sigAmpMod1_.process(),
+    .audioAmpMod0 = audioAmpMod0_.process(),
+    .audioAmpMod1 = audioAmpMod1_.process(),
     .highpassCutoff = highpassCutoff_.process(),
     .highpassFade = highpassFade_.process(fadeKp_),
     .flangeBlend = flangeBlend_.process(),

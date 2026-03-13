@@ -69,10 +69,41 @@ public:
     p.closeSubPath();
 
     p.addPath(p, juce::AffineTransform::scale(float(-1), float(1), centerX, centerY));
-    juce::PathStrokeType stroke(lineWidth, juce::PathStrokeType::mitered,
-                                juce::PathStrokeType::rounded);
+
+    juce::PathStrokeType stroke(lineWidth, juce::PathStrokeType::JointStyle::mitered,
+                                juce::PathStrokeType::EndCapStyle::rounded);
     ctx.strokePath(p, stroke);
     ctx.fillPath(p);
+
+    if (text_.isEmpty()) {
+      const auto armLength = localBounds.getHeight() / 4.0f;
+      const auto diaSize = armLength - lineWidth;
+
+      juce::Path q;
+
+      const auto cy1 = centerY - armLength;
+      q.startNewSubPath(centerX, cy1 - diaSize);
+      q.lineTo(centerX - diaSize, cy1);
+      q.lineTo(centerX, cy1 + diaSize);
+      q.lineTo(centerX + diaSize, cy1);
+      q.closeSubPath();
+
+      const auto cx1 = centerX - armLength;
+      q.startNewSubPath(cx1, centerY - diaSize);
+      q.lineTo(cx1 - diaSize, centerY);
+      q.lineTo(cx1, centerY + diaSize);
+      q.lineTo(cx1 + diaSize, centerY);
+      q.closeSubPath();
+
+      const auto cx2 = centerX + armLength;
+      q.startNewSubPath(cx2, centerY - diaSize);
+      q.lineTo(cx2 - diaSize, centerY);
+      q.lineTo(cx2, centerY + diaSize);
+      q.lineTo(cx2 + diaSize, centerY);
+      q.closeSubPath();
+
+      ctx.fillPath(q);
+    }
   }
 };
 

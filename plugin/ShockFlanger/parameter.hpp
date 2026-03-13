@@ -95,14 +95,14 @@ struct ValueReceivers {
   std::atomic<float>* highpassCutoffHz{};
   std::atomic<float>* lowpassCutoffHz{};
   std::atomic<float>* modulationTracking{};
-  std::atomic<float>* sigModMode{};
+  std::atomic<float>* audioModMode{};
   std::atomic<float>* viscosityLowpassHz{};
-  std::atomic<float>* sigTimeMod0{};
-  std::atomic<float>* sigTimeMod1{};
+  std::atomic<float>* audioTimeMod0{};
+  std::atomic<float>* audioTimeMod1{};
   std::atomic<float>* lfoTimeMod0{};
   std::atomic<float>* lfoTimeMod1{};
-  std::atomic<float>* sigAmpMod0{};
-  std::atomic<float>* sigAmpMod1{};
+  std::atomic<float>* audioAmpMod0{};
+  std::atomic<float>* audioAmpMod1{};
 
   std::atomic<float>* noteReceive{};
   std::atomic<float>* notePitchRange{};
@@ -199,8 +199,8 @@ private:
                        "Flange Blend", Cat::genericParameter, version, "", Rep::raw));
     value.flangePolarity
       = addParameter(generalGroup,
-                     std::make_unique<ScaledParameter<Scales::UIntScl>>(
-                       scale.boolean.invmap(1), scale.boolean, "flangePolarity", "Flange Polarity",
+                     std::make_unique<ScaledParameter<Scales::LinearScl>>(
+                       scale.bipolar.invmap(1), scale.bipolar, "flangePolarity", "Flange Polarity",
                        Cat::genericParameter, version, "", Rep::raw));
     value.safeFeedback
       = addParameter(generalGroup,
@@ -297,44 +297,46 @@ private:
                      std::make_unique<ScaledParameter<Scales::LinearScl>>(
                        scale.unipolar.invmap(1), scale.unipolar, "modulationTracking", "Tracking",
                        Cat::genericParameter, version, "", Rep::raw));
-    value.sigModMode
+    value.audioModMode
       = addParameter(generalGroup,
                      std::make_unique<ScaledParameter<Scales::LinearScl>>(
-                       scale.unipolar.invmap(0), scale.unipolar, "sigModMode", "Sig. Mod Mode",
+                       scale.unipolar.invmap(0), scale.unipolar, "audioModMode", "Audio Mod Mode",
                        Cat::genericParameter, version, "", Rep::raw));
     value.viscosityLowpassHz
       = addParameter(generalGroup,
                      std::make_unique<ScaledParameter<Scales::DecibelScl>>(
                        scale.cutoffHz.invmap(float(2000)), scale.cutoffHz, "viscosityLowpassHz",
                        "Viscosity LP", Cat::genericParameter, version, "Hz", Rep::raw));
-    value.lfoTimeMod0
+    value.lfoTimeMod0 = addParameter(generalGroup,
+                                     std::make_unique<ScaledParameter<Scales::BipolarDecibelScl>>(
+                                       scale.lfoToDelayTimeOctave.invmap(0),
+                                       scale.lfoToDelayTimeOctave, "lfoTimeMod0", "LFO -> Time 0",
+                                       Cat::genericParameter, version, "", Rep::raw));
+    value.lfoTimeMod1 = addParameter(generalGroup,
+                                     std::make_unique<ScaledParameter<Scales::BipolarDecibelScl>>(
+                                       scale.lfoToDelayTimeOctave.invmap(0),
+                                       scale.lfoToDelayTimeOctave, "lfoTimeMod1", "LFO -> Time 1",
+                                       Cat::genericParameter, version, "", Rep::raw));
+    value.audioTimeMod0
       = addParameter(generalGroup,
                      std::make_unique<ScaledParameter<Scales::BipolarDecibelScl>>(
-                       scale.lfoToDelayTimeOctave.invmap(0), scale.lfoToDelayTimeOctave,
-                       "lfoTimeMod0", "LFO Time 0", Cat::genericParameter, version, "", Rep::raw));
-    value.lfoTimeMod1
+                       scale.timeModOctave.invmap(0), scale.timeModOctave, "audioTimeMod0",
+                       "Audio -> Time 0", Cat::genericParameter, version, "", Rep::raw));
+    value.audioTimeMod1
       = addParameter(generalGroup,
                      std::make_unique<ScaledParameter<Scales::BipolarDecibelScl>>(
-                       scale.lfoToDelayTimeOctave.invmap(0), scale.lfoToDelayTimeOctave,
-                       "lfoTimeMod1", "LFO Time 1", Cat::genericParameter, version, "", Rep::raw));
-    value.sigTimeMod0
+                       scale.timeModOctave.invmap(0), scale.timeModOctave, "audioTimeMod1",
+                       "Audio -> Time 1", Cat::genericParameter, version, "", Rep::raw));
+    value.audioAmpMod0
       = addParameter(generalGroup,
-                     std::make_unique<ScaledParameter<Scales::BipolarDecibelScl>>(
-                       scale.timeModOctave.invmap(0), scale.timeModOctave, "sigTimeMod0",
-                       "Sig. Time 0", Cat::genericParameter, version, "", Rep::raw));
-    value.sigTimeMod1
+                     std::make_unique<ScaledParameter<Scales::LinearScl>>(
+                       scale.unipolar.invmap(0), scale.unipolar, "audioAmpMod0", "Audio -> AM 0",
+                       Cat::genericParameter, version, "", Rep::raw));
+    value.audioAmpMod1
       = addParameter(generalGroup,
-                     std::make_unique<ScaledParameter<Scales::BipolarDecibelScl>>(
-                       scale.timeModOctave.invmap(0), scale.timeModOctave, "sigTimeMod1",
-                       "Sig. Time 1", Cat::genericParameter, version, "", Rep::raw));
-    value.sigAmpMod0 = addParameter(generalGroup,
-                                    std::make_unique<ScaledParameter<Scales::LinearScl>>(
-                                      scale.unipolar.invmap(0), scale.unipolar, "sigAmpMod0",
-                                      "Sig. AM 0", Cat::genericParameter, version, "", Rep::raw));
-    value.sigAmpMod1 = addParameter(generalGroup,
-                                    std::make_unique<ScaledParameter<Scales::LinearScl>>(
-                                      scale.unipolar.invmap(0), scale.unipolar, "sigAmpMod1",
-                                      "Sig. AM 1", Cat::genericParameter, version, "", Rep::raw));
+                     std::make_unique<ScaledParameter<Scales::LinearScl>>(
+                       scale.unipolar.invmap(0), scale.unipolar, "audioAmpMod1", "Audio -> AM 1",
+                       Cat::genericParameter, version, "", Rep::raw));
 
     value.noteReceive
       = addParameter(generalGroup,

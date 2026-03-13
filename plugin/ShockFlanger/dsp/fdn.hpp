@@ -362,6 +362,8 @@ private:
   std::array<DelayAntialiased<Real>, fdnSize> delay_;
   std::array<ButterworthLowpass<Real, 4>, fdnSize> feedbackLowpass_;
   std::array<ButterworthLowpass<Real, 2>, fdnSize> viscosityLowpass_;
+  std::array<HardclipAdaa2<Real>, fdnSize> amClipper_;
+  HalfwaveAdaa2<Real> rectifier_;
 
 public:
   void setup(Real maxTimeSamples) {
@@ -378,6 +380,8 @@ public:
     for (auto& x : safetyHighpass_) { x.reset(); }
     for (auto& x : feedbackLowpass_) { x.reset(); }
     for (auto& x : viscosityLowpass_) { x.reset(); }
+    for (auto& x : amClipper_) { x.reset(); }
+    rectifier_.reset();
   }
 
   void reset() {
@@ -398,13 +402,13 @@ public:
     Real timeInSamples0;
     Real timeInSamples1;
     Real viscosityCutoff;
-    Real sigModMode;
-    Real sigTimeMod0;
-    Real sigTimeMod1;
+    Real audioModMode;
+    Real audioTimeMod0;
+    Real audioTimeMod1;
     Real lfoTimeMod0;
     Real lfoTimeMod1;
-    Real sigAmpMod0;
-    Real sigAmpMod1;
+    Real audioAmpMod0;
+    Real audioAmpMod1;
     Real highpassCutoff;
     Real highpassFade;
     Real flangeBlend;
@@ -415,65 +419,62 @@ public:
     typename Saturator<Real>::Function saturatorType;
   };
 
-  Real process(Real input, Real lfoPhase, DisplayTime& displayTime, const Parameters& params) {
+  Real process(Real input, Real lfoPhase, DisplayTime& displayTime, const Parameters& p) {
     constexpr auto pi = std::numbers::pi_v<Real>;
     constexpr auto twopi = Real(2) * pi;
     const auto omega = twopi * lfoPhase;
-    const auto cs = std::lerp(std::cos(omega), Real(1), params.flangeBlend);
-    const auto sn = std::lerp(std::sin(omega), Real(0), params.flangeBlend);
+    const auto cs = std::lerp(std::cos(omega), Real(1), p.flangeBlend);
+    const auto sn = std::lerp(std::sin(omega), Real(0), p.flangeBlend);
 
     const auto timeLfo = std::abs(Real(4) * lfoPhase - Real(2)) - Real(1);
 
-    const auto fbCircular = boxToCircle(std::complex<Real>{params.feedback0, params.feedback1});
-    auto fb0 = std::lerp(params.feedback0, fbCircular.real(), params.safeFeedback);
-    auto fb1 = std::lerp(params.feedback1, fbCircular.imag(), params.safeFeedback);
+    const auto fbCircular = boxToCircle(std::complex<Real>{p.feedback0, p.feedback1});
+    auto fb0 = std::lerp(p.feedback0, fbCircular.real(), p.safeFeedback);
+    auto fb1 = std::lerp(p.feedback1, fbCircular.imag(), p.safeFeedback);
     auto sig0 = cs * buffer_[0] - sn * buffer_[1];
     auto sig1 = sn * buffer_[0] + cs * buffer_[1];
 
-    const auto fbGate = feedbackGate_.process(input, params.feedbackGateThreshold,
-                                              params.feedbackGateThreshold * Real(0.5));
+    const auto fbGate
+      = feedbackGate_.process(input, p.feedbackGateThreshold, p.feedbackGateThreshold * Real(0.5));
     sig0 *= fb0 * fbGate;
     sig1 *= fb1 * fbGate;
 
-    sig0 = saturator_[0].process(sig0, params.saturatorType);
-    sig1 = saturator_[1].process(sig1, params.saturatorType);
+    sig0 = saturator_[0].process(sig0, p.saturatorType);
+    sig1 = saturator_[1].process(sig1, p.saturatorType);
 
-    const auto inSat = inputSaturator_.process(input, params.saturatorType);
-    const auto delayIn0 = params.inputBlend * inSat + sig0;
-    const auto delayIn1 = (Real(1) - params.inputBlend) * inSat + sig1;
-    const auto hp0 = safetyHighpass_[0].process(delayIn0, params.highpassCutoff);
-    const auto hp1 = safetyHighpass_[1].process(delayIn1, params.highpassCutoff);
+    const auto inSat = inputSaturator_.process(input, p.saturatorType);
+    const auto delayIn0 = p.inputBlend * inSat + sig0;
+    const auto delayIn1 = (Real(1) - p.inputBlend) * inSat + sig1;
+    const auto hp0 = safetyHighpass_[0].process(delayIn0, p.highpassCutoff);
+    const auto hp1 = safetyHighpass_[1].process(delayIn1, p.highpassCutoff);
 
-    const auto viscosityGain = butterworthNormalizationGain(params.viscosityCutoff, Real(1000));
-    const auto viscSig0
-      = viscosityLowpass_[0].process(sig0, params.viscosityCutoff) * viscosityGain;
-    const auto viscSig1
-      = viscosityLowpass_[1].process(sig1, params.viscosityCutoff) * viscosityGain;
-    const auto crossModSig0 = std::lerp(inSat, viscSig0, params.sigModMode);
-    const auto crossModSig1 = std::lerp(inSat, viscSig1, params.sigModMode);
+    const auto viscosityGain = butterworthNormalizationGain(p.viscosityCutoff, Real(1000));
+    const auto viscSig0 = viscosityLowpass_[0].process(sig0, p.viscosityCutoff) * viscosityGain;
+    const auto viscSig1 = viscosityLowpass_[1].process(sig1, p.viscosityCutoff) * viscosityGain;
+    const auto crossModSig0 = std::lerp(inSat, viscSig0, p.audioModMode);
+    const auto crossModSig1 = std::lerp(inSat, viscSig1, p.audioModMode);
 
-    auto timeMod0 = params.timeInSamples0
-      * std::exp2(params.lfoTimeMod0 * timeLfo + params.sigTimeMod0 * crossModSig0);
-    auto timeMod1 = params.timeInSamples1
-      * std::exp2(params.lfoTimeMod1 * timeLfo + params.sigTimeMod1 * crossModSig1);
+    auto timeMod0
+      = p.timeInSamples0 * std::exp2(p.lfoTimeMod0 * timeLfo + p.audioTimeMod0 * crossModSig0);
+    auto timeMod1
+      = p.timeInSamples1 * std::exp2(p.lfoTimeMod1 * timeLfo + p.audioTimeMod1 * crossModSig1);
 
     displayTime.upper[0] = std::max(displayTime.upper[0], timeMod0);
     displayTime.upper[1] = std::max(displayTime.upper[1], timeMod1);
     displayTime.lower[0] = std::min(displayTime.lower[0], timeMod0);
     displayTime.lower[1] = std::min(displayTime.lower[1], timeMod1);
 
-    const auto am0
-      = std::clamp(std::lerp(Real(1), crossModSig0, params.sigAmpMod0), Real(-2), Real(2));
-    const auto am1
-      = std::clamp(std::lerp(Real(1), crossModSig1, params.sigAmpMod1), Real(-2), Real(2));
-    buffer_[0] = delay_[0].process(am0 * std::lerp(delayIn0, hp0, params.highpassFade), timeMod0);
-    buffer_[1] = delay_[1].process(am1 * std::lerp(delayIn1, hp1, params.highpassFade), timeMod1);
+    const auto am0 = amClipper_[0].process(std::lerp(Real(1), crossModSig0, p.audioAmpMod0));
+    const auto am1 = amClipper_[1].process(std::lerp(Real(1), crossModSig1, p.audioAmpMod1));
+    buffer_[0] = delay_[0].process(am0 * std::lerp(delayIn0, hp0, p.highpassFade), timeMod0);
+    buffer_[1] = delay_[1].process(am1 * std::lerp(delayIn1, hp1, p.highpassFade), timeMod1);
 
-    buffer_[0] = feedbackLowpass_[0].process(buffer_[0], params.lowpassCutoff);
-    buffer_[1] = feedbackLowpass_[1].process(buffer_[1], params.lowpassCutoff);
+    buffer_[0] = feedbackLowpass_[0].process(buffer_[0], p.lowpassCutoff);
+    buffer_[1] = feedbackLowpass_[1].process(buffer_[1], p.lowpassCutoff);
 
-    buffer_[0] += params.flangeSign * buffer_[1];
-    return buffer_[0] + (Real(1) - params.flangeBlend) * buffer_[1];
+    const auto rectified = rectifier_.process(buffer_[1]);
+    buffer_[0] += p.flangeSign * buffer_[1] + (Real(1) - std::abs(p.flangeSign)) * rectified;
+    return buffer_[0] + (Real(1) - p.flangeBlend) * buffer_[1];
   }
 };
 
