@@ -21,7 +21,7 @@ References:
 
 #pragma once
 
-#include "specialmath/cephes.hpp"
+#include "specialmath/cephes/sici.hpp"
 
 #include <algorithm>
 #include <array>
@@ -992,8 +992,8 @@ template<typename Real> struct SinExpm1 {
       return cs1 * si_approx - sn1 * ci_approx;
     }
     // if (x > Real(709)) return cs1 * (pi / Real(2));
-    double si, ci;
-    cephes::sici(static_cast<double>(std::exp(x)), &si, &ci);
+    Real si, ci;
+    cephes::sici(std::exp(x), si, ci);
     return cs1 * si - sn1 * ci;
   }
 };
