@@ -1,0 +1,431 @@
+.plugin-window {
+  --scale: 1;
+  --margin: calc(5px * var(--scale));
+  --label-h: calc(20px * var(--scale));
+  --label-w: calc(120px * var(--scale));
+  --ui-margin: calc(4 * var(--margin));
+  --label-x: calc(var(--label-w) + 2 * var(--margin));
+  --label-y: calc(var(--label-h) + 2 * var(--margin));
+  --section-width: calc(2 * var(--label-w) + 2 * var(--margin));
+  --xypad-width: calc(7 * var(--label-h));
+
+  --gui-bg: var(--background-color);
+  --gui-surface: var(--table-p1-color);
+  --gui-border: var(--border-color);
+  --gui-text: var(--foreground-color);
+  --gui-text-muted: var(--border-dark-color);
+
+  background: var(--gui-bg);
+  border: 1px solid var(--gui-border);
+  padding: var(--ui-margin);
+  border-radius: 8px;
+  box-shadow: 0 0.0625rem 0.25rem color-mix(in srgb, var(--foreground-color) 5%, transparent);
+
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--margin));
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0.5em 0 1em 0;
+  justify-content: center;
+}
+
+#btn-randomize {
+  margin-top: 1em;
+}
+
+.keyboard-shortcut {
+  display: inline-block;
+}
+
+.gui-section {
+  display: flex;
+  gap: 1em;
+}
+
+.gui-section .plugin-window {
+  flex: 0 0 45%;
+  max-width: 45%;
+  align-items: center;
+  justify-content: center;
+}
+
+.gui-section .custom-dl,
+.gui-section dl {
+  flex: 1;
+  height: fit-content;
+}
+
+.gui-section .plugin-window .row,
+.gui-section .plugin-window .knob-row {
+  width: 100%;
+  justify-content: center;
+}
+
+.column {
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: column;
+  gap: var(--margin);
+}
+
+.row,
+.knob-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--margin);
+  align-items: center;
+}
+
+.knob-row {
+  gap: var(--ui-margin);
+}
+
+.knob-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--margin);
+  font-size: calc(0.875em * var(--scale));
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.label {
+  font-size: calc(0.875em * var(--scale));
+  color: var(--gui-text-muted);
+}
+
+.parameter-label {
+  width: var(--label-w);
+  font-size: calc(0.875em * var(--scale));
+  color: var(--gui-text-muted);
+}
+
+.status-bar {
+  width: 100%;
+  font-size: calc(0.875em * var(--scale));
+  color: var(--gui-text-muted);
+  background: var(--gui-surface);
+  border: 1px solid var(--gui-border);
+  padding: calc(2px * var(--scale)) calc(5px * var(--scale));
+  box-sizing: border-box;
+}
+
+.tab-content {
+  font-size: calc(1em * var(--scale));
+  color: var(--gui-text);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.tab-content h3 {
+  margin-top: 0;
+  color: var(--gui-text);
+  font-size: calc(16px * var(--scale));
+}
+
+.code-block {
+  background: var(--gui-surface);
+  border: 1px solid var(--border-light-color);
+  padding: calc(10px * var(--scale));
+  font-family: var(--font-mono);
+  white-space: pre-wrap;
+  font-size: calc(11px * var(--scale));
+  border-radius: 4px;
+}
+
+/* -------------------------------------------
+ * Labeled Widget Styles (Extracted from Shadow DOM)
+ * ------------------------------------------- */
+uhhyou-labeled-widget {
+  display: flex;
+  width: var(--section-width);
+  height: var(--label-h);
+  box-sizing: border-box;
+  font-family: var(--font-sans, sans-serif);
+  color: var(--foreground-color, #000);
+}
+
+uhhyou-labeled-widget[layout="expand"] {
+  display: block;
+}
+
+uhhyou-labeled-widget .label-container {
+  width: 50%;
+  height: 100%;
+  flex: 1;
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+uhhyou-labeled-widget .widget-container {
+  width: 50%;
+  height: 100%;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+uhhyou-labeled-widget .widget-container > * {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+uhhyou-labeled-widget[layout="expand"] .widget-container {
+  width: 100%;
+  flex: none;
+}
+
+uhhyou-labeled-widget .underline {
+  position: absolute;
+  bottom: 0;
+  left: calc(14px * var(--scale, 1));
+  right: 0;
+  height: 1px;
+  background-color: color-mix(in srgb, var(--border-color, #888) 25%, transparent);
+  pointer-events: none;
+}
+
+uhhyou-labeled-widget .lockable-label {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0 0 0 calc(14px * var(--scale, 1));
+  background: none;
+  border: none;
+  outline: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: 1em;
+  font-weight: normal;
+  cursor: pointer;
+  text-align: left;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+  flex-grow: 1;
+}
+
+uhhyou-labeled-widget .lockable-label[data-locked="true"] {
+  opacity: 0.5;
+}
+
+uhhyou-labeled-widget .lockable-label:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--component-main, #fcc04f);
+}
+
+/* -------------------------------------------
+ * Labeled XYPad Styles (Extracted from Shadow DOM)
+ * ------------------------------------------- */
+uhhyou-labeled-xypad {
+  display: grid;
+  grid-template-columns: var(--strip-size, 24px) auto;
+  grid-template-rows: var(--strip-size, 24px) auto;
+  width: fit-content;
+  height: fit-content;
+  box-sizing: border-box;
+  font-family: var(--font-sans, sans-serif);
+  color: var(--foreground-color, #000);
+}
+
+uhhyou-labeled-xypad uhhyou-snap-toggle {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+uhhyou-labeled-xypad .label-x,
+uhhyou-labeled-xypad .label-y {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1em;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  margin: 0;
+  padding: 0;
+}
+
+uhhyou-labeled-xypad .label-x {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+uhhyou-labeled-xypad .label-y {
+  grid-column: 1;
+  grid-row: 2;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+uhhyou-labeled-xypad .label-x[data-locked="true"],
+uhhyou-labeled-xypad .label-y[data-locked="true"] {
+  opacity: 0.6;
+}
+
+uhhyou-labeled-xypad .label-x:focus-visible,
+uhhyou-labeled-xypad .label-y:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--component-main, #fcc04f);
+}
+
+uhhyou-labeled-xypad .label-x:hover,
+uhhyou-labeled-xypad .label-y:hover,
+uhhyou-labeled-xypad uhhyou-snap-toggle:hover {
+  box-shadow: 0 calc(1px * var(--scale, 1)) calc(4px * var(--scale, 1)) color-mix(in srgb, var(--foreground-color, #000) 40%, transparent);
+}
+
+uhhyou-labeled-xypad uhhyou-xy-pad {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+/* -------------------------------------------
+ * Base Interactive Component Resizing
+ * ------------------------------------------- */
+uhhyou-toggle-button,
+uhhyou-momentary-button,
+uhhyou-knob,
+uhhyou-rotary-knob,
+uhhyou-text-knob,
+uhhyou-rotary-text-knob,
+uhhyou-combo-box {
+  display: inline-block;
+  outline: none;
+  flex-shrink: 0;
+}
+
+uhhyou-xy-pad,
+uhhyou-preset-manager,
+uhhyou-tab-view {
+  display: block;
+  outline: none;
+  flex-shrink: 0;
+}
+
+uhhyou-text-knob,
+uhhyou-rotary-text-knob,
+uhhyou-toggle-button,
+uhhyou-momentary-button,
+uhhyou-combo-box {
+  width: var(--label-w);
+  height: var(--label-h);
+}
+
+uhhyou-knob,
+uhhyou-rotary-knob {
+  width: calc(var(--xypad-width) * 0.6);
+  height: calc(var(--xypad-width) * 0.6);
+}
+
+uhhyou-preset-manager {
+  width: var(--section-width);
+  height: var(--label-h);
+  max-width: 100%;
+}
+
+uhhyou-xy-pad {
+  width: var(--xypad-width);
+  height: var(--xypad-width);
+}
+
+/* -------------------------------------------
+ * Tab View Styles (Extracted from Shadow DOM)
+ * ------------------------------------------- */
+uhhyou-tab-view {
+  width: 100%;
+  position: relative;
+  box-sizing: border-box;
+  --tab-h: calc(28px * var(--scale, 1));
+  padding: calc(var(--tab-h) * 2) var(--tab-h) var(--tab-h) var(--tab-h);
+}
+
+uhhyou-tab-view > canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  outline: none;
+}
+
+uhhyou-tab-view #content-wrapper {
+  display: grid;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+uhhyou-tab-view .slot-wrapper {
+  grid-area: 1 / 1;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+uhhyou-tab-view .slot-wrapper.active {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* -------------------------------------------
+ * Misc Standard Adjustments
+ * ------------------------------------------- */
+uhhyou-xy-pad,
+uhhyou-combo-box,
+uhhyou-preset-manager,
+uhhyou-tab-view {
+  border-radius: calc(2px * var(--scale));
+}
+
+uhhyou-toggle-button:hover,
+uhhyou-momentary-button:hover,
+uhhyou-knob:hover,
+uhhyou-rotary-knob:hover,
+uhhyou-text-knob:hover,
+uhhyou-rotary-text-knob:hover,
+uhhyou-xy-pad:hover,
+uhhyou-combo-box:hover,
+uhhyou-preset-manager:hover,
+uhhyou-tab-view:hover,
+uhhyou-tab-view:focus-within,
+uhhyou-labeled-widget .lockable-label:hover {
+  box-shadow: 0 calc(1px * var(--scale)) calc(4px * var(--scale)) color-mix(in srgb, var(--foreground-color) 40%, transparent);
+}
+
+@media all and (max-width: 704px) {
+  .gui-section {
+    flex-direction: column;
+  }
+
+  .gui-section .plugin-window,
+  .gui-section .custom-dl,
+  .gui-section dl {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+    margin-bottom: 0;
+  }
+
+  uhhyou-labeled-widget {
+    flex-direction: column;
+    height: auto;
+    gap: calc(0.5 * var(--margin));
+  }
+
+  uhhyou-labeled-widget .label-container,
+  uhhyou-labeled-widget .widget-container {
+    width: 100%;
+    justify-content: center;
+  }
+}

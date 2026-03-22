@@ -1,0 +1,31 @@
+<div class="dl-row"
+     role="listitem">
+  {{ $terms := split (.Get "terms") "|" }}
+  {{ $baseId := .Get "id" }}
+
+  {{ range $index, $term := $terms }}
+  {{ $finalId := $term | anchorize }}
+  {{ if $baseId }}
+  {{ if eq (len $terms) 1 }}
+  {{ $finalId = $baseId }}
+  {{ else }}
+  {{ $finalId = printf "%s-%d" $baseId $index }}
+  {{ end }}
+  {{ end }}
+
+  <dt id="{{ $finalId }}"
+      class="dt-column">
+    <a href="#{{ $finalId }}"
+       class="header-anchor">{{ $term }}</a>
+  </dt>
+  {{ end }}
+
+  <dd class="dd-column"
+      {{ if gt (len $terms) 1 }}
+      style="grid-row: 1 / span {{ len $terms }};"
+      {{ end }}>
+    <div class="dd-content">
+      {{ .Inner | markdownify }}
+    </div>
+  </dd>
+</div>

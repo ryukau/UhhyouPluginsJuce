@@ -1,0 +1,25 @@
+{{ define "main" }}
+<div class="plugin-mockup-container">
+  {{ .Content }}
+</div>
+
+<script>
+  document.addEventListener('action', (e) => {
+    if (e.target && e.target.id === 'btn-randomize') {
+      const container = e.target.closest('.plugin-window');
+      if (container && typeof randomizeUnlockedParameters === 'function') {
+        randomizeUnlockedParameters(container);
+      }
+    }
+  });
+
+  window.addEventListener('DOMContentLoaded', () => {
+    if (typeof syncPalette === 'function' && typeof repaintAllWidgets === 'function') {
+      requestAnimationFrame(() => {
+        syncPalette();
+        repaintAllWidgets();
+      });
+    }
+  });
+</script>
+{{ end }}

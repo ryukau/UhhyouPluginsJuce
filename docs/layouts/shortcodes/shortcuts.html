@@ -1,0 +1,1 @@
+{{- $items := split .Inner "|" -}}{{- $separator := `<span aria-hidden="true">&nbsp;⁘&nbsp;</span><span class="visually-hidden">, </span>` | safeHTML -}}{{- range $index, $item := $items -}}<span class="keyboard-shortcut">{{ trim $item " \n\r\t" | safeHTML }}</span>{{- if ne (add $index 1) (len $items) -}}{{- $separator -}}{{- end -}}{{- end -}}

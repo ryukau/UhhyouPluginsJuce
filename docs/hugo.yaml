@@ -1,0 +1,30 @@
+baseURL: 'https://example.org/'
+languageCode: 'en-us'
+title: 'Uhhyou Plugins'
+
+markup:
+  goldmark:
+    parser:
+      autoDefinitionTermID: true
+    renderer:
+      unsafe: true
+  highlight:
+    noClasses: false
+    guessSyntax: true
+
+minify:
+  disableCSS: true
+  disableHTML: false
+  disableJS: true
+  disableJSON: true
+  disableSVG: true
+  disableXML: true
+  minifyOutput: true
+  tdewolff:
+    html:
+      keepComments: true
+      keepDefaultAttrVals: true
+      keepDocumentTags: true
+      keepEndTags: true
+      keepQuotes: false
+      keepWhitespace: false

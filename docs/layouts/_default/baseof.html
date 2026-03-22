@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html xmlns='http://www.w3.org/1999/xhtml'
+      lang='{{.Site.LanguageCode | default "en"}}'
+      xml:lang='{{.Site.LanguageCode | default "en"}}'
+      {{with .Site.Params.dir}}
+      dir='{{.}}'
+      {{end}}>
+
+<head>
+  <meta charset='utf-8' />
+  <meta name='generator'
+        content='Hugo {{hugo.Version}}' />
+  <meta name='viewport'
+        content='width=device-width, initial-scale=1.0, user-scalable=yes' />
+  {{with .Params.author | default .Site.Params.author}}
+  <meta name='author'
+        content='{{.}}' />{{end}}
+  {{if not .Date.IsZero}}
+  <meta name='dcterms.date'
+        content='{{.Date.Format "2006-01-02"}}' />{{end}}
+  {{with .Params.keywords}}
+  <meta name='keywords'
+        content='{{delimit . ", "}}' />{{end}}
+  <link rel='icon'
+        type='image/svg+xml'
+        href='{{.Site.Params.favicon_svg | default "/favicon/favicon.svg" | relURL}}'>
+  <link rel='icon'
+        type='image/png'
+        href='{{.Site.Params.favicon_png | default "/favicon/favicon.png" | relURL}}'>
+  <meta name="color-scheme"
+        content="light dark">
+  <link rel='stylesheet'
+        href='{{"css/style.css" | relURL}}' />
+  <link id="syntax-light"
+        rel='stylesheet'
+        href='{{"css/syntax-light.css" | relURL}}'
+        media='(prefers-color-scheme: light), (prefers-color-scheme: no-preference)' />
+  <link id="syntax-dark"
+        rel='stylesheet'
+        href='{{"css/syntax-dark.css" | relURL}}'
+        media='(prefers-color-scheme: dark)' />
+  {{range .Params.custom_css}}
+  <link rel='stylesheet'
+        href='{{. | relURL}}' />{{end}}
+  {{if .Params.math}}{{partial "math.html" .}}{{end}}
+  {{with .Params.header_includes}}{{. | safeHTML}}{{end}}
+  <script>
+    if (navigator.userAgent.includes('Mac')) {
+      document.documentElement.classList.add('is-mac');
+    } else {
+      document.documentElement.classList.add('is-pc');
+    }
+  </script>
+  {{ if .Params.gui_mockups }}
+  {{ $guiCSS := resources.Get "css/uhhyou-gui.css" }}
+  <link rel="stylesheet"
+        href="{{ $guiCSS.Permalink }}">
+  {{ $guiJS := resources.Get "js/uhhyou-gui.js" }}
+  <script src="{{ $guiJS.Permalink }}"
+          defer></script>{{ end }}
+  <title>{{if not .IsHome}}{{.Title}} – {{end}}{{"Uhhyou Plugins"}}</title>
+</head>
+
+<body>
+  <header>
+    <div class="grid-a">
+      <p class="nav-link">{{if not .IsHome}}<a href='{{"/" | relLangURL}}'>Back to Index</a>{{else}}{{end}}</p>
+      <button id="theme-toggle"
+              aria-label="Toggle light/dark theme.">
+        Toggle Theme
+      </button>
+      <div class="meta-dates">
+        <p>Published: {{if .PublishDate}}{{.PublishDate.Format "2006-01-02"}}{{else}}N/A{{end}}</p>
+        <p>{{if .Lastmod}}Update: {{.Lastmod.Format "2006-01-02"}}{{else}}N/A{{end}}</p>
+      </div>
+    </div>
+    <details>
+      <summary translate='yes'>Table of Contents</summary>
+      <nav id='TOC'
+           role='doc-toc'
+           aria-label='Table of Contents'>
+        {{.TableOfContents}}
+      </nav>
+    </details>
+  </header>
+  <h1>{{.Title}}</h1>
+  {{block "main" .}}{{end}}
+  <footer>
+    {{if not .IsHome}}<p>
+      <a href='{{"/" | relLangURL}}'>Back to Index</a>
+    </p>{{end}}
+  </footer>
+  <script>
+    function updateTargetHighlight(targetId) {
+      document.querySelectorAll('.is-targeted').forEach(el => el.classList.remove('is-targeted'));
+      if (targetId && targetId !== '#') {
+        try {
+          const targetElement = document.querySelector(targetId);
+          if (targetElement) targetElement.classList.add('is-targeted');
+        } catch (e) {
+          // Ignore invalid selectors.
+        }
+      }
+    }
+
+
+    document.addEventListener('click', function (e) {
+      const anchor = e.target.closest('a');
+
+      if (!anchor || !anchor.getAttribute('href')?.startsWith('#')) return;
+
+      const targetId = anchor.getAttribute('href');
+      if (targetId === '#') return;
+
+      try {
+        const targetElement = document.querySelector(targetId);
+        if (!targetElement) return;
+
+        const scrollPaddingTop = window.innerHeight * 0.1875;
+        const rect = targetElement.getBoundingClientRect();
+        const isFullyVisible = rect.top >= scrollPaddingTop && rect.bottom <= window.innerHeight;
+        if (isFullyVisible) {
+          e.preventDefault();
+          history.pushState(null, null, targetId);
+          updateTargetHighlight(targetId);
+        }
+      } catch (err) {
+        // Fails silently if the href is not a valid CSS selector.
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => updateTargetHighlight(window.location.hash));
+    window.addEventListener('hashchange', () => updateTargetHighlight(window.location.hash));
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Color theme button.
+      const themeToggleBtn = document.getElementById('theme-toggle');
+      const htmlElement = document.documentElement;
+      const syntaxLight = document.getElementById('syntax-light');
+      const syntaxDark = document.getElementById('syntax-dark');
+
+      const applyTheme = (theme, saveToStorage = false) => {
+        htmlElement.setAttribute('data-theme', theme);
+
+        if (saveToStorage) { localStorage.setItem('theme', theme); }
+
+        if (theme === 'dark') {
+          syntaxLight.media = 'none';
+          syntaxDark.media = 'all';
+          themeToggleBtn.textContent = 'Light | Dark ●';
+          themeToggleBtn.setAttribute('aria-label', 'Switch to light theme');
+        } else {
+          syntaxLight.media = 'all';
+          syntaxDark.media = 'none';
+          themeToggleBtn.textContent = '● Light | Dark';
+          themeToggleBtn.setAttribute('aria-label', 'Switch to dark theme');
+        }
+      };
+
+      const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme) { applyTheme(savedTheme, false); }
+      else { applyTheme(systemThemeQuery.matches ? 'dark' : 'light', false); }
+
+      systemThemeQuery.addEventListener('change', (e) => {
+        if (!localStorage.getItem('theme')) {
+          applyTheme(e.matches ? 'dark' : 'light', false);
+        }
+      });
+
+      themeToggleBtn.addEventListener('click', () => {
+        const currentTheme = htmlElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        applyTheme(newTheme, true);
+      });
+    });
+  </script>
+</body>
+
+</html>

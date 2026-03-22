@@ -1,0 +1,1 @@
+{{ $id := "" }}{{ $text := "" }}{{ if eq (len .Params) 1 }}{{ $text = trim (.Get 0) " " }}{{ $id = $text | anchorize }}{{ else if ge (len .Params) 2 }}{{ $id = trim (.Get 1) " " }}{{ $text = trim (.Get 0) " " }}{{ else }}{{ errorf "Missing parameters in 'ref' shortcode located in: %s" .Page.File.Path }}{{ end }}<a href="#{{ $id }}">{{ $text }}</a>
