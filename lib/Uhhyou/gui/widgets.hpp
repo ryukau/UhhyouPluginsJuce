@@ -18,6 +18,7 @@
 #include "button.hpp"
 #include "buttonarray.hpp"
 #include "combobox.hpp"
+#include "horizontaldrawer.hpp"
 #include "knob.hpp"
 #include "lookandfeel.hpp"
 #include "navigation.hpp"

@@ -1230,6 +1230,125 @@ class PresetManager extends MenuBase {
   }
 }
 
+class DrawerToggle extends CanvasBase {
+  constructor() {
+    super();
+    this.canvas.setAttribute('role', 'button');
+    this.canvas.style.cursor = 'pointer';
+    this.canvas.addEventListener('mousedown', e => {
+      if (e.button === 0) {
+        this.canvas.focus();
+        this.toggle();
+      }
+    });
+    this.canvas.addEventListener(
+      'keydown', e => ['Enter', ' '].includes(e.key) && (e.preventDefault(), this.toggle()));
+    this.canvas.addEventListener(
+      'mouseenter', () => UIUtils.updateStatus(`Drawer: ${this.isOpen ? 'Open' : 'Closed'}`));
+    this.canvas.addEventListener('mouseleave', () => UIUtils.updateStatus(''));
+  }
+  init() {
+    this.isOpen = this.getAttribute('open') !== 'false';
+    this.name = this.getAttribute('name') || '';
+    this.canvas.setAttribute('aria-expanded', this.isOpen);
+    this.canvas.setAttribute('aria-label', `${this.name}, Drawer`);
+    this.canvas.setAttribute('aria-description', 'Press Space or Enter to toggle the drawer.');
+  }
+  toggle() {
+    this.isOpen = !this.isOpen;
+    this.canvas.setAttribute('aria-expanded', this.isOpen);
+    this.paint();
+    this.dispatchEvent(new CustomEvent('toggle', {detail: {isOpen: this.isOpen}, bubbles: true}));
+    UIUtils.updateStatus(`Drawer: ${this.isOpen ? 'Open' : 'Closed'}`);
+  }
+  paint() {
+    if (!this.width) return;
+    this.ctx.clearRect(0, 0, this.width, this.height);
+    this.ctx.fillStyle = Palette.surface;
+    this.ctx.fillRect(0, 0, this.width, this.height);
+
+    if (this.isHovered || document.activeElement === this.canvas) {
+      this.ctx.fillStyle = `${Palette.main}4D`;
+      this.ctx.fillRect(0, 0, this.width, this.height);
+    }
+
+    this.ctx.strokeStyle = Palette.foreground;
+    this.ctx.lineWidth = Palette.borderWidth * 1.5;
+    this.ctx.lineJoin = 'miter';
+    this.ctx.lineCap = 'round';
+
+    const w = this.width, h = this.height, cx = w / 2, cy = h / 2, size = w * 0.25;
+    this.ctx.beginPath();
+    if (this.isOpen) {
+      this.ctx.moveTo(cx + size, cy - size * 1.5);
+      this.ctx.lineTo(cx - size, cy);
+      this.ctx.lineTo(cx + size, cy + size * 1.5);
+    } else {
+      this.ctx.moveTo(cx - size, cy - size * 1.5);
+      this.ctx.lineTo(cx + size, cy);
+      this.ctx.lineTo(cx - size, cy + size * 1.5);
+    }
+    this.ctx.stroke();
+  }
+}
+
+class HorizontalDrawer extends HTMLElement {
+  connectedCallback() {
+    if (this._init) return;
+    this._init = true;
+
+    this.isOpen = this.getAttribute('open') !== 'false';
+    const name = this.getAttribute('name') || 'Drawer';
+
+    this.contentContainer = document.createElement('div');
+    this.contentContainer.className = 'drawer-content';
+    while (this.firstChild) this.contentContainer.appendChild(this.firstChild);
+
+    this.toggleBtn = document.createElement('uhhyou-drawer-toggle');
+    this.toggleBtn.setAttribute('name', name);
+    this.toggleBtn.setAttribute('open', this.isOpen ? 'true' : 'false');
+
+    const updateBg = (active) => {
+      if (this.isOpen && active) {
+        this.contentContainer.style.backgroundColor
+          = 'color-mix(in srgb, var(--component-main, #fcc04f) 10%, transparent)';
+      } else {
+        this.contentContainer.style.backgroundColor = 'transparent';
+      }
+    };
+
+    this.toggleBtn.addEventListener('toggle', e => {
+      this.isOpen = e.detail.isOpen;
+      if (this.isOpen) {
+        this.contentContainer.style.display = '';
+      } else {
+        this.contentContainer.style.display = 'none';
+      }
+      if (!this.isOpen && this.contentContainer.contains(document.activeElement)) {
+        this.toggleBtn.canvas.focus();
+      }
+      updateBg(this.toggleBtn.isHovered || document.activeElement === this.toggleBtn.canvas);
+    });
+
+    this.toggleBtn.addEventListener('mouseenter', () => updateBg(true));
+    this.toggleBtn.addEventListener(
+      'mouseleave', () => updateBg(document.activeElement === this.toggleBtn.canvas));
+    this.toggleBtn.addEventListener('focusin', () => {
+      this.toggleBtn.paint();
+      updateBg(true);
+    });
+    this.toggleBtn.addEventListener('focusout', () => {
+      this.toggleBtn.paint();
+      updateBg(this.toggleBtn.isHovered);
+    });
+
+    if (!this.isOpen) this.contentContainer.style.display = 'none';
+
+    this.appendChild(this.toggleBtn);
+    this.appendChild(this.contentContainer);
+  }
+}
+
 class TabView extends CanvasBase {
   constructor() {
     super();
@@ -1383,6 +1502,8 @@ class TabView extends CanvasBase {
 }
 
 const components = {
+  'uhhyou-drawer-toggle': DrawerToggle,
+  'uhhyou-horizontal-drawer': HorizontalDrawer,
   'uhhyou-snap-toggle': SnapToggle,
   'uhhyou-toggle-button': ToggleButton,
   'uhhyou-momentary-button': MomentaryButton,

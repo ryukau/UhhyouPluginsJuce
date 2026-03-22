@@ -372,7 +372,7 @@ public:
                    const juce::String& infoText, const juce::String& licenseText)
       : popupInset_(std::min(int(20 * palette.borderWidth()), 20)),
         closeButton_(palette, popupInset_, [&]() { dismissPopup(); }),
-        tabView_(palette, {"Information", "License"}),
+        tabView_(palette, statusBar, {"Information", "License"}),
         infoDisplay_(infoDocument_, nullptr, palette, infoText),
         licenseDisplay_(licenseDocument_, nullptr, palette, licenseText), pal_(palette),
         statusBar_(statusBar), font_(juce::FontOptions{}), label_(label),
@@ -462,7 +462,7 @@ public:
 
   virtual void mouseEnter(const juce::MouseEvent&) override {
     isMouseEntered_ = true;
-    statusBar_.setText("Show plugin information");
+    statusBar_.setText("Click to open plugin information");
     repaint();
   }
 

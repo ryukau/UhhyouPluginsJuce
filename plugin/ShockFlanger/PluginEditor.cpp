@@ -1,6 +1,3 @@
-// Copyright Takamitsu Endo (ryukau@gmail.com).
-// SPDX-License-Identifier: AGPL-3.0-only
-
 #include "PluginEditor.hpp"
 #include "PluginProcessor.hpp"
 
@@ -23,20 +20,35 @@ struct Metrics {
   int labelY = labelH + 2 * margin;
   int sectionWidth = 2 * labelW + 2 * margin;
   int xypadWidth = 7 * labelH;
-  int totalWidth = (uiMargin * 5 / 2) + (2 * xypadWidth + 2 * margin) + (6 * labelX);
+  int drawerButtonW = 0;
+
+  int totalWidth = 0;
   int totalHeight = 22 * labelY;
 
   Metrics() = default;
 
-  explicit Metrics(float scale) {
+  Metrics(float scale, bool isDrawerOpen) {
     auto zoom = [scale](int val) { return static_cast<int>(std::lround(val * scale)); };
 
     // TODO: C++26 static reflection can be used to simplify the loop below.
     for (auto ptr : {&Metrics::margin, &Metrics::labelH, &Metrics::labelW, &Metrics::uiMargin,
                      &Metrics::labelX, &Metrics::labelY, &Metrics::sectionWidth,
-                     &Metrics::xypadWidth, &Metrics::totalWidth, &Metrics::totalHeight})
+                     &Metrics::xypadWidth, &Metrics::drawerButtonW, &Metrics::totalHeight})
     {
       this->*ptr = zoom(this->*ptr);
+    }
+    drawerButtonW = HorizontalDrawer::calculateButtonWidth(scale);
+
+    int left0 = uiMargin;
+    int left3 = left0 + 6 * labelX;
+    int drawerLeft = left3 + 2 * margin;
+    int baseWidth = drawerLeft + drawerButtonW;
+    int xypadAreaW = xypadWidth + 2 * margin + xypadWidth + 2 * uiMargin;
+
+    if (isDrawerOpen) {
+      totalWidth = baseWidth + xypadAreaW;
+    } else {
+      totalWidth = baseWidth;
     }
   }
 };
@@ -140,6 +152,9 @@ Editor::Editor(Processor& proc) : EditorBase(proc, informationText) {
                sc.noteGainRange.invmap(float(50))},
               5);
 
+  addAndMakeVisible(drawer_);
+  registerInteractive(drawer_.getToggleButton());
+
   addXYPad(sXY0, "delayTimeMs", "delayTimeRatio", {sc.delayTimeMs.invmap(1.0f)},
            {sc.unipolar.invmap(0.75f)});
   addXYPad(sXY0, "feedback0", "feedback1", {sc.feedback.invmap(0)}, {sc.feedback.invmap(0)});
@@ -155,9 +170,14 @@ Editor::Editor(Processor& proc) : EditorBase(proc, informationText) {
   addXYPad(sXY1, "audioModMode", "viscosityLowpassHz", {sc.unipolar.invmap(0)},
            {sc.cutoffHz.invmap(2000.0f)});
 
+  registerDrawer(drawer_, "XYDrawerOpen", {sXY0, sXY1}, [](float s, bool open) {
+    Metrics mt{s, open};
+    return juce::Point<int>(mt.totalWidth, mt.totalHeight);
+  });
+
   // `setSize` must be called at last.
   const float scale = getWindowScale();
-  Metrics mt{scale};
+  Metrics mt{scale, drawer_.isOpen()};
   initWindow(mt.totalWidth, mt.totalHeight);
 }
 
@@ -168,9 +188,9 @@ void Editor::resized() {
 
   using Rect = juce::Rectangle<int>;
 
-  const int defaultHeight = Metrics{1.0f}.totalHeight;
+  const int defaultHeight = Metrics{}.totalHeight;
   const float scale = updateScale(defaultHeight);
-  Metrics mt{scale};
+  Metrics mt{scale, drawer_.isOpen()};
 
   const int top0 = mt.uiMargin;
 
@@ -179,8 +199,7 @@ void Editor::resized() {
   const int left2 = left1 + 2 * mt.labelX;
   const int left3 = left2 + 2 * mt.labelX;
 
-  const int leftXy0 = left3 + 2 * mt.margin;
-  const int leftXy1 = leftXy0 + mt.xypadWidth + 2 * mt.margin;
+  const int drawerLeft = left3 + 2 * mt.margin;
 
   const int nameTop0 = layoutActionSectionAndPluginInfo(left0, top0, mt.sectionWidth, mt.labelW,
                                                         mt.labelX, mt.labelH, mt.labelY, scale);
@@ -210,6 +229,7 @@ void Editor::resized() {
                                   sc->first, sc->second);
     }
   };
+
   int currentTop{};
 
   currentTop = top0;
@@ -224,18 +244,22 @@ void Editor::resized() {
   addSection(currentTop, left2, sMod);
   addSection(currentTop, left2, sMIDI);
 
-  currentTop = top0;
+  // Layout drawer & contents.
+  drawer_.setBounds(Rect{drawerLeft, 0, mt.totalWidth - drawerLeft, mt.totalHeight});
+
+  int localTop = top0;
+  int localXy0 = mt.uiMargin;
+  int localXy1 = localXy0 + mt.xypadWidth + 2 * mt.margin;
+
   if (auto sc = sections_.find(sXY0); sc != sections_.end()) {
-    currentTop
-      = layoutVerticalSection(groupLabels_, leftXy0, currentTop, mt.xypadWidth, mt.xypadWidth,
-                              mt.xypadWidth + 2 * mt.margin, "", sc->second);
+    layoutVerticalSection(groupLabels_, localXy0, localTop, mt.xypadWidth, mt.xypadWidth,
+                          mt.xypadWidth + 2 * mt.margin, "", sc->second);
   }
 
-  currentTop = top0;
+  localTop = top0;
   if (auto sc = sections_.find(sXY1); sc != sections_.end()) {
-    currentTop
-      = layoutVerticalSection(groupLabels_, leftXy1, currentTop, mt.xypadWidth, mt.xypadWidth,
-                              mt.xypadWidth + 2 * mt.margin, "", sc->second);
+    layoutVerticalSection(groupLabels_, localXy1, localTop, mt.xypadWidth, mt.xypadWidth,
+                          mt.xypadWidth + 2 * mt.margin, "", sc->second);
   }
 }
 

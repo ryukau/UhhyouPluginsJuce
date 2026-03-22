@@ -289,6 +289,39 @@ Locks parameter from the "Randomize" button. Dimmed label indicates locked.
 
 {{< /div >}}
 
+## Horizontal Drawer
+
+{{< div class="gui-section" >}}
+
+<div class="plugin-window">
+  <uhhyou-horizontal-drawer name="Effects" open="true">
+    <div class="row" style="padding: var(--margin); padding-left: calc(2 * var(--margin));">
+      <uhhyou-labeled-widget label="Reverb Size">
+        <uhhyou-text-knob value="0.5"></uhhyou-text-knob>
+      </uhhyou-labeled-widget>
+      <uhhyou-labeled-widget label="Delay Time">
+        <uhhyou-text-knob value="0.3"></uhhyou-text-knob>
+      </uhhyou-labeled-widget>
+    </div>
+  </uhhyou-horizontal-drawer>
+</div>
+
+<div style='width: 100%;'>
+
+<p>
+A collapsible drawer that hides or shows its contents. Focus returns to the toggle button if closed while focused inside.
+</p>
+
+{{< dl >}}
+{{< def terms="Toggle" id="drawer-toggle" >}}
+{{< shortcuts >}}🖱️Click | <kbd>Enter</kbd> | <kbd>Space</kbd>{{< /shortcuts >}}
+{{< /def >}}
+{{< /dl >}}
+
+</div>
+
+{{< /div >}}
+
 ## Tab View
 
 <div class="plugin-window" style="float=none; margin-bottom: 1em;">

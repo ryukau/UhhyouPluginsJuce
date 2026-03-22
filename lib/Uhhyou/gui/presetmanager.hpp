@@ -271,7 +271,6 @@ public:
                 juce::UndoManager* undoManager, juce::AudioProcessorValueTreeState& tree)
       : editor_(editor), tree_(tree), undoManager_(undoManager), pal_(palette),
         statusBar_(statusBar), font_(juce::FontOptions{}) {
-    // No scanning in constructor (Lazy)
     editor_.addAndMakeVisible(*this, 0);
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
     setWantsKeyboardFocus(true);

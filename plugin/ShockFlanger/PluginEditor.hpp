@@ -32,6 +32,7 @@ private:
   DelayTimeDisplay delayTimeDisplay_{*this, palette_, val()};
   MeterDisplay meterPreSaturationPeak_{*this, palette_, val().displayPreSaturationPeak, "Pre-Sat."};
   MeterDisplay meterOutputPeak_{*this, palette_, val().displayOutputPeak, "Output"};
+  HorizontalDrawer drawer_{palette_, statusBar_, "XY Pads", true};
 };
 
 } // namespace Uhhyou

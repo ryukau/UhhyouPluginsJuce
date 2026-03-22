@@ -144,7 +144,8 @@ a:hover {
 }
 
 .is-targeted > a:is(:link, :visited, :link:active, :visited:active) {
-  outline: calc(max(4px, 0.25em)) ridge var(--background-color);
+  outline: calc(max(4px, 0.25em)) double var(--border-color);
+  outline-offset: 0.125rem;
 }
 
 .header-anchor:hover {

@@ -132,11 +132,25 @@ public:
     juce::DropShadow shadow(palette_.foreground(), 4 * shadowSize, {0, shadowSize});
 
     auto drawShadowIfHovered = [&](juce::Component& cmp) -> bool {
-      if (!cmp.isVisible() || !cmp.isMouseOverOrDragging(true)) { return false; }
+      if (!cmp.isVisible() || !(cmp.isMouseOverOrDragging(true) || cmp.hasKeyboardFocus(false))) {
+        return false;
+      }
       auto bounds = getLocalArea(&cmp, cmp.getLocalBounds());
       juce::Graphics::ScopedSaveState save(ctx);
       ctx.excludeClipRegion(bounds);
       if (tooltipWindow_.isVisible()) { ctx.excludeClipRegion(tooltipWindow_.getBounds()); }
+
+      for (auto& safeDrawer : managedDrawers_) {
+        if (auto* drawer = safeDrawer.getComponent()) {
+          if (&cmp == &(drawer->getToggleButton())) {
+            bounds = getLocalArea(drawer, drawer->getLocalBounds());
+            ctx.excludeClipRegion(
+              juce::Rectangle<int>(bounds.getX(), 0, getWidth() - bounds.getX(), getHeight()));
+            break;
+          }
+        }
+      }
+
       shadow.drawForRectangle(ctx, bounds);
       return true;
     };
@@ -217,6 +231,7 @@ protected:
   using ComponentSharedPtr = std::shared_ptr<juce::Component>;
   std::vector<ComponentSharedPtr> widgetStorage_;
   std::unordered_map<juce::String, std::vector<ComponentSharedPtr>> sections_;
+  std::vector<juce::Component::SafePointer<HorizontalDrawer>> managedDrawers_;
 
   ParameterLockRegistry paramLocks_;
   std::unordered_map<const juce::AudioProcessorParameter*, juce::String> paramPtrToId_;
@@ -308,6 +323,29 @@ protected:
       widget.setWantsKeyboardFocus(focusEnabled);
       widget.setMouseClickGrabsKeyboardFocus(focusEnabled);
     }
+  }
+
+  void registerDrawer(HorizontalDrawer& drawer, const juce::String& stateKey,
+                      const std::vector<juce::String>& sectionNames,
+                      std::function<juce::Point<int>(float scale, bool isOpen)> calcSize) {
+    managedDrawers_.push_back(&drawer);
+
+    for (const auto& secName : sectionNames) {
+      if (auto st = sections_.find(secName); st != sections_.end()) {
+        for (auto& widget : st->second) { drawer.addContent(widget.get()); }
+      }
+    }
+
+    bool isDrawerOpen = getStateTree().getProperty(stateKey, drawer.isOpen());
+    drawer.setOpen(isDrawerOpen, false);
+
+    drawer.onStateChange = [this, stateKey, calcSize](bool isOpen) {
+      getStateTree().setProperty(stateKey, isOpen, nullptr);
+      float currentScale = getWindowScale();
+      auto newSize = calcSize(currentScale, isOpen);
+      getConstrainer()->setFixedAspectRatio(double(newSize.x) / double(newSize.y));
+      setSize(newSize.x, newSize.y);
+    };
   }
 
   void registerParameterId(const juce::String& id, const juce::AudioProcessorParameter* prm) {

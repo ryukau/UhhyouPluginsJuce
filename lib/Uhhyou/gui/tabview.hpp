@@ -7,10 +7,12 @@
 #include <juce_graphics/juce_graphics.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 
+#include "numbereditor.hpp"
 #include "style.hpp"
 
 #include <format>
 #include <functional>
+#include <optional>
 #include <vector>
 
 namespace Uhhyou {
@@ -55,6 +57,7 @@ protected:
   };
 
   Palette& pal_;
+  StatusBar& statusBar_;
 
   size_t activeTabIndex_ = 0;
   std::vector<Tab> tabs_;
@@ -88,8 +91,8 @@ protected:
   }
 
 public:
-  TabView(Palette& palette, std::vector<juce::String> tabNames)
-      : pal_(palette), font_(juce::FontOptions{}) {
+  TabView(Palette& palette, StatusBar& statusBar, std::vector<juce::String> tabNames)
+      : pal_(palette), statusBar_(statusBar), font_(juce::FontOptions{}) {
     setWantsKeyboardFocus(true);
     setMouseClickGrabsKeyboardFocus(true);
 
@@ -212,18 +215,25 @@ public:
 
   virtual void mouseExit(const juce::MouseEvent&) override {
     isMouseEntered_ = false;
+    statusBar_.clear();
     setMouseCursor(juce::MouseCursor::NormalCursor);
     repaint();
   }
 
   virtual void mouseMove(const juce::MouseEvent& event) override {
-    bool cursorOnTab = false;
+    std::optional<size_t> hovered;
     for (size_t idx = 0; idx < tabs_.size(); ++idx) {
-      tabs_[idx].isMouseEntered = tabs_[idx].rect.contains(event.position);
-      cursorOnTab = cursorOnTab || (idx != activeTabIndex_ && tabs_[idx].isMouseEntered);
+      auto& tab = tabs_[idx];
+      tab.isMouseEntered = tab.rect.contains(event.position);
+      if (tab.isMouseEntered) { hovered = idx; }
     }
-    setMouseCursor(cursorOnTab ? juce::MouseCursor::PointingHandCursor
-                               : juce::MouseCursor::NormalCursor);
+    if (hovered.has_value()) {
+      statusBar_.setText("Tab: " + tabs_[*hovered].label);
+      if (*hovered != activeTabIndex_) { setMouseCursor(juce::MouseCursor::PointingHandCursor); }
+    } else {
+      statusBar_.clear();
+      setMouseCursor(juce::MouseCursor::NormalCursor);
+    }
     repaint();
   }
 

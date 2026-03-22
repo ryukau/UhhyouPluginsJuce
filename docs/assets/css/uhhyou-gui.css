@@ -344,6 +344,25 @@ uhhyou-xy-pad {
 /* -------------------------------------------
  * Tab View Styles (Extracted from Shadow DOM)
  * ------------------------------------------- */
+uhhyou-horizontal-drawer {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  width: 100%;
+}
+
+uhhyou-drawer-toggle {
+  display: block;
+  width: calc(20px * var(--scale, 1));
+  flex-shrink: 0;
+  outline: none;
+}
+
+uhhyou-horizontal-drawer .drawer-content {
+  flex: 1;
+  min-width: 0;
+}
+
 uhhyou-tab-view {
   width: 100%;
   position: relative;
