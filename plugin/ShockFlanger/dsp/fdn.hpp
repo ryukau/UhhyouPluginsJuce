@@ -363,7 +363,7 @@ private:
   std::array<ButterworthLowpass<Real, 4>, fdnSize> feedbackLowpass_;
   std::array<ButterworthLowpass<Real, 2>, fdnSize> viscosityLowpass_;
   std::array<HardclipAdaa2<Real>, fdnSize> amClipper_;
-  HalfwaveAdaa2<Real> rectifier_;
+  FullwaveAdaa2<Real> rectifier_;
 
 public:
   void setup(Real maxTimeSamples) {
@@ -412,7 +412,7 @@ public:
     Real highpassCutoff;
     Real highpassFade;
     Real flangeBlend;
-    Real safeFeedback;
+    Real moreFeedback;
     Real flangeSign;
     Real lowpassCutoff;
     Real lowpassFade;
@@ -429,8 +429,8 @@ public:
     const auto timeLfo = std::abs(Real(4) * lfoPhase - Real(2)) - Real(1);
 
     const auto fbCircular = boxToCircle(std::complex<Real>{p.feedback0, p.feedback1});
-    auto fb0 = std::lerp(p.feedback0, fbCircular.real(), p.safeFeedback);
-    auto fb1 = std::lerp(p.feedback1, fbCircular.imag(), p.safeFeedback);
+    auto fb0 = std::lerp(fbCircular.real(), p.feedback0, p.moreFeedback);
+    auto fb1 = std::lerp(fbCircular.imag(), p.feedback1, p.moreFeedback);
     auto sig0 = cs * buffer_[0] - sn * buffer_[1];
     auto sig1 = sn * buffer_[0] + cs * buffer_[1];
 

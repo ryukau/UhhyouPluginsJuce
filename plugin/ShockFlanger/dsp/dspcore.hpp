@@ -93,7 +93,7 @@ private:
   ExpSmoother<Real> highpassCutoff_{smoo_};
   ExpSmootherLocal<Real> highpassFade_;
   ExpSmoother<Real> flangeBlend_{smoo_};
-  ExpSmoother<Real> safeFeedback_{smoo_};
+  ExpSmoother<Real> moreFeedback_{smoo_};
   ExpSmoother<Real> flangePolarity_{smoo_};
   ExpSmoother<Real> lowpassCutoff_{smoo_};
   ExpSmootherLocal<Real> lowpassFade_;

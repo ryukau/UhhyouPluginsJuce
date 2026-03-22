@@ -162,6 +162,98 @@ public:
   }
 };
 
+template<std::floating_point T> class FullwaveAdaa1 {
+private:
+  T x1_ = T(0);
+
+public:
+  void reset() { x1_ = T(0); }
+
+  T process(T input) {
+    const T x_a = x1_;
+    const T x_b = input;
+    x1_ = input;
+
+    if (x_a >= T(0) && x_b >= T(0)) { return T(+0.5) * (x_a + x_b); }
+    if (x_a <= T(0) && x_b <= T(0)) { return T(-0.5) * (x_a + x_b); }
+
+    const T min_x = std::min(x_a, x_b);
+    const T max_x = std::max(x_a, x_b);
+    const T abs_diff = max_x - min_x;
+
+    const T integral = T(0.5) * (min_x * min_x + max_x * max_x);
+    return integral / abs_diff;
+  }
+};
+
+template<std::floating_point T> class FullwaveAdaa2 {
+private:
+  static constexpr int nSegment = 2;
+
+  static constexpr std::array<T, nSegment> basisAreas = {T(1) / T(2), T(1) / T(2)};
+  static constexpr std::array<T, nSegment> basisMoments = {T(1) / T(3), T(1) / T(6)};
+
+  std::array<T, nSegment + 1> buffer_{};
+
+  template<int seg_idx> static inline T calc_lin(T t0, T t1, T x_a, T diff) {
+    const T dt = t1 - t0;
+    const T dt2_half = T(0.5) * (t1 * t1 - t0 * t0);
+    const T dt3_third = (T(1) / T(3)) * (t1 * t1 * t1 - t0 * t0 * t0);
+
+    T i0, i1;
+    if constexpr (seg_idx == 0) {
+      i0 = dt2_half;
+      i1 = dt3_third;
+    } else {
+      i0 = dt - dt2_half;
+      i1 = dt2_half - dt3_third;
+    }
+    return x_a * i0 + diff * i1;
+  }
+
+  template<int seg_idx> inline void process_segment(T x_a, T x_b, T& value) {
+    if (x_a >= T(0) && x_b >= T(0)) {
+      const T diff = x_b - x_a;
+      value += x_a * basisAreas[seg_idx] + diff * basisMoments[seg_idx];
+      return;
+    }
+
+    if (x_a <= T(0) && x_b <= T(0)) {
+      const T diff = x_b - x_a;
+      value -= (x_a * basisAreas[seg_idx] + diff * basisMoments[seg_idx]);
+      return;
+    }
+
+    const T diff = x_b - x_a;
+    const T inv_diff = T(1) / diff;
+    const T t_zero = -x_a * inv_diff;
+
+    if (diff > T(0)) {
+      value -= calc_lin<seg_idx>(T(0), t_zero, x_a, diff);
+      value += calc_lin<seg_idx>(t_zero, T(1), x_a, diff);
+    } else {
+      value += calc_lin<seg_idx>(T(0), t_zero, x_a, diff);
+      value -= calc_lin<seg_idx>(t_zero, T(1), x_a, diff);
+    }
+  }
+
+public:
+  void reset() { buffer_.fill(T(0)); }
+
+  T process(T input) {
+    buffer_[2] = buffer_[1];
+    buffer_[1] = buffer_[0];
+    buffer_[0] = input;
+
+    T value = T(0);
+
+    process_segment<0>(buffer_[2], buffer_[1], value);
+    process_segment<1>(buffer_[1], buffer_[0], value);
+
+    return value;
+  }
+};
+
 template<std::floating_point T> class HardclipAdaa1 {
 private:
   T x1_ = T(0);
@@ -1173,6 +1265,8 @@ private:
   HardclipAdaa4<Real> hardclip4_;
   ModuloQuadAdaa4<Real> modulo_quad4_;
   TriangleAdaa4<Real> triangle4_;
+  HalfwaveAdaa2<Real> halfrect2_;
+  FullwaveAdaa2<Real> fullrect2_;
 
   static constexpr Real eps = std::numeric_limits<float>::epsilon();
   Real x1_ = 0;
@@ -1210,7 +1304,9 @@ public:
   X(sin_growing)         /* Growing sine: x * sin(x). Unbounded. */                                \
   X(sin_growing2)        /* x + x * sin(x). Unbounded. */                                          \
   X(sin_stairs)          /* Soft stairs: x + sin(x). Unbounded. */                                 \
-  X(versinc)             /* versinc. */
+  X(versinc)             /* versinc. */                                                            \
+  X(halfrect)            /* half-wave rectifier. */                                                \
+  X(fullrect)            /* full-wave rectifier. */
 
   enum class Function : unsigned {
 #define X(name) name,
@@ -1223,6 +1319,8 @@ public:
     hardclip4_.reset();
     modulo_quad4_.reset();
     triangle4_.reset();
+    halfrect2_.reset();
+    fullrect2_.reset();
 
     x1_ = 0;
     s1_ = 0;
@@ -1274,6 +1372,10 @@ public:
         return processInternal<SinStairs<Real>>(input);
       case Function::versinc:
         return processInternal<Versinc<Real>>(input);
+      case Function::halfrect:
+        return halfrect2_.process(input);
+      case Function::fullrect:
+        return fullrect2_.process(input);
     }
   }
 };

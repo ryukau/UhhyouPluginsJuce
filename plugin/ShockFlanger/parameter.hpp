@@ -83,7 +83,7 @@ struct ValueReceivers {
   std::atomic<float>* delayTimeRatio{};
   std::atomic<float>* flangeBlend{};
   std::atomic<float>* flangePolarity{};
-  std::atomic<float>* safeFeedback{};
+  std::atomic<float>* moreFeedback{};
   std::atomic<float>* feedbackGate{};
   std::atomic<float>* feedback0{};
   std::atomic<float>* feedback1{};
@@ -202,10 +202,10 @@ private:
                      std::make_unique<ScaledParameter<Scales::LinearScl>>(
                        scale.bipolar.invmap(1), scale.bipolar, "flangePolarity", "Flange Polarity",
                        Cat::genericParameter, version, "", Rep::raw));
-    value.safeFeedback
+    value.moreFeedback
       = addParameter(generalGroup,
                      std::make_unique<ScaledParameter<Scales::UIntScl>>(
-                       scale.boolean.invmap(1), scale.boolean, "safeFeedback", "Safe Feedback",
+                       scale.boolean.invmap(0), scale.boolean, "moreFeedback", "More Feedback",
                        Cat::genericParameter, version, "", Rep::raw));
     value.feedbackGate
       = addParameter(generalGroup,

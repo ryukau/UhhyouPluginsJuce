@@ -62,12 +62,15 @@ Editor::Editor(Processor& proc) : EditorBase(proc, informationText) {
     return keys;
   };
 
+  addToggleButton(sToggles, "wetInvert", sc.boolean);
+  addToggleButton(sToggles, "oversampling", sc.boolean);
+  addToggleButton<Style::warning>(sToggles, "moreFeedback", sc.boolean);
+  addToggleButton(sToggles, "feedbackGate", sc.boolean);
+
   addTextKnob(sMix, "dryGain", sc.gain,
               {sc.gain.invmap(-1.0f), sc.gain.invmap(0), sc.gain.invmap(1.0f)}, 5);
   addTextKnob(sMix, "wetGain", sc.gain,
               {sc.gain.invmap(-1.0f), sc.gain.invmap(0), sc.gain.invmap(1.0f)}, 5);
-  addToggleButton(sToggles, "wetInvert", sc.boolean);
-  addToggleButton(sToggles, "oversampling", sc.boolean);
 
   auto formatSaturationType = [](std::string s) {
     if (!s.empty()) {
@@ -76,15 +79,15 @@ Editor::Editor(Processor& proc) : EditorBase(proc, informationText) {
     }
     return s;
   };
-  addComboBox(sSat, "saturationType", sc.saturationType,
-              {
+  addComboBox<Style::warning>(sSat, "saturationType", sc.saturationType,
+                              {
 #define X(name) formatSaturationType(#name),
-                UHHYOU_SATURATOR_FUNCTIONS(X)
+                                UHHYOU_SATURATOR_FUNCTIONS(X)
 #undef X
-              },
-              "Type");
-  addTextKnob(sSat, "saturationGain", sc.saturationGain, {sc.saturationGain.invmapDB(0)}, 5,
-              "Gain");
+                              },
+                              "Type");
+  addTextKnob<Style::warning>(sSat, "saturationGain", sc.saturationGain,
+                              {sc.saturationGain.invmapDB(0)}, 5, "Gain");
 
   addTextKnob(sDelay, "delayTimeMs", sc.delayTimeMs, {sc.delayTimeMs.invmap(1.0f)}, 5);
   addTextKnob(sDelay, "delayTimeRatio", sc.unipolar,
@@ -94,12 +97,10 @@ Editor::Editor(Processor& proc) : EditorBase(proc, informationText) {
                sc.unipolar.invmap(1.0f / 8)},
               5);
   addTextKnob(sDelay, "inputBlend", sc.unipolar, {sc.unipolar.invmap(0.5f)}, 5);
-  addTextKnob(sDelay, "flangeBlend", sc.unipolar, {sc.unipolar.invmap(0.0f)}, 5);
+  addTextKnob<Style::warning>(sDelay, "flangeBlend", sc.unipolar, {sc.unipolar.invmap(0.0f)}, 5);
   addTextKnob(sDelay, "flangePolarity", sc.bipolar, {sc.bipolar.invmap(0.0f)}, 5);
   addTextKnob(sDelay, "feedback0", sc.feedback, {sc.feedback.invmap(0)}, 5);
   addTextKnob(sDelay, "feedback1", sc.feedback, {sc.feedback.invmap(0)}, 5);
-  addToggleButton(sToggles, "safeFeedback", sc.boolean);
-  addToggleButton(sToggles, "feedbackGate", sc.boolean);
   addTextKnob(sDelay, "lowpassCutoffHz", sc.cutoffHz, {sc.cutoffHz.invmap(10000.0f)}, 5);
   addTextKnob(sDelay, "highpassCutoffHz", sc.cutoffHz,
               {sc.cutoffHz.invmap(1.0f), sc.cutoffHz.invmap(5.0f), sc.cutoffHz.invmap(12.0f),
@@ -121,11 +122,11 @@ Editor::Editor(Processor& proc) : EditorBase(proc, informationText) {
   addTextKnob(sMod, "lfoTimeMod0", sc.lfoToDelayTimeOctave, {sc.lfoToDelayTimeOctave.invmap(0)}, 5);
   addTextKnob(sMod, "lfoTimeMod1", sc.lfoToDelayTimeOctave, {sc.lfoToDelayTimeOctave.invmap(0)}, 5);
   addTextKnob(sMod, "modulationTracking", sc.unipolar, {sc.unipolar.invmap(1.0f)}, 5);
-  addTextKnob(sMod, "audioModMode", sc.unipolar, {sc.unipolar.invmap(0.0f)}, 5);
-  addTextKnob(sMod, "viscosityLowpassHz", sc.cutoffHz,
-              {sc.cutoffHz.invmap(20.0f), sc.cutoffHz.invmap(200.0f), sc.cutoffHz.invmap(2000.0f),
-               sc.cutoffHz.invmap(20000.0f)},
-              5);
+  addTextKnob<Style::warning>(sMod, "audioModMode", sc.unipolar, {sc.unipolar.invmap(0.0f)}, 5);
+  addTextKnob<Style::warning>(sMod, "viscosityLowpassHz", sc.cutoffHz,
+                              {sc.cutoffHz.invmap(20.0f), sc.cutoffHz.invmap(200.0f),
+                               sc.cutoffHz.invmap(2000.0f), sc.cutoffHz.invmap(20000.0f)},
+                              5);
   addTextKnob(sMod, "audioTimeMod0", sc.timeModOctave, {sc.timeModOctave.invmap(0)}, 5);
   addTextKnob(sMod, "audioTimeMod1", sc.timeModOctave, {sc.timeModOctave.invmap(0)}, 5);
   addTextKnob(sMod, "audioAmpMod0", sc.unipolar, {sc.unipolar.invmap(0.0f)}, 5);

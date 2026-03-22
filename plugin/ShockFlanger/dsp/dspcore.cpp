@@ -99,7 +99,7 @@ template<typename Func> void DSPCore::applyToParameters(Func apply) {
 
   const auto flange = L(pv.flangeBlend);
   apply(flangeBlend_, flange);
-  apply(safeFeedback_, L(pv.safeFeedback) * flange);
+  apply(moreFeedback_, L(pv.moreFeedback) * flange);
   apply(flangePolarity_, L(pv.flangePolarity));
 
   apply(dryGain_, L(pv.dryGain));
@@ -192,7 +192,7 @@ auto DSPCore::processSample(const std::array<Real, 2> in) -> std::array<Real, 2>
     .highpassCutoff = highpassCutoff_.process(),
     .highpassFade = highpassFade_.process(fadeKp_),
     .flangeBlend = flangeBlend_.process(),
-    .safeFeedback = safeFeedback_.process(),
+    .moreFeedback = moreFeedback_.process(),
     .flangeSign = flangePolarity_.process(),
     .lowpassCutoff = lowpassCutoff_.process(),
     .lowpassFade = lowpassFade_.process(fadeKp_),
