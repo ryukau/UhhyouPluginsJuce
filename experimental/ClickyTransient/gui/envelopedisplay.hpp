@@ -96,7 +96,7 @@ public:
     }
 
     // Envelope.
-    ctx.setColour(pal_.foreground());
+    ctx.setColour(pal_.getForeground(pal_.surface()));
     for (const auto& env : envelope_) {
       if (env.size() < 2) { continue; }
       juce::Path line;

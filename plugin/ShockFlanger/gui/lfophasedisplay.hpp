@@ -29,14 +29,13 @@ private:
   Palette& pal_;
   std::array<std::atomic<float>, nChannel>& phase_;
 
-  juce::Font font_;
   juce::PathStrokeType stroke_;
   std::array<std::deque<float>, nChannel> trails_;
 
 public:
   LfoPhaseDisplay(Component& parent, Palette& palette,
                   std::array<std::atomic<float>, nChannel>& lfoPhase)
-      : pal_(palette), phase_(lfoPhase), font_(palette.getFont(TextSize::small)),
+      : pal_(palette), phase_(lfoPhase),
         stroke_(4 * palette.borderWidth(), juce::PathStrokeType::JointStyle::curved,
                 juce::PathStrokeType::EndCapStyle::rounded) {
     setSynchroniseToVBlank(true);
@@ -47,10 +46,7 @@ public:
 
   virtual ~LfoPhaseDisplay() override {}
 
-  virtual void resized() override {
-    font_ = pal_.getFont(TextSize::small);
-    stroke_.setStrokeThickness(4 * pal_.borderWidth());
-  }
+  virtual void resized() override { stroke_.setStrokeThickness(4 * pal_.borderWidth()); }
 
   virtual void update() override {
     for (size_t i = 0; i < trails_.size(); ++i) {
@@ -68,7 +64,8 @@ public:
     const float h = float(getHeight());
 
     // Background.
-    ctx.setColour(pal_.background());
+    juce::Colour bgColour = pal_.background();
+    ctx.setColour(bgColour);
     ctx.fillRect(float(0), float(0), w, h);
 
     // Geometry.
@@ -78,22 +75,27 @@ public:
     const float radius = (std::min(w, h) * float(0.5)) - (float(2) * offset);
 
     // Circle guide.
-    ctx.setColour(pal_.border().withAlpha(float(0.2)));
+    ctx.setColour(pal_.surface());
     const float diameter = float(2) * radius;
     ctx.drawEllipse(cx - radius, cy - radius, diameter, diameter, lw1);
 
     // Labels.
-    const std::array colors{pal_.foreground(), pal_.main()};
+    const std::array colors{pal_.getForeground(bgColour), pal_.main()};
     {
-      const float side = font_.getHeight();
+      const auto& font = pal_.getFont(TextSize::small);
+      const float side = font.getHeight();
       const float y = h - side;
-      ctx.setFont(font_);
+      ctx.setFont(font);
 
-      juce::Rectangle<float> labelBoundsL{float(0), y, side, side};
       ctx.setColour(colors[0]);
+      const float lfoTextWidth = juce::GlyphArrangement::getStringWidth(font, "LFO");
+      juce::Rectangle<float> labelBoundsLfo{float(0), y, side + lfoTextWidth, side};
+      ctx.drawText("LFO", labelBoundsLfo.toNearestIntEdges(), juce::Justification::centred);
+
+      juce::Rectangle<float> labelBoundsL{w - 2.0f * side, y, side, side};
       ctx.drawText("L", labelBoundsL.toNearestInt(), juce::Justification::centred);
 
-      juce::Rectangle<float> labelBoundsR{side, y, side, side};
+      juce::Rectangle<float> labelBoundsR{w - side, y, side, side};
       ctx.setColour(colors[1]);
       ctx.drawText("R", labelBoundsR.toNearestInt(), juce::Justification::centred);
     }

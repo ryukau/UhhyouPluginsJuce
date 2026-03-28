@@ -116,7 +116,7 @@ void Editor::resized() {
   }
 
   layoutActionSectionAndPluginInfo(left1, currentTop, mt.sectionWidth, mt.labelW, mt.labelX,
-                                   mt.labelH, mt.labelY, scale);
+                                   mt.labelH, mt.labelY);
 
   statusBar_.setBounds(
     Rect{left0, bottom - mt.labelH - mt.uiMargin, mt.totalWidth - 2 * mt.uiMargin, mt.labelH});

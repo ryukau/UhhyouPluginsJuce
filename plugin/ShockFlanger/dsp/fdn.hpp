@@ -428,6 +428,10 @@ public:
 
     const auto timeLfo = std::abs(Real(4) * lfoPhase - Real(2)) - Real(1);
 
+    constexpr Real safetyClip = Real(1) / Real(std::numeric_limits<float>::epsilon());
+    buffer_[0] = std::clamp(buffer_[0], -safetyClip, safetyClip);
+    buffer_[1] = std::clamp(buffer_[1], -safetyClip, safetyClip);
+
     const auto fbCircular = boxToCircle(std::complex<Real>{p.feedback0, p.feedback1});
     auto fb0 = std::lerp(fbCircular.real(), p.feedback0, p.moreFeedback);
     auto fb1 = std::lerp(fbCircular.imag(), p.feedback1, p.moreFeedback);
@@ -474,7 +478,8 @@ public:
 
     const auto rectified = rectifier_.process(buffer_[1]);
     buffer_[0] += p.flangeSign * buffer_[1] + (Real(1) - std::abs(p.flangeSign)) * rectified;
-    return buffer_[0] + (Real(1) - p.flangeBlend) * buffer_[1];
+    return Real(0.5) * (Real(1) + p.flangeBlend)
+      * (buffer_[0] + buffer_[1] * (Real(1) - p.flangeBlend));
   }
 };
 

@@ -46,7 +46,7 @@ private:
   TitleCallback titleCallback_;
 };
 
-template<Style style = Style::common>
+template<Style style = Style::main>
 class ButtonBase : public juce::Component, public juce::SettableTooltipClient {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ButtonBase)
@@ -59,23 +59,20 @@ protected:
   float value_{}; // Normalized in [0, 1].
 
   bool isMouseEntered_ = false;
-  juce::Font font_;
   juce::String label_;
   juce::String hint_;
 
 public:
   ButtonBase(juce::AudioProcessorEditor& editor, Palette& palette, StatusBar& statusBar,
              NumberEditor& numberEditor, const juce::String& label, const juce::String& hint)
-      : pal_(palette), statusBar_(statusBar), numberEditor_(numberEditor),
-        font_(juce::FontOptions{}), label_(label), hint_(hint) {
+      : pal_(palette), statusBar_(statusBar), numberEditor_(numberEditor), label_(label),
+        hint_(hint) {
     editor.addAndMakeVisible(*this, 0);
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
     setWantsKeyboardFocus(true);
     setMouseClickGrabsKeyboardFocus(true);
     setTitle(label_);
   }
-
-  virtual void resized() override { font_ = pal_.getFont(TextSize::normal); }
 
   std::unique_ptr<juce::AccessibilityHandler> createAccessibilityHandler() override {
     return std::make_unique<ButtonAccessibilityHandler>(*this, juce::AccessibilityRole::button,
@@ -90,28 +87,18 @@ public:
     const float height = std::floor(static_cast<float>(getHeight()));
 
     // Background.
-    if constexpr (style == Style::accent) {
-      ctx.setColour(value_ != 0 ? pal_.accent() : pal_.surface());
-    } else if constexpr (style == Style::warning) {
-      ctx.setColour(value_ != 0 ? pal_.warning() : pal_.surface());
-    } else {
-      ctx.setColour(value_ != 0 ? pal_.main() : pal_.surface());
-    }
+    juce::Colour bgColour = value_ != 0 ? pal_.getColor<style>() : pal_.surface();
+    ctx.setColour(bgColour);
     ctx.fillRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2);
 
     // Border.
-    if constexpr (style == Style::accent) {
-      ctx.setColour(isMouseEntered_ ? pal_.accent() : pal_.border());
-    } else if constexpr (style == Style::warning) {
-      ctx.setColour(isMouseEntered_ ? pal_.warning() : pal_.border());
-    } else {
-      ctx.setColour(isMouseEntered_ ? pal_.main() : pal_.border());
-    }
+    juce::Colour borderColour = isMouseEntered_ ? pal_.getColor<style>() : pal_.border();
+    ctx.setColour(borderColour);
     ctx.drawRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2, lw1);
 
     // Text.
-    ctx.setFont(font_);
-    ctx.setColour(pal_.foreground());
+    ctx.setFont(pal_.getFont(TextSize::normal));
+    ctx.setColour(pal_.getForeground(bgColour));
     ctx.drawText(label_, juce::Rectangle<float>(float(0), float(0), width, height),
                  juce::Justification::centred);
   }
@@ -128,7 +115,7 @@ public:
   }
 };
 
-template<Style style = Style::common> class ActionButton : public ButtonBase<style> {
+template<Style style = Style::main> class ActionButton : public ButtonBase<style> {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ActionButton)
 
@@ -185,8 +172,7 @@ public:
   }
 };
 
-template<typename Scale, Style style = Style::common>
-class ToggleButton : public ButtonBase<style> {
+template<typename Scale, Style style = Style::main> class ToggleButton : public ButtonBase<style> {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ToggleButton)
 
@@ -297,7 +283,7 @@ public:
   }
 };
 
-template<typename Scale, Style style = Style::common>
+template<typename Scale, Style style = Style::main>
 class MomentaryButton : public ButtonBase<style> {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MomentaryButton)

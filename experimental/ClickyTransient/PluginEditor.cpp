@@ -79,7 +79,7 @@ void Editor::resized() {
   }
 
   const int nameTop0 = layoutActionSectionAndPluginInfo(left1, top0, mt.sectionWidth, mt.labelW,
-                                                        mt.labelX, mt.labelH, mt.labelY, scale);
+                                                        mt.labelX, mt.labelH, mt.labelY);
 
   envelopeDisplay_.setBounds(
     Rect{left1, nameTop0 + mt.labelY + mt.margin, mt.sectionWidth, 6 * mt.labelY - 2 * mt.margin});

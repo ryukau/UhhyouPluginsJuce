@@ -202,7 +202,7 @@ void Editor::resized() {
   const int drawerLeft = left3 + 2 * mt.margin;
 
   const int nameTop0 = layoutActionSectionAndPluginInfo(left0, top0, mt.sectionWidth, mt.labelW,
-                                                        mt.labelX, mt.labelH, mt.labelY, scale);
+                                                        mt.labelX, mt.labelH, mt.labelY);
 
   int currentLeft0Top = nameTop0 + mt.labelY;
 

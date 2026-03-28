@@ -51,9 +51,6 @@ private:
   std::array<float, nParameter> defaultValue_{};
   std::vector<std::array<float, nParameter>> undoValue_;
 
-  juce::Font indexFont_;
-  juce::Font nameFont_;
-
   auto constructBarIndices() {
     std::array<std::string, nParameter> indices;
     for (size_t i = 0; i < indices.size(); ++i) { indices[i] = std::to_string(i); }
@@ -102,8 +99,7 @@ public:
           },
           undoManager),
         name_(name), barIndices_(constructBarIndices()),
-        defaultValue_(constructDefaultValue(parameter)),
-        indexFont_(palette.getFont(TextSize::small)), nameFont_(palette.getFont(TextSize::large)) {
+        defaultValue_(constructDefaultValue(parameter)) {
     setWantsKeyboardFocus(true);
 
     setViewRange(0, 1);
@@ -131,7 +127,8 @@ public:
     const float height = float(getHeight());
 
     // Background.
-    ctx.setColour(pal_.surface());
+    juce::Colour bgColour = pal_.surface();
+    ctx.setColour(bgColour);
     ctx.fillRoundedRectangle(0.0f, 0.0f, width, height, lw2);
 
     // Value bar.
@@ -147,8 +144,8 @@ public:
     }
 
     // Index text.
-    ctx.setFont(indexFont_);
-    ctx.setColour(pal_.foreground());
+    ctx.setFont(pal_.getFont(TextSize::small));
+    ctx.setColour(pal_.getForeground(bgColour));
     if (sliderWidth_ >= indexTextSize) {
       for (int i = indexL_; i < indexR_; ++i) {
         auto left = (i - indexL_) * sliderWidth_;
@@ -163,7 +160,7 @@ public:
     }
 
     // Additional index text for zoom in.
-    auto colorOverlayText = pal_.foreground().withAlpha(0.25f);
+    auto colorOverlayText = pal_.getForeground(bgColour).withAlpha(0.25f);
     auto colorOverlayMain = pal_.main().withAlpha(0.25f);
     if (value_.size() != size_t(indexRange_)) {
       ctx.setColour(colorOverlayText);
@@ -173,7 +170,7 @@ public:
     }
 
     // Border.
-    ctx.setColour(pal_.foreground());
+    ctx.setColour(pal_.getForeground(bgColour));
     ctx.drawRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2, lw1);
 
     // Highlight.
@@ -184,7 +181,7 @@ public:
         ctx.fillRect((index - indexL_) * sliderWidth_, 0.0f, sliderWidth_, height);
 
         // Index text.
-        ctx.setFont(nameFont_);
+        ctx.setFont(pal_.getFont(TextSize::large));
         ctx.setColour(colorOverlayText);
         std::ostringstream os;
         os << "#" << std::to_string(index + indexOffset) << ": "
@@ -193,14 +190,14 @@ public:
         ctx.drawText(indexText.c_str(), RectF(0, 0, width, height), Justification::centred);
 
         if (barState_[index] != BarState::active) {
-          ctx.setFont(indexFont_);
+          ctx.setFont(pal_.getFont(TextSize::small));
           ctx.drawText("Locked", RectF(0, indexTextSize, width, 2 * indexTextSize),
                        Justification::centred);
         }
       }
     } else {
       // Title.
-      ctx.setFont(nameFont_);
+      ctx.setFont(pal_.getFont(TextSize::large));
       ctx.setColour(colorOverlayText);
       ctx.drawText(name_.c_str(), RectF(0, 0, width, height), Justification::centred);
     }
@@ -211,12 +208,7 @@ public:
     ctx.fillRect(0.0f, zeroLineHeight - lw1 / 2, width, lw1);
   }
 
-  void resized() override {
-    indexFont_ = pal_.getFont(TextSize::small);
-    nameFont_ = pal_.getFont(TextSize::large);
-
-    refreshSliderWidth(float(getWidth()));
-  }
+  void resized() override { refreshSliderWidth(float(getWidth())); }
 
   void mouseMove(const juce::MouseEvent& event) override {
     mousePosition_ = event.position;

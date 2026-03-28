@@ -8,6 +8,7 @@
 #include "Uhhyou/librarylicense.hpp"
 #include "widgets.hpp"
 
+#include <format>
 #include <functional>
 #include <memory>
 #include <random>
@@ -19,7 +20,8 @@ namespace Uhhyou {
 template<typename ProcessorType>
 class EditorBase : public juce::AudioProcessorEditor,
                    private juce::FocusChangeListener,
-                   private juce::Timer {
+                   private juce::Timer,
+                   public juce::ChangeListener {
 public:
   EditorBase(ProcessorType& p, const juce::String& infoText)
       : AudioProcessorEditor(p), processor_(p), focusOverlay_(palette_), numberEditor_(palette_),
@@ -42,27 +44,58 @@ public:
           *this, palette_, statusBar_, numberEditor_, "GUI Settings", "Open settings menu",
           [this]() {
             juce::PopupMenu menu;
+            menu.setLookAndFeel(&lookAndFeel_);
 
-            bool focus
-              = getStateTree().getProperty("KeyboardFocusEnabled", palette_.keyboardFocusEnabled());
-            menu.addItem("Keyboard Navigation (Steals host shortcuts)", true, focus,
-                         [this, focus]() {
-                           setGlobalKeyboardFocus(!focus);
-                           palette_.updateSetting("keyboardFocusEnabled", !focus);
-                         });
+            {
+              bool focus = getStateTree().getProperty("KeyboardFocusEnabled",
+                                                      palette_.keyboardFocusEnabled());
+              menu.addItem("Keyboard Navigation (Steals host shortcuts)", true, focus,
+                           [this, focus]() {
+                             setGlobalKeyboardFocus(!focus);
+                             palette_.updateSetting("keyboardFocusEnabled", !focus);
+                           });
+            }
 
-            menu.addItem("Reset Window Size to 100%", [this]() {
-              float currentScale
-                = getStateTree().getProperty("windowScale", palette_.windowScale());
-              if (currentScale > 0.0f) {
-                setSize(juce::roundToInt(getWidth() / currentScale),
-                        juce::roundToInt(getHeight() / currentScale));
-              }
-            });
+            {
+              float defaultScale = palette_.windowScale();
+              menu.addItem(
+                std::format("Reset Window Size to Default ({}%)",
+                            std::lround(defaultScale * 100.0f)),
+                [this, defaultScale]() {
+                  float currentScale = getStateTree().getProperty("windowScale", defaultScale);
+                  if (currentScale > 0.0f) {
+                    setSize(juce::roundToInt((getWidth() / currentScale) * defaultScale),
+                            juce::roundToInt((getHeight() / currentScale) * defaultScale));
+                  }
+                });
+            }
+
+            {
+              bool logging = getStateTree().getProperty("LoggingEnabled", false);
+              menu.addItem("Enable Logging (Creates a log file)", true, logging,
+                           [this, logging]() { setLoggingEnabled(!logging); });
+            }
+
+            menu.addSeparator();
+
+            {
+              FileMenu::Options styleOpts;
+              styleOpts.rootDir = palette_.getStyleDirectory();
+              styleOpts.targetExtension = ".json";
+              styleOpts.targetComponent = &settingsButton_;
+              styleOpts.fileFilter
+                = [](const juce::File& f) { return f.getFileName() != "style.json"; };
+              styleOpts.onFileSelected
+                = [this](const juce::File& f) { palette_.loadStyleFromFile(f); };
+              menu.addSubMenu("Theme / Style",
+                              FileMenu::buildHierarchical(styleOpts.rootDir, styleOpts));
+            }
 
             menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&settingsButton_));
           }) {
     juce::Desktop::getInstance().addFocusChangeListener(this);
+    StyleNotifier::getInstance().addChangeListener(this);
+    setLookAndFeel(&lookAndFeel_);
 
     bool initialFocus
       = getStateTree().getProperty("KeyboardFocusEnabled", palette_.keyboardFocusEnabled());
@@ -94,9 +127,27 @@ public:
       saveParamLocks();
       repaint();
     });
+
+    if (getStateTree().getProperty("LoggingEnabled", false)) { setLoggingEnabled(true); }
   }
 
-  ~EditorBase() override { juce::Desktop::getInstance().removeFocusChangeListener(this); }
+  ~EditorBase() override {
+    setLookAndFeel(nullptr);
+    StyleNotifier::getInstance().removeChangeListener(this);
+    juce::Desktop::getInstance().removeFocusChangeListener(this);
+    if (fileLogger_ != nullptr) { juce::Logger::setCurrentLogger(nullptr); }
+  }
+
+  void changeListenerCallback(juce::ChangeBroadcaster* source) override {
+    if (source == &StyleNotifier::getInstance()) {
+      palette_.load();
+      palette_.resize(getWindowScale());
+      lookAndFeel_.updateColors();
+      statusBar_.updateColors();
+      pluginInfoButton_.updateColors();
+      sendLookAndFeelChange();
+    }
+  }
 
   void resized() override {
     focusOverlay_.setBounds(getLocalBounds());
@@ -119,7 +170,7 @@ public:
     ctx.fillAll();
 
     auto groupLabelFont = palette_.getFont(TextSize::normal);
-    ctx.setColour(palette_.foreground());
+    ctx.setColour(palette_.getForeground(palette_.background()));
     ctx.setFont(groupLabelFont);
     for (const auto& x : groupLabels_) {
       x.paint(ctx, groupLabelFont, 2 * palette_.borderWidth(),
@@ -129,7 +180,8 @@ public:
 
   void paintOverChildren(juce::Graphics& ctx) override {
     int shadowSize = std::max(1, int(palette_.borderWidth()));
-    juce::DropShadow shadow(palette_.foreground(), 4 * shadowSize, {0, shadowSize});
+    juce::DropShadow shadow(palette_.getForeground(palette_.background()), 4 * shadowSize,
+                            {0, shadowSize});
 
     auto drawShadowIfHovered = [&](juce::Component& cmp) -> bool {
       if (!cmp.isVisible() || !(cmp.isMouseOverOrDragging(true) || cmp.hasKeyboardFocus(false))) {
@@ -170,8 +222,8 @@ public:
   void mouseEnter(const juce::MouseEvent& event) override {
     // `enableUnboundedMouseMovement(false)` is a mitigation. At least on Windows 11, when resizing
     // a plugin window, it seems like a hidden cursor remains in the initial position where resizing
-    // is started while dragging the edge. The issue is that the hidden cursor fires mouse events.
-    // Same for `mouseExit`.
+    // is started while dragging the edge of a plugin window. The issue is that the hidden cursor
+    // fires mouse events. Same for `mouseExit`.
     event.source.enableUnboundedMouseMovement(false);
     repaint();
   }
@@ -209,6 +261,8 @@ public:
   void focusLost(juce::Component::FocusChangeType) override { repaint(); }
 
 protected:
+  std::unique_ptr<juce::FileLogger> fileLogger_;
+
   ProcessorType& processor_;
   Palette palette_;
   Uhhyou::LookAndFeel lookAndFeel_{palette_};
@@ -263,7 +317,29 @@ protected:
     return processor_.param.tree.state.getOrCreateChildWithName("GUI", nullptr);
   }
 
-  float getWindowScale() { return getStateTree().getProperty("windowScale", 1.0f); }
+  void setLoggingEnabled(bool enable) {
+    getStateTree().setProperty("LoggingEnabled", enable, nullptr);
+    if (enable) {
+      juce::File logDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+                            .getChildFile("UhhyouPlugins")
+                            .getChildFile("Logs");
+      logDir.createDirectory();
+
+      fileLogger_ = std::make_unique<juce::FileLogger>(
+        juce::File{logDir.getChildFile(processor_.getName() + "_Log.txt")},
+        std::format("## {} Log: Toggle an option in GUI Settings to disable",
+                    processor_.getName().toRawUTF8()),
+        128 * 1024);
+      juce::Logger::setCurrentLogger(fileLogger_.get());
+    } else {
+      juce::Logger::setCurrentLogger(nullptr);
+      fileLogger_.reset();
+    }
+  }
+
+  float getWindowScale() {
+    return getStateTree().getProperty("windowScale", palette_.windowScale());
+  }
 
   void initWindow(int scaledWidth, int scaledHeight) {
     getConstrainer()->setFixedAspectRatio(double(scaledWidth) / double(scaledHeight));
@@ -283,12 +359,11 @@ protected:
   }
 
   int layoutActionSectionAndPluginInfo(int left, int top, int sectionWidth, int labelW, int labelX,
-                                       int labelH, int labelY, float scale) {
+                                       int labelH, int labelY) {
     const int nameTop0 = layoutActionSection(groupLabels_, left, top, sectionWidth, labelW, labelX,
                                              labelH, labelY, undoButton_, redoButton_,
                                              randomizeButton_, presetManager_, settingsButton_);
     pluginInfoButton_.setBounds(juce::Rectangle<int>{left, nameTop0, sectionWidth, labelH});
-    pluginInfoButton_.scale(scale);
     return nameTop0;
   }
 
@@ -377,7 +452,7 @@ protected:
     registerInteractive(component);
   }
 
-  template<Style style = Style::common, typename Scale>
+  template<Style style = Style::main, typename Scale>
   auto addMomentaryButton(const juce::String& section, const juce::String& paramId, Scale& scale,
                           const juce::String& label = "", const juce::String& hint = "",
                           LabeledWidget::Layout layout = LabeledWidget::expand,
@@ -387,7 +462,7 @@ protected:
                                   std::move(randomizer));
   }
 
-  template<Style style = Style::common, typename Scale>
+  template<Style style = Style::main, typename Scale>
   auto addToggleButton(const juce::String& section, const juce::String& paramId, Scale& scale,
                        const juce::String& label = "", const juce::String& hint = "",
                        LabeledWidget::Layout layout = LabeledWidget::expand,
@@ -397,7 +472,7 @@ protected:
                                   std::move(randomizer));
   }
 
-  template<Style style = Style::common, typename Scale>
+  template<Style style = Style::main, typename Scale>
   auto addTextKnob(const juce::String& sectionTitle, const juce::String& paramId, Scale& scale,
                    const std::vector<float> snaps, int precision = 5,
                    const juce::String& label = "",
@@ -408,7 +483,7 @@ protected:
                            std::move(randomizer));
   }
 
-  template<Style style = Style::common, typename Scale>
+  template<Style style = Style::main, typename Scale>
   auto addRotaryTextKnob(const juce::String& sectionTitle, const juce::String& paramId,
                          Scale& scale, const std::vector<float> snaps, int precision = 5,
                          const juce::String& label = "",
@@ -419,7 +494,7 @@ protected:
                            std::move(randomizer));
   }
 
-  template<Style style = Style::common, typename Scale>
+  template<Style style = Style::main, typename Scale>
   auto addComboBox(const juce::String& sectionTitle, const juce::String& paramId, Scale& scale,
                    const std::vector<juce::String>& menuItems, juce::String label,
                    LabeledWidget::Layout layoutOption = LabeledWidget::showLabel,

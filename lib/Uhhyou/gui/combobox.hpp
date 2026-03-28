@@ -20,7 +20,7 @@
 
 namespace Uhhyou {
 
-template<typename Scale, Uhhyou::Style style = Uhhyou::Style::common>
+template<typename Scale, Uhhyou::Style style = Uhhyou::Style::main>
 class ComboBox : public juce::Component {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ComboBox)
@@ -92,7 +92,6 @@ protected:
   size_t defaultIndex_{};
 
   bool isMouseEntered_ = false;
-  juce::Font font_;
   std::vector<juce::String> items_;
 
   void showHostMenuNative(juce::Point<int> position) {
@@ -131,6 +130,7 @@ protected:
 
   void invokeMenu() {
     menu_.clear();
+    menu_.setLookAndFeel(&editor_.getLookAndFeel());
     menu_.addSectionHeader(parameter_->getName(2048));
 
     for (size_t idx = 0; idx < items_.size(); ++idx) {
@@ -175,7 +175,7 @@ public:
           auto mapped = static_cast<size_t>(std::max(static_cast<decltype(value)>(0), value));
           return std::min(mapped, menuItems.size() - 1);
         }()),
-        font_(palette.getFont(TextSize::normal)), items_(menuItems) {
+        items_(menuItems) {
     attachment_.sendInitialUpdate();
     editor_.addAndMakeVisible(*this, 0);
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
@@ -190,8 +190,6 @@ public:
     return std::make_unique<ComboBoxAccessibilityHandler>(*this, std::move(actions));
   }
 
-  virtual void resized() override { font_ = pal_.getFont(TextSize::normal); }
-
   virtual void paint(juce::Graphics& ctx) override {
     const float lw1 = pal_.borderWidth(); // Border width.
     const float lw2 = 2 * lw1;
@@ -204,19 +202,14 @@ public:
     ctx.fillRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2);
 
     // Border.
-    if constexpr (style == Uhhyou::Style::accent) {
-      ctx.setColour(isMouseEntered_ ? pal_.accent() : pal_.border());
-    } else if constexpr (style == Uhhyou::Style::warning) {
-      ctx.setColour(isMouseEntered_ ? pal_.warning() : pal_.border());
-    } else {
-      ctx.setColour(isMouseEntered_ ? pal_.main() : pal_.border());
-    }
+    juce::Colour borderColour = isMouseEntered_ ? pal_.getColor<style>() : pal_.border();
+    ctx.setColour(borderColour);
     ctx.drawRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2, lw1);
 
     // Text.
     if (itemIndex_ < items_.size()) {
-      ctx.setFont(font_);
-      ctx.setColour(pal_.foreground());
+      ctx.setFont(pal_.getFont(TextSize::normal));
+      ctx.setColour(pal_.getForeground(pal_.surface()));
       ctx.drawText(items_[itemIndex_], juce::Rectangle<float>(float(0), float(0), width, height),
                    juce::Justification::centred);
     }

@@ -420,7 +420,7 @@ public:
   }
 };
 
-template<typename Scale, Style style = Style::common>
+template<typename Scale, Style style = Style::main>
 class Knob : public KnobBase<Scale, KnobType::clamped> {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Knob)
@@ -437,16 +437,9 @@ public:
     ctx.setOrigin(center);
 
     // Arc.
-    if constexpr (style == Style::accent) {
-      ctx.setColour(this->isMouseEntered_ ? this->pal_.accent()
-                                          : this->pal_.border().withAlpha(0.3f));
-    } else if constexpr (style == Style::warning) {
-      ctx.setColour(this->isMouseEntered_ ? this->pal_.warning()
-                                          : this->pal_.border().withAlpha(0.3f));
-    } else {
-      ctx.setColour(this->isMouseEntered_ ? this->pal_.main()
-                                          : this->pal_.border().withAlpha(0.3f));
-    }
+    juce::Colour activeColor = this->isMouseEntered_ ? this->pal_.template getColor<style>()
+                                                     : this->pal_.border().withAlpha(0.3f);
+    ctx.setColour(activeColor);
     constexpr auto twopi = 2 * std::numbers::pi_v<float>;
     const auto radius = center.x > center.y ? center.y : center.x;
     juce::Path arc;
@@ -467,7 +460,7 @@ public:
     juce::Path hand;
     hand.startNewSubPath({0.0f, 0.0f});
     hand.lineTo(headPoint);
-    ctx.setColour(this->pal_.foreground());
+    ctx.setColour(this->pal_.getForeground(this->pal_.background()));
     ctx.strokePath(hand, this->handStrokeType_);
 
     // Head.
@@ -475,7 +468,7 @@ public:
   }
 };
 
-template<typename Scale, Style style = Style::common>
+template<typename Scale, Style style = Style::main>
 class RotaryKnob : public KnobBase<Scale, KnobType::rotary> {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RotaryKnob)
@@ -492,16 +485,9 @@ public:
     ctx.setOrigin(center);
 
     // Arc.
-    if constexpr (style == Style::accent) {
-      ctx.setColour(this->isMouseEntered_ ? this->pal_.accent()
-                                          : this->pal_.border().withAlpha(0.3f));
-    } else if constexpr (style == Style::warning) {
-      ctx.setColour(this->isMouseEntered_ ? this->pal_.warning()
-                                          : this->pal_.border().withAlpha(0.3f));
-    } else {
-      ctx.setColour(this->isMouseEntered_ ? this->pal_.main()
-                                          : this->pal_.border().withAlpha(0.3f));
-    }
+    juce::Colour activeColor = this->isMouseEntered_ ? this->pal_.template getColor<style>()
+                                                     : this->pal_.border().withAlpha(0.3f);
+    ctx.setColour(activeColor);
     const auto radius = center.x > center.y ? center.y : center.x;
     const auto rHalf = radius / 2;
     juce::Path arc;
@@ -521,7 +507,7 @@ public:
     juce::Path hand;
     hand.startNewSubPath({0.0f, 0.0f});
     hand.lineTo(headPoint);
-    ctx.setColour(this->pal_.foreground());
+    ctx.setColour(this->pal_.getForeground(this->pal_.background()));
     ctx.strokePath(hand, this->handStrokeType_);
 
     // Head.
@@ -534,8 +520,6 @@ class TextKnobPainter : public KnobBase<Scale, knobType> {
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TextKnobPainter)
 
-  juce::Font font_;
-
 public:
   int precision = 0;
   int32_t offset = 0;
@@ -546,15 +530,12 @@ public:
                   int precisionDigits = 0)
       : KnobBase<Scale, knobType>(editor, palette, undoManager, parameter, scale, statusBar,
                                   numberEditor),
-        font_(palette.getFont(TextSize::normal)), precision(precisionDigits) {
+        precision(precisionDigits) {
     this->sensitivity = float(0.002);
     this->lowSensitivity = this->sensitivity / float(10);
   }
 
-  virtual void resized() override {
-    font_ = this->pal_.getFont(TextSize::normal);
-    KnobBase<Scale, knobType>::resized();
-  }
+  virtual void resized() override { KnobBase<Scale, knobType>::resized(); }
 
   virtual void paint(juce::Graphics& ctx) override {
     const float lw1 = this->pal_.borderWidth(); // Border width.
@@ -570,19 +551,12 @@ public:
     ctx.fillRoundedRectangle(bounds, lw2);
 
     // Border.
-    const auto& colorBorder = [&]() {
-      if constexpr (style == Uhhyou::Style::accent) {
-        return this->isMouseEntered_ ? this->pal_.accent() : this->pal_.border();
-      } else if constexpr (style == Uhhyou::Style::warning) {
-        return this->isMouseEntered_ ? this->pal_.warning() : this->pal_.border();
-      } else {
-        return this->isMouseEntered_ ? this->pal_.main() : this->pal_.border();
-      }
-    }();
+    juce::Colour colorBorder
+      = this->isMouseEntered_ ? this->pal_.template getColor<style>() : this->pal_.border();
     ctx.setColour(colorBorder);
     ctx.drawRoundedRectangle(bounds, lw2, lw1);
 
-    // Small bar indicator. It only appears on focus to avoid visual distraction.
+    // Small bar indicator.
     if (this->isMouseEntered_) {
       ctx.setColour(colorBorder.withAlpha(0.5f));
       float fillH = (height - lw1) * this->value_;
@@ -593,18 +567,18 @@ public:
     }
 
     // Text.
-    ctx.setFont(font_);
-    ctx.setColour(this->pal_.foreground());
+    ctx.setFont(this->pal_.getFont(TextSize::normal));
+    ctx.setColour(this->pal_.getForeground(this->pal_.surface()));
     ctx.drawText(this->parameter_->getText(this->value_, int(precision)),
                  juce::Rectangle<float>(float(0), float(0), width, height),
                  juce::Justification::centred);
   }
 };
 
-template<typename Scale, Uhhyou::Style style = Uhhyou::Style::common>
+template<typename Scale, Uhhyou::Style style = Uhhyou::Style::main>
 using TextKnob = TextKnobPainter<Scale, style, KnobType::clamped>;
 
-template<typename Scale, Uhhyou::Style style = Uhhyou::Style::common>
+template<typename Scale, Uhhyou::Style style = Uhhyou::Style::main>
 using RotaryTextKnob = TextKnobPainter<Scale, style, KnobType::rotary>;
 
 } // namespace Uhhyou

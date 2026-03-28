@@ -1,5 +1,5 @@
 ---
-title: "GUI Controls"
+title: "GUI Controls & Settings"
 date: 3000-01-01
 draft: false
 gui_mockups: true
@@ -10,8 +10,7 @@ If DAW shortcuts fail, disable "Keyboard Navigation" in GUI Settings.
 
 The mock-ups in this page do not provide the full functionality.
 
-## Global Keyboard Navigation
-
+## Keyboard Navigation
 Automatically restores focus to the last control after {{< shortcuts >}}<kbd>Alt</kbd>+<kbd>Tab</kbd>{{< /shortcuts >}}.
 
 {{< dl >}}
@@ -27,6 +26,35 @@ Automatically restores focus to the last control after {{< shortcuts >}}<kbd>Alt
 {{< shortcuts >}}<kbd>Esc</kbd>{{< /shortcuts >}}
 {{< /def >}}
 {{< /dl >}}
+
+## GUI Settings
+"GUI Settings" button provides the following menu.
+
+{{< dl >}}
+{{< def terms="Keyboard Navigation" id="settings-keyboard-nav" >}}
+Toggles keyboard navigation. Enabled by default for accessibility. Disable if DAW keyboard shortcuts are not working.
+{{< /def >}}
+
+{{< def terms="Reset Window Size to Default" id="settings-reset-window" >}}
+Resets the plugin window scaling. The default base scaling is set in `style.json`.
+{{< /def >}}
+
+{{< def terms="Enable Logging" id="settings-logging" >}}
+Toggle logging. Recommend to disable unless experiencing issues.
+{{< /def >}}
+
+{{< def terms="Theme / Style" id="settings-theme" >}}
+Loads a custom color and font theme.
+{{< /def >}}
+{{< /dl >}}
+
+Below is the log file paths.
+
+| OS      | Log File Path                                                                                                                         |
+|---------|---------------------------------------------------------------------------------------------------------------------------------------|
+| Windows | `%APPDATA%\UhhyouPlugins\Logs\`                                                                                                       |
+| Linux   | Primary is `$XDG_CONFIG_HOME/UhhyouPlugins/Logs/`<br>Fallbacks to `$HOME/.config/UhhyouPlugins/Logs/` if `$XDG_CONFIG_HOME` is empty. |
+| macOS   | `~/Library/UhhyouPlugins/Logs/`                                                                                                       |
 
 ## Knob
 
@@ -296,12 +324,10 @@ Locks parameter from the "Randomize" button. Dimmed label indicates locked.
 <div class="plugin-window">
   <uhhyou-horizontal-drawer name="Effects" open="true">
     <div class="row" style="padding: var(--margin); padding-left: calc(2 * var(--margin));">
-      <uhhyou-labeled-widget label="Reverb Size">
-        <uhhyou-text-knob value="0.5"></uhhyou-text-knob>
-      </uhhyou-labeled-widget>
-      <uhhyou-labeled-widget label="Delay Time">
-        <uhhyou-text-knob value="0.3"></uhhyou-text-knob>
-      </uhhyou-labeled-widget>
+      <div class="knob-container">
+        <uhhyou-knob id="drawer-example-knob" value="0.5" data-snaps="0, 0.5, 1"></uhhyou-knob>
+        <label class="label">Example Control</label>
+      </div>
     </div>
   </uhhyou-horizontal-drawer>
 </div>

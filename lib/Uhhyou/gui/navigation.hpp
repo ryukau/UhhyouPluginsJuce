@@ -231,7 +231,7 @@ public:
       auto bounds = getLocalArea(focused, focused->getLocalBounds()).toFloat();
       float thickness = pal_.borderWidth() * float(3);
       auto ringBounds = bounds.expanded(thickness);
-      ctx.setColour(pal_.foreground().withAlpha(float(0.5)));
+      ctx.setColour(pal_.getForeground(pal_.background()).withAlpha(float(0.5)));
       ctx.drawRect(ringBounds, thickness);
     }
   }

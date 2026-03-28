@@ -57,26 +57,44 @@ public:
 
   virtual void paint(juce::Graphics& ctx) override {
     auto bounds = getLocalBounds().toFloat();
-
     bool highlight = isMouseEntered_ || hasKeyboardFocus(false);
 
     // Background.
-    const auto& bgColor = highlight ? pal_.main() : pal_.background();
-    ctx.fillAll(bgColor.withAlpha(float(0.875)));
+    juce::Colour bgColour = highlight ? pal_.main() : pal_.background();
+    ctx.fillAll(bgColour);
 
-    // Hint text.
-    //
-    // Dispalying texts on top and bottom because the available region is narrow.
-    // Information density took the priority. A better visual design removes the top text
-    // and increases the bottom margin, so that "click to close" text on bottom can be
-    // decorated as a clickable button.
-    //
-    ctx.setColour(highlight ? pal_.foreground() : pal_.foreground().withAlpha(0.5f));
+    // Button.
     ctx.setFont(pal_.getFont(TextSize::normal));
-    juce::String hintText = "Click margin to close (Esc)";
-    const auto& justification = juce::Justification::centred;
-    ctx.drawText(hintText, bounds.withBottom(padding_), justification);
-    ctx.drawText(hintText, bounds.removeFromBottom(padding_), justification);
+    juce::String hintText = "Click to Close (Esc)";
+
+    auto bottomArea = bounds.removeFromBottom(2.0f * padding_);
+    float textWidth = juce::GlyphArrangement::getStringWidth(ctx.getCurrentFont(), hintText);
+    float buttonWidth = textWidth + (padding_ * 2.0f);
+    float buttonHeight = padding_;
+
+    const float lw1 = pal_.borderWidth();
+    const float lwHalf = lw1 / 2;
+    juce::Rectangle<float> buttonBounds(bottomArea.getCentreX() - (buttonWidth / 2.0f) + lwHalf,
+                                        bottomArea.getCentreY() - (buttonHeight / 2.0f) + lwHalf,
+                                        buttonWidth - lw1, buttonHeight - lw1);
+
+    if (highlight) {
+      int shadowSize = std::max(1, int(pal_.borderWidth()));
+      juce::DropShadow shadow(pal_.getForeground(bgColour), 6 * shadowSize, {0, shadowSize});
+      shadow.drawForRectangle(ctx, buttonBounds.toNearestIntEdges());
+    }
+
+    float cornerRadius = 2.0f * pal_.borderWidth();
+
+    juce::Colour buttonBgColour = pal_.surface();
+    ctx.setColour(buttonBgColour);
+    ctx.fillRoundedRectangle(buttonBounds, cornerRadius);
+
+    ctx.setColour(highlight ? pal_.main() : pal_.border());
+    ctx.drawRoundedRectangle(buttonBounds, cornerRadius, pal_.borderWidth());
+
+    ctx.setColour(pal_.getForeground(buttonBgColour));
+    ctx.drawText(hintText, buttonBounds, juce::Justification::centred);
   }
 
   virtual void mouseDown(const juce::MouseEvent&) override {
@@ -174,8 +192,7 @@ private:
         while (scan < lineEnd && (*scan == ' ' || *scan == '\t')) { scan++; }
 
         if (int spaceChars = static_cast<int>(scan - spaceStart);
-            spaceChars > 0 && currentChars < limit)
-        {
+            spaceChars > 0 && currentChars < limit) {
           int writeChars = std::min(spaceChars, limit - currentChars);
           out.append(spaceStart, static_cast<size_t>(writeChars));
           currentChars += writeChars;
@@ -213,18 +230,25 @@ public:
       : juce::CodeEditorComponent(doc, tok), pal_(palette), originalSource_(source) {
     setReadOnly(false);
 
-    using ColorId = juce::CodeEditorComponent::ColourIds;
-    setColour(ColorId::backgroundColourId, pal_.background());
-    setColour(ColorId::defaultTextColourId, pal_.foreground());
-    setColour(ColorId::highlightColourId, pal_.main().withAlpha(0.3f));
-    setColour(ColorId::lineNumberBackgroundId, pal_.background());
-    setColour(ColorId::lineNumberTextId, pal_.foreground().withAlpha(0.5f));
+    updateColors();
 
     setLineNumbersShown(false);
     setWantsKeyboardFocus(true);
     setMouseClickGrabsKeyboardFocus(true);
 
     loadContent(originalSource_);
+  }
+
+  void updateColors() {
+    juce::Colour bgCol = pal_.surface();
+    juce::Colour fgCol = pal_.getForeground(bgCol);
+
+    using ColorId = juce::CodeEditorComponent::ColourIds;
+    setColour(ColorId::backgroundColourId, bgCol);
+    setColour(ColorId::defaultTextColourId, fgCol);
+    setColour(ColorId::highlightColourId, pal_.main().withAlpha(0.3f));
+    setColour(ColorId::lineNumberBackgroundId, bgCol);
+    setColour(ColorId::lineNumberTextId, fgCol.withAlpha(0.5f));
   }
 
   void updateWrapLimit() {
@@ -273,8 +297,7 @@ public:
         || key.isKeyCode(KP::downKey) || key.isKeyCode(KP::pageUpKey)
         || key.isKeyCode(KP::pageDownKey) || key.isKeyCode(KP::homeKey) || key.isKeyCode(KP::endKey)
         || (key.isKeyCode('c') && key.getModifiers().isCommandDown())
-        || (key.isKeyCode('a') && key.getModifiers().isCommandDown()))
-    {
+        || (key.isKeyCode('a') && key.getModifiers().isCommandDown())) {
       return juce::CodeEditorComponent::keyPressed(key);
     }
 
@@ -331,7 +354,6 @@ private:
   Palette& pal_;
   StatusBar& statusBar_;
   bool isMouseEntered_ = false;
-  juce::Font font_;
   juce::String label_;
 
   NavigationManager& navManager_;
@@ -375,8 +397,7 @@ public:
         tabView_(palette, statusBar, {"Information", "License"}),
         infoDisplay_(infoDocument_, nullptr, palette, infoText),
         licenseDisplay_(licenseDocument_, nullptr, palette, licenseText), pal_(palette),
-        statusBar_(statusBar), font_(juce::FontOptions{}), label_(label),
-        navManager_(navigationManager) {
+        statusBar_(statusBar), label_(label), navManager_(navigationManager) {
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
     setWantsKeyboardFocus(true);
     setMouseClickGrabsKeyboardFocus(false);
@@ -387,7 +408,8 @@ public:
     closeButton_.setBoundsInset(juce::BorderSize<int>{0});
 
     parent.addChildComponent(tabView_, -1);
-    tabView_.setBoundsInset(juce::BorderSize<int>{popupInset_});
+    tabView_.setBoundsInset(
+      juce::BorderSize<int>{popupInset_, popupInset_, 2 * popupInset_, popupInset_});
 
     auto popupAddWidget = [&](TabIndex tabIndex, juce::CodeEditorComponent& display) {
       tabView_.addWidget(tabIndex, &display);
@@ -413,12 +435,16 @@ public:
     return std::make_unique<PluginInfoButtonAccessibilityHandler>(*this, std::move(actions));
   }
 
-  virtual void resized() override {
-    font_ = pal_.getFont(TextSize::large, FontType::ui);
+  void updateColors() {
+    infoDisplay_.updateColors();
+    licenseDisplay_.updateColors();
+  }
 
+  void updatePopupLayout() {
     popupInset_ = int(20 * pal_.borderWidth());
     closeButton_.setBoundsInset(juce::BorderSize<int>{0});
-    tabView_.setBoundsInset(juce::BorderSize<int>{popupInset_});
+    tabView_.setBoundsInset(
+      juce::BorderSize<int>{popupInset_, popupInset_, 2 * popupInset_, popupInset_});
 
     auto innerBounds = tabView_.getInnerBounds();
     infoDisplay_.setBounds(innerBounds);
@@ -429,9 +455,9 @@ public:
     tabView_.refreshTab();
   }
 
-  void scale(float scalingFactor) {
-    tabView_.setBoundsInset(juce::BorderSize<int>{int(scalingFactor * popupInset_)});
-  }
+  virtual void resized() override { updatePopupLayout(); }
+
+  virtual void parentSizeChanged() override { updatePopupLayout(); }
 
   virtual void paint(juce::Graphics& ctx) override {
     const float lw1 = pal_.borderWidth(); // Border width.
@@ -441,7 +467,8 @@ public:
     const float height = std::floor(float(getHeight()));
 
     // Background.
-    ctx.setColour(pal_.surface());
+    juce::Colour bgColour = pal_.surface();
+    ctx.setColour(bgColour);
     ctx.fillRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2);
 
     // Border.
@@ -449,8 +476,8 @@ public:
     ctx.drawRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2, lw1);
 
     // Text.
-    ctx.setFont(font_);
-    ctx.setColour(pal_.foreground());
+    ctx.setFont(pal_.getFont(TextSize::large, FontType::ui));
+    ctx.setColour(pal_.getForeground(bgColour));
     ctx.drawText(label_, juce::Rectangle<float>(float(0), float(0), width, height),
                  juce::Justification::centred);
   }

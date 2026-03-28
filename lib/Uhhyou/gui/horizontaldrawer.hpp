@@ -61,7 +61,8 @@ private:
     }
 
     void paint(juce::Graphics& ctx) override {
-      ctx.setColour(pal_.surface());
+      juce::Colour bgColour = pal_.surface();
+      ctx.setColour(bgColour);
       ctx.fillRect(getLocalBounds());
 
       if (isMouseOverOrDragging()) {
@@ -69,27 +70,36 @@ private:
         ctx.fillRect(getLocalBounds());
       }
 
-      // Draw Chevron
-      ctx.setColour(pal_.foreground());
-      juce::Path p;
+      ctx.setColour(pal_.getForeground(bgColour));
+
       float w = static_cast<float>(getWidth());
       float h = static_cast<float>(getHeight());
       float cx = w / 2.0f;
       float cy = h / 2.0f;
       float size = w * 0.25f;
+
+      constexpr float arrowHeightMultiplier = 4.0f;
+      float arrowWidth = size * 2.0f;
+      float arrowHeight = size * arrowHeightMultiplier;
+      float arrowX = cx - size;
+      float arrowY = cy - (arrowHeight / 2.0f);
+
+      juce::Path p;
       if (owner_.isOpen()) {
-        p.startNewSubPath(cx + size, cy - size * 1.5f);
-        p.lineTo(cx - size, cy);
-        p.lineTo(cx + size, cy + size * 1.5f);
+        p.startNewSubPath(0.0f, 0.5f);
+        p.lineTo(1.0f, 0.0f);
+        p.lineTo(0.62f, 0.5f);
+        p.lineTo(1.0f, 1.0f);
+        p.closeSubPath();
       } else {
-        p.startNewSubPath(cx - size, cy - size * 1.5f);
-        p.lineTo(cx + size, cy);
-        p.lineTo(cx - size, cy + size * 1.5f);
+        p.startNewSubPath(1.0f, 0.5f);
+        p.lineTo(0.0f, 0.0f);
+        p.lineTo(0.38f, 0.5f);
+        p.lineTo(0.0f, 1.0f);
+        p.closeSubPath();
       }
-      ctx.strokePath(p,
-                     juce::PathStrokeType(pal_.borderWidth() * 1.5f,
-                                          juce::PathStrokeType::JointStyle::mitered,
-                                          juce::PathStrokeType::EndCapStyle::rounded));
+      p.scaleToFit(arrowX, arrowY, arrowWidth, arrowHeight, false);
+      ctx.fillPath(p);
     }
 
     void mouseEnter(const juce::MouseEvent&) override {

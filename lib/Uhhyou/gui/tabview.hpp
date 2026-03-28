@@ -64,7 +64,6 @@ protected:
   float tabHeight_ = float(20);
 
   bool isMouseEntered_ = false;
-  juce::Font font_;
 
   void setActiveTab(size_t newIndex) {
     if (activeTabIndex_ == newIndex) { return; }
@@ -92,7 +91,7 @@ protected:
 
 public:
   TabView(Palette& palette, StatusBar& statusBar, std::vector<juce::String> tabNames)
-      : pal_(palette), statusBar_(statusBar), font_(juce::FontOptions{}) {
+      : pal_(palette), statusBar_(statusBar) {
     setWantsKeyboardFocus(true);
     setMouseClickGrabsKeyboardFocus(true);
 
@@ -121,7 +120,6 @@ public:
 
   virtual void resized() override {
     tabHeight_ = float(2) * pal_.getFontHeight(TextSize::normal);
-    font_ = pal_.getFont(TextSize::normal);
 
     if (tabs_.size() <= 0) { return; }
     const float tabWidth = float(getWidth()) / float(tabs_.size());
@@ -146,12 +144,13 @@ public:
                                       juce::PathStrokeType::EndCapStyle::rounded};
 
     // Inactive tab.
-    ctx.setFont(font_);
+    ctx.setFont(pal_.getFont(TextSize::normal));
+    juce::Colour inactiveBg = pal_.surface();
     for (size_t idx = 0; idx < tabs_.size(); ++idx) {
       if (idx == activeTabIndex_) { continue; }
       const auto& tab = tabs_[idx];
 
-      ctx.setColour(pal_.surface());
+      ctx.setColour(inactiveBg);
       ctx.fillRect(tab.rect);
       if (tab.isMouseEntered) {
         ctx.setColour(pal_.main().withAlpha(0.3f));
@@ -172,7 +171,7 @@ public:
       ctx.setColour(pal_.border());
       ctx.strokePath(path, borderStroke);
 
-      ctx.setColour(pal_.foreground().withAlpha(0.5f));
+      ctx.setColour(pal_.getForeground(inactiveBg).withAlpha(0.5f));
       ctx.drawText(tab.label, tab.rect.toNearestInt(), juce::Justification::centred);
     }
 
@@ -193,10 +192,11 @@ public:
     path.lineTo(lwHalf, borderedBottom);
     path.closeSubPath();
 
-    ctx.setColour(pal_.background());
+    juce::Colour activeBg = pal_.background();
+    ctx.setColour(activeBg);
     ctx.fillPath(path);
 
-    ctx.setColour(pal_.foreground());
+    ctx.setColour(pal_.getForeground(activeBg));
     ctx.strokePath(path, borderStroke);
     ctx.drawText(activeTab.label, activeTab.rect.toNearestInt(), juce::Justification::centred);
 

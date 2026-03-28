@@ -73,9 +73,10 @@ public:
     const float innerHeight = height - lw2;
 
     // Background and border.
-    ctx.setColour(pal_.surface());
+    juce::Colour bgColour = pal_.surface();
+    ctx.setColour(bgColour);
     ctx.fillRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2);
-    ctx.setColour(pal_.foreground());
+    ctx.setColour(pal_.getForeground(bgColour));
     ctx.drawRoundedRectangle(lwHalf, lwHalf, width - lw1, height - lw1, lw2, lw1);
 
     // Buttons.

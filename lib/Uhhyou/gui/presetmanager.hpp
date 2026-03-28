@@ -8,16 +8,14 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 
 #include "../scaledparameter.hpp"
+#include "filemenu.hpp"
 #include "style.hpp"
 
 #include <algorithm>
-#include <filesystem>
 #include <ranges>
 #include <vector>
 
 namespace Uhhyou {
-
-namespace fs = std::filesystem;
 
 class PresetManager : public juce::Component {
 private:
@@ -46,13 +44,12 @@ private:
 
   Palette& pal_;
   StatusBar& statusBar_;
-  juce::Font font_;
   juce::String text_{"Default"};
 
   std::unique_ptr<juce::FileChooser> fileChooser_;
 
-  fs::path currentPresetPath_;
-  std::vector<fs::path> presetCache_;
+  juce::File currentPresetFile_;
+  std::vector<juce::File> presetCache_;
 
   bool isMouseEntered_ = false;
   juce::Point<int> mousePosition_;
@@ -71,16 +68,7 @@ private:
     }
   }
 
-  static fs::path toStdPath(const juce::File& f) {
-    return fs::path(f.getFullPathName().toStdString());
-  }
-
-  static juce::File toJuceFile(const fs::path& p) {
-    const auto u8 = p.u8string();
-    return juce::File(juce::String(reinterpret_cast<const char*>(u8.c_str())));
-  }
-
-  fs::path getPresetRoot() {
+  juce::File getPresetRoot() {
     auto presetDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
                        .getChildFile("UhhyouPlugins")
                        .getChildFile(editor_.processor.getName());
@@ -88,7 +76,7 @@ private:
     if (!presetDir.isDirectory()) {
       if (presetDir.createDirectory().failed()) { setPresetText("Error: FS Init Failed"); }
     }
-    return toStdPath(presetDir);
+    return presetDir;
   }
 
   void setPresetText(const juce::String& newText) {
@@ -103,7 +91,7 @@ private:
 
   void savePreset() {
     auto xmlString = tree_.copyState().toXmlString();
-    auto rootJuce = toJuceFile(getPresetRoot());
+    auto rootJuce = getPresetRoot();
 
     fileChooser_ = std::make_unique<juce::FileChooser>("Save Preset", rootJuce, "*.xml");
 
@@ -111,18 +99,14 @@ private:
       auto file = chooser.getResult();
       if (file == juce::File()) { return; }
 
-      if (file.replaceWithText(xmlString, false, false, "\n")) {
-        currentPresetPath_ = toStdPath(file);
-
-        // Invalidate cache so the new file appears in Next/Prev sequence
+      if (file.replaceWithText(xmlString)) {
+        currentPresetFile_ = file;
         presetCache_.clear();
-
         setPresetText(file.getFileNameWithoutExtension());
-        return;
+      } else {
+        juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Save Failed",
+                                               "Could not save file: " + file.getFileName());
       }
-
-      juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Save Failed",
-                                             "Could not save file: " + file.getFileName());
     };
 
     using FBC = juce::FileBrowserComponent;
@@ -130,23 +114,20 @@ private:
   }
 
   void loadPresetFromFileChooser() {
-    fileChooser_
-      = std::make_unique<juce::FileChooser>("Load Preset", toJuceFile(getPresetRoot()), "*.xml");
+    fileChooser_ = std::make_unique<juce::FileChooser>("Load Preset", getPresetRoot(), "*.xml");
 
     using FBC = juce::FileBrowserComponent;
     fileChooser_->launchAsync(FBC::openMode | FBC::canSelectFiles,
                               [&](const juce::FileChooser& chooser) {
                                 auto f = chooser.getResult();
-                                if (f.existsAsFile()) { loadPreset(toStdPath(f)); }
+                                if (f.existsAsFile()) { loadPreset(f); }
                               });
   }
 
-  void loadPreset(const fs::path& path) {
-    std::error_code ec;
-    if (!fs::exists(path, ec) || !fs::is_regular_file(path, ec)) { return; }
+  void loadPreset(const juce::File& file) {
+    if (!file.existsAsFile()) { return; }
 
-    auto juceFile = toJuceFile(path);
-    auto xmlState = juce::parseXML(juceFile);
+    auto xmlState = juce::parseXML(file);
 
     if (xmlState == nullptr || !xmlState->hasTagName(tree_.state.getType())) {
       juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Load Failed",
@@ -154,123 +135,99 @@ private:
       return;
     }
 
-    tree_.state.copyPropertiesAndChildrenFrom(juce::ValueTree::fromXml(*xmlState), undoManager_);
+    auto loadedState = juce::ValueTree::fromXml(*xmlState);
+    auto currentGuiState = tree_.state.getChildWithName("GUI").createCopy();
+    auto presetGuiState = loadedState.getChildWithName("GUI");
+    if (presetGuiState.isValid()) { loadedState.removeChild(presetGuiState, nullptr); }
+    if (currentGuiState.isValid()) { loadedState.appendChild(currentGuiState, nullptr); }
+    tree_.state.copyPropertiesAndChildrenFrom(loadedState, undoManager_);
 
-    currentPresetPath_ = path;
-
-    // If we loaded a file that isn't in our current cache, the cache is likely stale.
-    // However, for performance, we don't rebuild immediately. We wait for Next/Prev.
-    setPresetText(juceFile.getFileNameWithoutExtension());
+    currentPresetFile_ = file;
+    setPresetText(file.getFileNameWithoutExtension());
   }
 
   void ensureCacheLoaded() {
     if (!presetCache_.empty()) { return; }
 
     auto root = getPresetRoot();
-    std::error_code ec;
-    if (!fs::exists(root, ec)) { return; }
+    if (!root.isDirectory()) { return; }
 
     presetCache_.clear();
 
-    auto opts = fs::directory_options::skip_permission_denied;
-    for (const auto& entry : fs::recursive_directory_iterator(root, opts, ec)) {
-      if (entry.is_regular_file(ec) && entry.path().extension() == ".xml") {
-        presetCache_.push_back(entry.path());
-      }
-    }
+    auto files = root.findChildFiles(juce::File::findFiles, true, "*.xml");
+    for (const auto& f : files) { presetCache_.push_back(f); }
 
-    std::ranges::sort(presetCache_);
+    auto naturalSort = [](const juce::File& a, const juce::File& b) {
+      return a.getFileName().compareNatural(b.getFileName()) < 0;
+    };
+    std::ranges::sort(presetCache_, naturalSort);
   }
 
   void cyclePreset(int direction) {
     ensureCacheLoaded();
     if (presetCache_.empty()) { return; }
 
-    auto it = std::ranges::find(presetCache_, currentPresetPath_);
-    ptrdiff_t index = -1;
+    auto it = std::ranges::find(presetCache_, currentPresetFile_);
+    ptrdiff_t index = (it != presetCache_.end()) ? std::distance(presetCache_.begin(), it) : -1;
 
-    if (it != presetCache_.end()) { index = std::distance(presetCache_.begin(), it); }
-
-    index += direction;
-
-    if (index < 0) {
-      index = (ptrdiff_t)presetCache_.size() - 1;
-    } else if (index >= (ptrdiff_t)presetCache_.size()) {
-      index = 0;
+    if (index == -1) {
+      index = (direction > 0) ? 0 : (ptrdiff_t)presetCache_.size() - 1;
+    } else {
+      index += direction;
+      if (index < 0) {
+        index = (ptrdiff_t)presetCache_.size() - 1;
+      } else if (index >= (ptrdiff_t)presetCache_.size()) {
+        index = 0;
+      }
     }
 
     loadPreset(presetCache_[(size_t)index]);
   }
 
-  void showPresetMenu(const fs::path& dir) {
-    // Drill down menu is employed to achieve lazy loading.
+  FileMenu::Options getPresetMenuOptions() {
+    FileMenu::Options opts;
+    opts.rootDir = getPresetRoot();
+    opts.targetExtension = ".xml";
+    opts.currentActiveFile = currentPresetFile_;
+    opts.targetComponent = this;
+    juce::Component::SafePointer<PresetManager> safeThis(this);
 
-    juce::PopupMenu menu;
-    auto root = getPresetRoot();
+    opts.onMenuDismissed = [safeThis]() {
+      if (safeThis != nullptr) { safeThis->repaint(); }
+    };
 
-    using Item = juce::PopupMenu::Item;
+    opts.onFileSelected = [safeThis](const juce::File& p) {
+      if (safeThis != nullptr) { safeThis->loadPreset(p); }
+    };
 
-    if (dir == root) {
-      menu.addSectionHeader("Preset");
-      menu.addItem(Item("Save").setID(1).setAction([this] { savePreset(); }));
-      menu.addItem(Item("Load").setID(2).setAction([this] { loadPresetFromFileChooser(); }));
-      menu.addItem(Item("Refresh").setID(3).setAction([this] { presetCache_.clear(); }));
-      menu.addSeparator();
-    } else {
-      menu.addSectionHeader(dir.filename().string());
-      if (dir.has_parent_path()) {
-        menu.addItem(Item(".. (Back)").setID(4).setAction([this, p = dir.parent_path()] {
-          showPresetMenu(p);
+    opts.injectHeaderItems = [this](juce::PopupMenu& menu, const juce::File& currentDir) {
+      using Item = juce::PopupMenu::Item;
+      if (currentDir == getPresetRoot()) {
+        menu.addSectionHeader("Preset");
+        menu.addItem(Item("Save").setID(1).setAction([this] { savePreset(); }));
+        menu.addItem(Item("Load").setID(2).setAction([this] { loadPresetFromFileChooser(); }));
+        menu.addItem(Item("Refresh").setID(3).setAction([this] { presetCache_.clear(); }));
+        menu.addSeparator();
+      } else {
+        menu.addSectionHeader(currentDir.getFileName());
+        auto parentDir = currentDir.getParentDirectory();
+        menu.addItem(Item(".. (Back)").setID(4).setAction([this, p = parentDir] {
+          FileMenu::showDrillDown(p, getPresetMenuOptions());
         }));
+        menu.addSeparator();
       }
-      menu.addSeparator();
-    }
+    };
 
-    std::vector<fs::path> subDirs;
-    std::vector<fs::path> files;
-    std::error_code ec;
-
-    if (fs::exists(dir, ec) && fs::is_directory(dir, ec)) {
-      for (const auto& entry :
-           fs::directory_iterator(dir, fs::directory_options::skip_permission_denied, ec))
-      {
-        if (entry.is_directory(ec)) {
-          subDirs.push_back(entry.path());
-        } else if (entry.is_regular_file(ec) && entry.path().extension() == ".xml") {
-          files.push_back(entry.path());
-        }
-      }
-    }
-
-    std::ranges::sort(subDirs);
-    std::ranges::sort(files);
-
-    for (const auto& d : subDirs) {
-      bool isParent = false;
-      if (!currentPresetPath_.empty()) {
-        auto rel = fs::relative(currentPresetPath_, d, ec);
-        if (!ec && !rel.empty() && rel.native()[0] != '.') { isParent = true; }
-      }
-
-      menu.addItem(d.filename().string() + " >", true, isParent, [this, d] { showPresetMenu(d); });
-    }
-
-    for (const auto& f : files) {
-      menu.addItem(f.stem().string(), true, (f == currentPresetPath_),
-                   [this, f] { loadPreset(f); });
-    }
-
-    menu.showMenuAsync(juce::PopupMenu::Options()
-                         .withInitiallySelectedItem(dir == root ? 1 : 4)
-                         .withTargetComponent(this),
-                       [this](int) { repaint(); });
+    return opts;
   }
+
+  void openMenu() { FileMenu::showDrillDown(getPresetRoot(), getPresetMenuOptions()); }
 
 public:
   PresetManager(juce::AudioProcessorEditor& editor, Palette& palette, StatusBar& statusBar,
                 juce::UndoManager* undoManager, juce::AudioProcessorValueTreeState& tree)
       : editor_(editor), tree_(tree), undoManager_(undoManager), pal_(palette),
-        statusBar_(statusBar), font_(juce::FontOptions{}) {
+        statusBar_(statusBar) {
     editor_.addAndMakeVisible(*this, 0);
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
     setWantsKeyboardFocus(true);
@@ -279,16 +236,12 @@ public:
 
   std::unique_ptr<juce::AccessibilityHandler> createAccessibilityHandler() override {
     juce::AccessibilityActions actions;
-    actions.addAction(juce::AccessibilityActionType::showMenu,
-                      [this]() { showPresetMenu(getPresetRoot()); });
-    actions.addAction(juce::AccessibilityActionType::press,
-                      [this]() { showPresetMenu(getPresetRoot()); });
+    actions.addAction(juce::AccessibilityActionType::showMenu, [this]() { openMenu(); });
+    actions.addAction(juce::AccessibilityActionType::press, [this]() { openMenu(); });
     return std::make_unique<PresetManagerAccessibilityHandler>(*this, std::move(actions));
   }
 
   void resized() override {
-    font_ = pal_.getFont(TextSize::normal);
-
     const int width = getWidth();
     const int height = getHeight();
     const int bw = width >= 3 * height ? height : width / 3;
@@ -303,17 +256,23 @@ public:
     const float height = float(getHeight());
     const auto bounds = getLocalBounds().toFloat().reduced(lw * float(0.5));
 
-    ctx.setColour(pal_.surface());
+    juce::Colour bgColour = pal_.surface();
+    ctx.setColour(bgColour);
     ctx.fillRoundedRectangle(bounds, corner);
+
+    // Track specific hover states
+    bool prevHovered = isMouseEntered_ && previousButtonRegion_.contains(mousePosition_);
+    bool nextHovered = isMouseEntered_ && nextButtonRegion_.contains(mousePosition_);
+    bool textHovered = isMouseEntered_ && textRegion_.contains(mousePosition_);
 
     // Highlight
     if (isMouseEntered_) {
       ctx.setColour(pal_.main());
-      if (previousButtonRegion_.contains(mousePosition_)) {
+      if (prevHovered) {
         ctx.fillRoundedRectangle(previousButtonRegion_.toFloat(), corner);
-      } else if (nextButtonRegion_.contains(mousePosition_)) {
+      } else if (nextHovered) {
         ctx.fillRoundedRectangle(nextButtonRegion_.toFloat(), corner);
-      } else if (textRegion_.contains(mousePosition_)) {
+      } else if (textHovered) {
         ctx.fillRoundedRectangle(textRegion_.toFloat(), corner);
       }
     }
@@ -321,11 +280,12 @@ public:
     ctx.setColour(pal_.border());
     ctx.drawRoundedRectangle(bounds, corner, lw);
 
-    ctx.setFont(font_);
-    ctx.setColour(pal_.foreground());
+    ctx.setFont(pal_.getFont(TextSize::normal));
+    juce::Colour textBgColour = textHovered ? pal_.main() : bgColour;
+    ctx.setColour(pal_.getForeground(textBgColour));
     ctx.drawText(text_, textRegion_, juce::Justification::centred);
 
-    // Draw Arrows
+    // Draw Left Arrow
     juce::Path leftArrow;
     leftArrow.startNewSubPath(float(0), float(0.5));
     leftArrow.lineTo(float(1), float(0));
@@ -336,8 +296,12 @@ public:
     auto prevRect = previousButtonRegion_.toFloat();
     leftArrow.scaleToFit(prevRect.getX(), float(height / 4), prevRect.getWidth(), float(height / 2),
                          true);
+
+    // Evaluate arrow color against its specific background state
+    ctx.setColour(pal_.getForeground(prevHovered ? pal_.main() : bgColour));
     ctx.fillPath(leftArrow);
 
+    // Draw Right Arrow
     juce::Path rightArrow;
     rightArrow.startNewSubPath(float(1), float(0.5));
     rightArrow.lineTo(float(0), float(0));
@@ -348,6 +312,9 @@ public:
     auto nextRect = nextButtonRegion_.toFloat();
     rightArrow.scaleToFit(nextRect.getX(), float(height / 4), nextRect.getWidth(),
                           float(height / 2), true);
+
+    // Evaluate arrow color against its specific background state
+    ctx.setColour(pal_.getForeground(nextHovered ? pal_.main() : bgColour));
     ctx.fillPath(rightArrow);
   }
 
@@ -358,7 +325,7 @@ public:
     } else if (nextButtonRegion_.contains(position)) {
       cyclePreset(1); // Next
     } else {
-      showPresetMenu(getPresetRoot()); // Start menu at root
+      openMenu();
     }
   }
 
@@ -389,7 +356,7 @@ public:
       return true;
     }
     if (key == juce::KeyPress::returnKey || key == juce::KeyPress::spaceKey) {
-      showPresetMenu(getPresetRoot());
+      openMenu();
       return true;
     }
     return false;

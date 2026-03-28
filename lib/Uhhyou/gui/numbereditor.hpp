@@ -75,13 +75,15 @@ public:
 
     // TextEditor settings.
     setCaretVisible(false);
-    setColour(outlineColourId, pal_.background());
+    updateColors();
     setEscapeAndReturnKeysConsumed(false);
     setJustification(juce::Justification::centredLeft);
     setReadOnly(true);
     setScrollbarsShown(false);
     setSelectAllWhenFocused(true);
   }
+
+  void updateColors() { setColour(outlineColourId, pal_.background()); }
 
   void update(const juce::String& text) { setText(text); }
 

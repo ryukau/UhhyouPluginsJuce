@@ -312,12 +312,13 @@ public:
     const float height = static_cast<float>(getHeight());
 
     // Background.
-    ctx.setColour(pal_.surface());
+    juce::Colour bgColour = pal_.surface();
+    ctx.setColour(bgColour);
     ctx.fillAll();
 
     // Grid.
     const float dotRadius = 2 * pal_.borderWidth();
-    ctx.setColour(pal_.foreground().withAlpha(0.5f));
+    ctx.setColour(pal_.getForeground(bgColour).withAlpha(0.5f));
     for (size_t ix = 1; ix < nGrid; ++ix) {
       for (size_t iy = 1; iy < nGrid; ++iy) {
         auto cx = std::floor(static_cast<float>(ix) * width / nGrid);
@@ -337,7 +338,7 @@ public:
     auto valueX = std::floor(value_[0] * width);
     auto valueY = std::floor((float(1) - value_[1]) * height);
     const float valR = 8 * pal_.borderWidth();
-    ctx.setColour(pal_.foreground());
+    ctx.setColour(pal_.getForeground(bgColour));
 
     ctx.drawEllipse(valueX - valR, valueY - valR, valR * 2, valR * 2, float(2));
 
@@ -571,6 +572,8 @@ private:
 
     void paint(juce::Graphics& ctx) override {
       auto bounds = getLocalBounds().toFloat();
+      ctx.setColour(pal_.surface());
+      ctx.fillRect(bounds);
       ctx.setColour(pal_.border());
       ctx.drawRect(bounds, pal_.borderWidth());
 

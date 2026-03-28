@@ -36,8 +36,6 @@ private:
   std::array<MeterState, nChannel> meter_{};
 
   juce::String labelTitle_;
-  juce::Font fontLabel_;
-  juce::Font fontSmall_;
   juce::PathStrokeType stroke_;
 
   static constexpr float minDecibel = float(-80);
@@ -61,7 +59,6 @@ public:
   MeterDisplay(Component& parent, Palette& palette,
                std::array<std::atomic<float>, nChannel>& peakAmplitude, const juce::String& label)
       : pal_(palette), peakAmp_(peakAmplitude), labelTitle_(label),
-        fontLabel_(palette.getFont(TextSize::normal)), fontSmall_(palette.getFont(TextSize::small)),
         stroke_(palette.borderWidth(), juce::PathStrokeType::JointStyle::curved,
                 juce::PathStrokeType::EndCapStyle::rounded) {
     setSynchroniseToVBlank(true);
@@ -70,11 +67,7 @@ public:
 
   virtual ~MeterDisplay() override {}
 
-  virtual void resized() override {
-    fontLabel_ = pal_.getFont(TextSize::normal);
-    fontSmall_ = pal_.getFont(TextSize::small);
-    stroke_.setStrokeThickness(pal_.borderWidth());
-  }
+  virtual void resized() override { stroke_.setStrokeThickness(pal_.borderWidth()); }
 
   virtual void update() override {
     constexpr int holdMilliseconds = 1000;
@@ -129,18 +122,22 @@ public:
     const auto fullBounds = getLocalBounds().toFloat();
     auto bounds = fullBounds;
 
-    const float tickEm = fontSmall_.getHeight();
-    const float tickWidth = juce::GlyphArrangement::getStringWidth(fontSmall_, " 80 ");
+    const auto& fontLabel = pal_.getFont(TextSize::normal);
+    const auto& fontSmall = pal_.getFont(TextSize::small);
+
+    const float tickEm = fontSmall.getHeight();
+    const float tickWidth = juce::GlyphArrangement::getStringWidth(fontSmall, " 80 ");
 
     // Background.
-    ctx.setColour(pal_.background());
+    juce::Colour bgColour = pal_.background();
+    ctx.setColour(bgColour);
     ctx.fillAll();
 
     // Label.
-    auto labelBounds = bounds.removeFromTop(fontLabel_.getHeight() * float(5.0 / 3.0));
+    auto labelBounds = bounds.removeFromTop(fontLabel.getHeight() * float(5.0 / 3.0));
     labelBounds.removeFromLeft(tickWidth);
-    ctx.setColour(pal_.foreground());
-    ctx.setFont(fontLabel_);
+    ctx.setColour(pal_.getForeground(bgColour));
+    ctx.setFont(fontLabel);
     ctx.drawText(labelTitle_, labelBounds.toNearestInt(), juce::Justification::centred);
 
     // Numeric display.
@@ -148,8 +145,8 @@ public:
     numberBounds.removeFromLeft(tickWidth);
 
     const float channelWidth = numberBounds.getWidth() / float(nChannel);
-    ctx.setColour(pal_.foreground());
-    ctx.setFont(fontSmall_);
+    ctx.setColour(pal_.getForeground(bgColour));
+    ctx.setFont(fontSmall);
     for (size_t i = 0; i < nChannel; ++i) {
       auto area = numberBounds.removeFromLeft(channelWidth);
       ctx.drawText(std::format("{:+3.1f} dB", meter_[i].holdDecibel), area.toNearestInt(),
@@ -159,7 +156,7 @@ public:
     // Ticks.
     bounds.removeFromBottom(float(0.5) * tickEm);
     const auto tickBounds = bounds.removeFromLeft(tickWidth);
-    ctx.setColour(pal_.border());
+    ctx.setColour(pal_.getForeground(bgColour));
 
     for (float db = minDecibel; db <= maxDecibel; db += tickStepDecibel) {
       const float bottom = tickBounds.getY() + decibelToHeight(db, tickBounds.getHeight());

@@ -136,9 +136,6 @@
   border-radius: 4px;
 }
 
-/* -------------------------------------------
- * Labeled Widget Styles (Extracted from Shadow DOM)
- * ------------------------------------------- */
 uhhyou-labeled-widget {
   display: flex;
   width: var(--section-width);
@@ -221,9 +218,6 @@ uhhyou-labeled-widget .lockable-label:focus-visible {
   box-shadow: inset 0 0 0 2px var(--component-main, #fcc04f);
 }
 
-/* -------------------------------------------
- * Labeled XYPad Styles (Extracted from Shadow DOM)
- * ------------------------------------------- */
 uhhyou-labeled-xypad {
   display: grid;
   grid-template-columns: var(--strip-size, 24px) auto;
@@ -292,9 +286,6 @@ uhhyou-labeled-xypad uhhyou-xy-pad {
   grid-row: 2;
 }
 
-/* -------------------------------------------
- * Base Interactive Component Resizing
- * ------------------------------------------- */
 uhhyou-toggle-button,
 uhhyou-momentary-button,
 uhhyou-knob,
@@ -341,9 +332,6 @@ uhhyou-xy-pad {
   height: var(--xypad-width);
 }
 
-/* -------------------------------------------
- * Tab View Styles (Extracted from Shadow DOM)
- * ------------------------------------------- */
 uhhyou-horizontal-drawer {
   display: flex;
   flex-direction: row;
@@ -397,9 +385,6 @@ uhhyou-tab-view .slot-wrapper.active {
   pointer-events: auto;
 }
 
-/* -------------------------------------------
- * Misc Standard Adjustments
- * ------------------------------------------- */
 uhhyou-xy-pad,
 uhhyou-combo-box,
 uhhyou-preset-manager,

@@ -38,31 +38,33 @@ private:
   }
 
 public:
-  LookAndFeel(Palette& palette) : pal_(palette) {
-    setColour(juce::CaretComponent::caretColourId, pal_.foreground());
+  LookAndFeel(Palette& palette) : pal_(palette) { updateColors(); }
+
+  void updateColors() {
+    juce::Colour fgCol = pal_.getForeground(pal_.background());
+
+    setColour(juce::CaretComponent::caretColourId, fgCol);
 
     setColour(juce::ScrollBar::backgroundColourId, pal_.surface());
     setColour(juce::ScrollBar::thumbColourId, pal_.main());
     setColour(juce::ScrollBar::trackColourId, pal_.border());
 
     setColour(juce::TextEditor::backgroundColourId, pal_.background());
-    setColour(juce::TextEditor::textColourId, pal_.foreground());
+    setColour(juce::TextEditor::textColourId, fgCol);
     setColour(juce::TextEditor::highlightColourId, pal_.main().withAlpha(0.3f));
-    setColour(juce::TextEditor::highlightedTextColourId, pal_.foreground());
+    setColour(juce::TextEditor::highlightedTextColourId, pal_.getForeground(pal_.main()));
     setColour(juce::TextEditor::outlineColourId, pal_.border());
     setColour(juce::TextEditor::focusedOutlineColourId, pal_.main());
 
     setColour(juce::PopupMenu::backgroundColourId, pal_.surface());
-    setColour(juce::PopupMenu::textColourId, pal_.foreground());
+    setColour(juce::PopupMenu::textColourId, pal_.getForeground(pal_.surface()));
     setColour(juce::PopupMenu::highlightedBackgroundColourId, pal_.main());
-    setColour(juce::PopupMenu::highlightedTextColourId, pal_.foreground());
-    setColour(juce::PopupMenu::headerTextColourId, pal_.foreground());
+    setColour(juce::PopupMenu::highlightedTextColourId, pal_.getForeground(pal_.main()));
+    setColour(juce::PopupMenu::headerTextColourId, pal_.getForeground(pal_.surface()));
 
     setColour(juce::TooltipWindow::backgroundColourId, pal_.background());
-    setColour(juce::TooltipWindow::outlineColourId, pal_.foreground());
-    setColour(juce::TooltipWindow::textColourId, pal_.foreground());
-
-    juce::LookAndFeel::setDefaultLookAndFeel(this);
+    setColour(juce::TooltipWindow::outlineColourId, fgCol);
+    setColour(juce::TooltipWindow::textColourId, fgCol);
   }
 
   juce::Font getPopupMenuFont() override { return pal_.getFont(TextSize::normal); }

@@ -9,8 +9,6 @@
 #include <algorithm>
 #include <charconv>
 #include <cstdlib>
-#include <filesystem>
-#include <fstream>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -18,53 +16,36 @@
 
 namespace Uhhyou {
 
-namespace fs = std::filesystem;
-
-// Shared mutex to synchronize file I/O across all plugin instances globally.
 static std::mutex styleMutex;
 
-/**
-Specification of $XDG_CONFIG_HOME:
-https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
-*/
-inline fs::path getConfigHome() {
-#ifdef _WIN32
-  char* appdataDir = nullptr;
-  size_t size = 0;
-  if (_dupenv_s(&appdataDir, &size, "AppData") == 0 && appdataDir != nullptr) {
-    auto path = fs::path(appdataDir);
-    free(appdataDir);
-    return path;
+inline juce::File getInternalStyleDir() {
+  juce::File configDir;
+
+#if JUCE_LINUX
+  if (const char* xdg = std::getenv("XDG_CONFIG_HOME")) {
+    configDir = juce::File(juce::CharPointer_UTF8(xdg));
+  } else {
+    configDir
+      = juce::File::getSpecialLocation(juce::File::userHomeDirectory).getChildFile(".config");
   }
-
-  juce::Logger::writeToLog("Uhhyou: %AppData% is empty.");
-#elif __APPLE__
-  const char* home = std::getenv("HOME");
-  if (home != nullptr) { return fs::path(home) / "Library/Preferences"; }
-
-  juce::Logger::writeToLog("Uhhyou: $HOME is empty.");
+#elif JUCE_MAC
+  configDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+                .getChildFile("Preferences");
 #else
-  const char* configDir = std::getenv("XDG_CONFIG_HOME");
-  if (configDir != nullptr) { return fs::path(configDir); }
-
-  const char* home = std::getenv("HOME");
-  if (home != nullptr) { return fs::path(home) / ".config"; }
-
-  juce::Logger::writeToLog("Uhhyou: $XDG_CONFIG_HOME and $HOME are empty.");
-
+  configDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory);
 #endif
-  return fs::path("");
+
+  return configDir.getChildFile("UhhyouPlugins").getChildFile("style2");
 }
+
+juce::File Palette::getStyleDirectory() const { return getInternalStyleDir(); }
 
 /**
 data[key] must come in string of hex color code. "#123456", "#aabbccdd" etc.
-Color will be only loaded if the size of string is either 7 or 9 (RGB or RGBA).
-First character is ignored. So "!303030", " 0000ff88" are valid.
 */
 inline void loadColor(const nlohmann::ordered_json& data, const std::string& key,
                       juce::Colour& color) {
   if (!data.contains(key)) { return; }
-
   const auto& value = data[key];
   if (!value.is_string()) { return; }
 
@@ -75,9 +56,7 @@ inline void loadColor(const nlohmann::ordered_json& data, const std::string& key
   auto strHexToUInt8 = [](std::string_view sv) -> juce::uint8 {
     uint8_t result{};
     auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), result, 16);
-    if (ec != std::errc{}) {
-      return 0; // Fallback to 0 if parsing fails
-    }
+    if (ec != std::errc{}) { return 0; }
     return result;
   };
 
@@ -88,13 +67,9 @@ inline void loadColor(const nlohmann::ordered_json& data, const std::string& key
 
 inline void loadString(const nlohmann::ordered_json& data, const std::string& key,
                        juce::String& value) {
-  if (!data.contains(key)) { return; }
-  if (!data[key].is_string()) { return; }
-
+  if (!data.contains(key) || !data[key].is_string()) { return; }
   std::string loaded = data[key];
-  if (loaded.empty()) { return; }
-
-  value = loaded;
+  if (!loaded.empty()) { value = loaded; }
 }
 
 inline std::string colorToHex(const juce::Colour& c) {
@@ -103,97 +78,103 @@ inline std::string colorToHex(const juce::Colour& c) {
     .toStdString();
 }
 
-void Palette::load() {
+static void saveJson(const juce::File& file, const nlohmann::ordered_json& data) {
+  file.getParentDirectory().createDirectory(); // ensure dir exists
+  juce::String jsonStr = juce::String::fromUTF8((data.dump(2) + "\n").c_str());
+  if (!file.replaceWithText(jsonStr)) {
+    juce::Logger::writeToLog("Uhhyou: Failed to securely save JSON: " + file.getFullPathName());
+  }
+}
+
+static std::optional<nlohmann::ordered_json> loadJson(const juce::File& file) {
+  if (!file.existsAsFile()) { return std::nullopt; }
+
+  std::unique_ptr<juce::FileInputStream> stream(file.createInputStream());
+  if (stream == nullptr || stream->failedToOpen()) {
+    juce::Logger::writeToLog("Uhhyou: Failed to open JSON file for reading: "
+                             + file.getFullPathName());
+    return std::nullopt;
+  }
+
+  juce::String content = stream->readEntireStreamAsString();
+  if (content.isEmpty()) { return std::nullopt; }
+
+  try {
+    return nlohmann::ordered_json::parse(content.toStdString());
+  } catch (const nlohmann::ordered_json::parse_error& e) {
+    juce::Logger::writeToLog("Uhhyou: JSON Parse error in " + file.getFullPathName() + ": "
+                             + juce::String(e.what()));
+    return std::nullopt;
+  }
+}
+
+void Palette::saveStyleJson() {
+  juce::File styleDir = getInternalStyleDir();
+  juce::File styleJsonPath = styleDir.getChildFile("style.json");
+
+  nlohmann::ordered_json data;
+  visitProperties([&](const char* key, auto& member) {
+    using T = std::decay_t<decltype(member)>;
+    if constexpr (std::is_same_v<T, juce::String>) {
+      data[key] = member.toStdString();
+    } else if constexpr (std::is_same_v<T, juce::Colour>) {
+      data[key] = colorToHex(member);
+    } else if constexpr (std::is_same_v<T, bool> || std::is_same_v<T, float>) {
+      data[key] = member;
+    }
+  });
+
+  juce::InterProcessLock ipLock("UhhyouStyleLock");
+  if (ipLock.enter(2000)) {
+    saveJson(styleJsonPath, data);
+  } else {
+    juce::Logger::writeToLog("Uhhyou: Failed to acquire InterProcessLock for saving style.json");
+  }
+}
+
+void Palette::loadStyleFromFile(const juce::File& file) {
   std::lock_guard<std::mutex> lock(styleMutex);
 
-  fs::path home = getConfigHome();
-  if (home.empty()) { return; }
+  auto loadedData = loadJson(file);
+  if (!loadedData) { return; }
 
-  auto styleDir = home / fs::path("UhhyouPlugins/style");
-  auto styleJsonPath = styleDir / "style.json";
-
-  // Single source of truth for config mappings
-  auto visitProperties = [&](auto&& visitor) {
-    visitor("keyboardFocusEnabled", keyboardFocusEnabled_);
-    visitor("windowScale", windowScale_);
-
-    visitor("fontUiName", fontUiName_);
-    visitor("fontUiStyle", fontUiStyle_);
-    visitor("fontMonoName", fontMonoName_);
-    visitor("fontMonoStyle", fontMonoStyle_);
-
-    visitor("foreground", foreground_);
-    visitor("background", background_);
-    visitor("surface", surface_);
-    visitor("border", border_);
-    visitor("main", main_);
-    visitor("accent", accent_);
-    visitor("warning", warning_);
-  };
-
-  // Helper lambda to attempt loading the JSON (early returns on failure)
-  auto tryLoad = [&]() -> std::optional<nlohmann::ordered_json> {
-    if (!fs::exists(styleJsonPath)) { return std::nullopt; }
-
-    std::ifstream ifs(styleJsonPath);
-    if (!ifs.is_open()) {
-      juce::Logger::writeToLog("Uhhyou: Failed to open existing style.json for reading.");
-      return std::nullopt;
-    }
-
-    try {
-      nlohmann::ordered_json data;
-      ifs >> data;
-      return data;
-    } catch (const nlohmann::ordered_json::parse_error& e) {
-      juce::Logger::writeToLog(juce::String("Uhhyou: Failed to parse style.json: ") + e.what());
-      return std::nullopt;
-    }
-  };
-
-  auto saveDefault = [&]() {
-    nlohmann::ordered_json data;
-    visitProperties([&](const char* key, auto& member) {
-      using T = std::decay_t<decltype(member)>;
-      if constexpr (std::is_same_v<T, juce::String>) {
-        data[key] = member.toStdString();
-      } else if constexpr (std::is_same_v<T, juce::Colour>) {
-        data[key] = colorToHex(member);
-      } else if constexpr (std::is_same_v<T, bool> || std::is_same_v<T, float>) {
-        data[key] = member;
+  visitProperties([&](const char* key, auto& member) {
+    using T = std::decay_t<decltype(member)>;
+    if constexpr (std::is_same_v<T, juce::String>) {
+      loadString(*loadedData, key, member);
+    } else if constexpr (std::is_same_v<T, juce::Colour>) {
+      loadColor(*loadedData, key, member);
+    } else if constexpr (std::is_same_v<T, bool>) {
+      if (loadedData->contains(key) && (*loadedData)[key].is_boolean()) {
+        member = (*loadedData)[key].get<bool>();
       }
-    });
-
-    std::error_code ec;
-    fs::create_directories(styleDir, ec);
-    if (ec && !fs::is_directory(styleDir)) {
-      juce::Logger::writeToLog("Uhhyou: Failed to create directories: "
-                               + juce::String(ec.message()));
-      return;
+    } else if constexpr (std::is_same_v<T, float>) {
+      if (loadedData->contains(key) && (*loadedData)[key].is_number()) {
+        member = (*loadedData)[key].get<float>();
+      }
     }
+  });
 
-    auto tmpPath = styleJsonPath;
-    tmpPath += ".tmp";
+  updateCaches();
+  saveStyleJson(); // Persist the freshly loaded config as the active `style.json`.
+  StyleNotifier::getInstance().sendChangeMessage();
+}
 
-    std::ofstream ofs(tmpPath);
-    if (!ofs.is_open()) {
-      juce::Logger::writeToLog("Uhhyou: Failed to open tmp file for writing: "
-                               + juce::String(tmpPath.string()));
-      return;
+void Palette::load() {
+  std::lock_guard<std::mutex> lock(styleMutex);
+  juce::File styleJsonPath = getInternalStyleDir().getChildFile("style.json");
+
+  std::optional<nlohmann::ordered_json> loadedData;
+  {
+    juce::InterProcessLock ipLock("UhhyouStyleLock");
+    if (ipLock.enter(2000)) {
+      loadedData = loadJson(styleJsonPath);
+    } else {
+      juce::Logger::writeToLog("Uhhyou: Failed to acquire InterProcessLock for loading style.json");
     }
+  }
 
-    ofs << data.dump(2) << "\n";
-    ofs.close();
-
-    fs::rename(tmpPath, styleJsonPath, ec);
-    if (ec) {
-      juce::Logger::writeToLog("Uhhyou: Failed to finalize style.json rename: "
-                               + juce::String(ec.message()));
-    }
-  };
-
-  // Main flow
-  if (auto loadedData = tryLoad()) {
+  if (loadedData) {
     visitProperties([&](const char* key, auto& member) {
       using T = std::decay_t<decltype(member)>;
       if constexpr (std::is_same_v<T, juce::String>) {
@@ -211,59 +192,36 @@ void Palette::load() {
       }
     });
   } else {
-    saveDefault();
+    saveStyleJson();
   }
+
+  updateCaches();
 }
 
 template<typename T> inline void updateSettingImpl(const std::string& key, T value) {
-  fs::path home = getConfigHome();
-  if (home.empty()) { return; }
+  juce::File styleJsonPath = getInternalStyleDir().getChildFile("style.json");
 
-  auto styleDir = home / fs::path("UhhyouPlugins/style");
-  auto styleJsonPath = styleDir / "style.json";
+  juce::InterProcessLock ipLock("UhhyouStyleLock");
+  if (!ipLock.enter(2000)) {
+    juce::Logger::writeToLog("Uhhyou: Failed to acquire InterProcessLock. Aborting updateSetting.");
+    return;
+  }
 
   nlohmann::ordered_json data;
 
-  if (fs::exists(styleJsonPath)) {
-    std::ifstream ifs(styleJsonPath);
-    if (ifs.is_open()) {
-      try {
-        ifs >> data;
-      } catch (const nlohmann::ordered_json::parse_error& e) {
-        juce::Logger::writeToLog("Uhhyou: Refusing to update setting. style.json is corrupted: "
-                                 + juce::String(e.what()));
-        return;
-      }
+  if (styleJsonPath.existsAsFile()) {
+    auto loadedData = loadJson(styleJsonPath);
+
+    if (!loadedData) {
+      juce::Logger::writeToLog("Uhhyou: Aborting updateSetting to prevent data wipe (could not "
+                               "read existing style.json).");
+      return;
     }
+    data = *loadedData;
   }
 
   data[key] = value;
-
-  std::error_code ec;
-  fs::create_directories(styleDir, ec);
-  if (ec && !fs::is_directory(styleDir)) {
-    juce::Logger::writeToLog("Uhhyou: Failed to create directories: " + juce::String(ec.message()));
-    return;
-  }
-
-  auto tmpPath = styleJsonPath;
-  tmpPath += ".tmp";
-
-  std::ofstream ofs(tmpPath);
-  if (!ofs.is_open()) {
-    juce::Logger::writeToLog("Uhhyou: Failed to open tmp file for writing: "
-                             + juce::String(tmpPath.string()));
-    return;
-  }
-
-  ofs << data.dump(2) << "\n";
-  ofs.close();
-
-  fs::rename(tmpPath, styleJsonPath, ec);
-  if (ec) {
-    juce::Logger::writeToLog("Uhhyou: Failed to finalize style.json rename: "
-                             + juce::String(ec.message()));
-  }
+  saveJson(styleJsonPath, data);
 }
 
 void Palette::updateSetting(const std::string& key, bool value) {

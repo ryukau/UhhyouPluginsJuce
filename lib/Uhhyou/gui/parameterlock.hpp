@@ -140,9 +140,9 @@ public:
     }
 
     // Draw Text
+    juce::Colour fgCol = pal_.getForeground(pal_.background());
     ctx.setFont(pal_.getFont(TextSize::normal));
-    ctx.setColour(locks_.isLocked(parameter_) ? pal_.foreground().withAlpha(0.5f)
-                                              : pal_.foreground());
+    ctx.setColour(locks_.isLocked(parameter_) ? fgCol.withAlpha(0.5f) : fgCol);
     ctx.drawText(labelText_, bounds, justification_);
   }
 
