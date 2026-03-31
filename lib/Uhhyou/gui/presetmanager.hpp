@@ -68,17 +68,6 @@ private:
     }
   }
 
-  juce::File getPresetRoot() {
-    auto presetDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
-                       .getChildFile("UhhyouPlugins")
-                       .getChildFile(editor_.processor.getName());
-
-    if (!presetDir.isDirectory()) {
-      if (presetDir.createDirectory().failed()) { setPresetText("Error: FS Init Failed"); }
-    }
-    return presetDir;
-  }
-
   void setPresetText(const juce::String& newText) {
     if (text_ == newText) { return; }
     text_ = newText;
@@ -241,6 +230,16 @@ public:
     return std::make_unique<PresetManagerAccessibilityHandler>(*this, std::move(actions));
   }
 
+  juce::File getPresetRoot() {
+    auto presetDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+                       .getChildFile("UhhyouPlugins")
+                       .getChildFile(editor_.processor.getName());
+
+    if (!presetDir.isDirectory()) {
+      if (presetDir.createDirectory().failed()) { setPresetText("Error: FS Init Failed"); }
+    }
+    return presetDir;
+  }
   void resized() override {
     const int width = getWidth();
     const int height = getHeight();

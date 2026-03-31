@@ -281,11 +281,10 @@ private:
                        scale.lfoSyncType.invmap(0), scale.lfoSyncType, "lfoSyncType", "Sync. Type",
                        Cat::genericParameter, version, "", Rep::raw));
 
-    value.lowpassCutoffHz
-      = addParameter(generalGroup,
-                     std::make_unique<ScaledParameter<Scales::DecibelScl>>(
-                       scale.cutoffHz.invmap(float(10000)), scale.cutoffHz, "lowpassCutoffHz",
-                       "Lowpass", Cat::genericParameter, version, "Hz", Rep::raw));
+    value.lowpassCutoffHz = addParameter(generalGroup,
+                                         std::make_unique<ScaledParameter<Scales::DecibelScl>>(
+                                           1.0f, scale.cutoffHz, "lowpassCutoffHz", "Lowpass",
+                                           Cat::genericParameter, version, "Hz", Rep::raw));
     value.highpassCutoffHz
       = addParameter(generalGroup,
                      std::make_unique<ScaledParameter<Scales::DecibelScl>>(

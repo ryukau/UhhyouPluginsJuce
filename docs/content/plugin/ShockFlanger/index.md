@@ -4,10 +4,14 @@ date: 3000-01-01
 draft: false
 ---
 
+![ShockFlanger screenshot.](./ShockFlanger.webp)
+
+ShockFlanger is a hybrid of a distortion and a flanger. It sounds like a guitar amp. The internal is close to a through-zero flanger with saturators and waveshapers on the feedback paths. High CPU load.
+
 ## Warnings
 Loud output. Place a limiter after ShockFlanger.
 
-Several options in {{< ref "Saturation Type" >}} may output loud spikes when combined with high {{< ref "Saturation Gain" >}}. Enabling {{< ref "More Feedback" >}} can blow up the feedback when {{< ref "Feedback 0" >}} & {{< ref "Feedback 1" >}} are high. High amount of {{< ref "Audio -> Time 0" >}} & {{< ref "Audio -> Time 1" >}} may cause loud burst. {{< ref "Feedback Gate" >}} has a fixed threshold for simplicity. External gate before ShockFlanger is advised for the low S/N signal.
+Several options in {{< anchor "Saturation Type" >}} may output loud spikes when combined with high {{< anchor "Saturation Gain" >}}. Enabling {{< anchor "More Feedback" >}} can blow up the feedback when {{< anchor "Feedback 0" >}} & {{< anchor "Feedback 1" >}} are high. High amount of {{< anchor "Audio -> Time 0" >}} & {{< anchor "Audio -> Time 1" >}} may cause loud burst. {{< anchor "Feedback Gate" >}} has a fixed threshold for simplicity. External gate before ShockFlanger is advised for the low S/N signal.
 
 ## Input/Output
 - 1 Stereo input. (2 channel in 1 bus)
@@ -27,7 +31,7 @@ Toggles 2x oversampling. Doubles CPU load and changes high.
 {{< /def >}}
 
 {{< def terms="More Feedback" >}}
-Adds more feeedback if {{< ref "Flange Blend" >}} is not `0.0`. Use with external gate while turning on {{< ref "Feedback Gate" >}}.
+Adds more feeedback if {{< anchor "Flange Blend" >}} is not `0.0`. Use with external gate while turning on {{< anchor "Feedback Gate" >}}.
 {{< /def >}}
 
 {{< def terms="Feedback Gate" >}}
@@ -67,7 +71,7 @@ Sets delay time for line 0 in milliseconds.
 {{< /def >}}
 
 {{< def terms="Delay Time 1" >}}
-Sets relative delay time for line 1 as ratio of {{< ref "Delay Time 0" >}}.
+Sets relative delay time for line 1 as ratio of {{< anchor "Delay Time 0" >}}.
 {{< /def >}}
 
 {{< def terms="Input Blend" >}}
@@ -98,13 +102,13 @@ Sets cutoff frequencies for filters inside feedback loops.
 {{< dl >}}
 {{< def terms="Tempo Sync." >}}
 Sets LFO synchronization mode:
-- `Phase`: Locks to host transport. May cause glitch when {{< ref "LFO Rate" >}} is changed.
-- `Frequency`: Locks to host BPM with free-running phase. Suitable for {{< ref "LFO Rate" >}} automation.
+- `Phase`: Locks to host transport. May cause glitch when {{< anchor "LFO Rate" >}} is changed.
+- `Frequency`: Locks to host BPM with free-running phase. Suitable for {{< anchor "LFO Rate" >}} automation.
 - `Off`: Fixed at 120 BPM.
 {{< /def >}}
 
 {{< def terms="LFO Rate" >}}
-Sets LFO speed. Displayed in beats or Hz depending on {{< ref "Tempo Sync." >}}.
+Sets LFO speed. Displayed in beats or Hz depending on {{< anchor "Tempo Sync." >}}.
 {{< /def >}}
 
 {{< def terms="Initial Phase" >}}
@@ -116,7 +120,7 @@ Shifts phase offset between left and right LFOs.
 {{< /def >}}
 
 {{< def terms="Reset LFO Phase" >}}
-Resets LFO to {{< ref "Initial Phase" >}}.
+Resets LFO to {{< anchor "Initial Phase" >}}.
 {{< /def >}}
 {{< /dl >}}
 
@@ -138,7 +142,7 @@ Crossfades audio-rate modulation source:
 {{< /def >}}
 
 {{< def terms="Viscosity LP" >}}
-Sets lowpass cutoff frequency for audio-rate modulation source. Effective when {{< ref "Audio Mod Mode" >}} > 0.
+Sets lowpass cutoff frequency for audio-rate modulation source. Effective when {{< anchor "Audio Mod Mode" >}} > 0.
 {{< /def >}}
 
 {{< def terms="Audio -> Time 0|Audio -> Time 1" >}}

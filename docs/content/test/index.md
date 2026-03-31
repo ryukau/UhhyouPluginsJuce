@@ -1,8 +1,8 @@
 ---
-title: "Heading 1 (H1)"
+title: "CSS Test Page"
 date: 2026-03-16
 toc: true
-draft: false
+draft: true
 ---
 
 *Notice the favicon appended after this heading due to the `h1::after` CSS rule.*

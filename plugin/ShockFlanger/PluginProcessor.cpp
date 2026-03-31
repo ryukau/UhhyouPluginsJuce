@@ -43,8 +43,7 @@ void Processor::reset() { dsp.reset(); }
 
 bool Processor::isBusesLayoutSupported(const BusesLayout& layouts) const {
   if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
-      && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
-  {
+      && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo()) {
     return false;
   }
 

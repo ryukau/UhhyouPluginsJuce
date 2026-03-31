@@ -47,20 +47,9 @@ public:
             menu.setLookAndFeel(&lookAndFeel_);
 
             {
-              bool focus = getStateTree().getProperty("KeyboardFocusEnabled",
-                                                      palette_.keyboardFocusEnabled());
-              menu.addItem("Keyboard Navigation (Steals host shortcuts)", true, focus,
-                           [this, focus]() {
-                             setGlobalKeyboardFocus(!focus);
-                             palette_.updateSetting("keyboardFocusEnabled", !focus);
-                           });
-            }
-
-            {
               float defaultScale = palette_.windowScale();
               menu.addItem(
-                std::format("Reset Window Size to Default ({}%)",
-                            std::lround(defaultScale * 100.0f)),
+                std::format("Reset Window Size ({}%)", std::lround(defaultScale * 100.0f)),
                 [this, defaultScale]() {
                   float currentScale = getStateTree().getProperty("windowScale", defaultScale);
                   if (currentScale > 0.0f) {
@@ -71,9 +60,36 @@ public:
             }
 
             {
+              bool focus = getStateTree().getProperty("KeyboardFocusEnabled",
+                                                      palette_.keyboardFocusEnabled());
+              menu.addItem("Keyboard Navigation (Steals host shortcuts)", true, focus,
+                           [this, focus]() {
+                             setGlobalKeyboardFocus(!focus);
+                             palette_.updateSetting("keyboardFocusEnabled", !focus);
+                           });
+            }
+
+            {
               bool logging = getStateTree().getProperty("LoggingEnabled", false);
-              menu.addItem("Enable Logging (Creates a log file)", true, logging,
+              menu.addItem("Logging (Creates a log file)", true, logging,
                            [this, logging]() { setLoggingEnabled(!logging); });
+            }
+
+            menu.addSeparator();
+            {
+              menu.addItem("Open Preset Directory", [this]() {
+                auto presetDir = presetManager_.getPresetRoot();
+                presetDir.createDirectory();
+                presetDir.startAsProcess();
+              });
+            }
+
+            {
+              menu.addItem("Open Style Directory", [this]() {
+                auto styleDir = palette_.getStyleDirectory();
+                styleDir.createDirectory();
+                styleDir.startAsProcess();
+              });
             }
 
             menu.addSeparator();

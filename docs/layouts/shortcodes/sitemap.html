@@ -1,0 +1,31 @@
+<h2>Site Map</h2>
+
+{{ range site.RegularPages.GroupBy "Section" }}
+
+{{ if .Key }}<h3>{{ .Key | title }}</h3>{{ end }}
+
+<ul>
+  {{ range .Pages.ByWeight }}
+  {{ $displayTitle := .Title }}
+
+  {{ if not $displayTitle }}
+  {{ $headings := findRE "(?m)^#\\s+(.*)" .RawContent 1 }}
+  {{ if $headings }}
+  {{ $displayTitle = index $headings 0 | replaceRE "^#\\s+" "" }}
+  {{ end }}
+  {{ end }}
+
+  {{ if not $displayTitle }}
+  {{ if .File }}
+  {{ $displayTitle = .File.Path }}
+  {{ else }}
+  {{ $displayTitle = .RelPermalink }}
+  {{ end }}
+  {{ end }}
+
+  <li>
+    <a href='{{ .RelPermalink }}'>{{ $displayTitle }}</a>
+  </li>
+  {{ end }}
+</ul>
+{{ end }}

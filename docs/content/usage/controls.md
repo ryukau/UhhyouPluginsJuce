@@ -1,17 +1,20 @@
 ---
-title: "GUI Controls & Settings"
+title: "GUI Controls"
 date: 3000-01-01
 draft: false
+toc: true
+weight: 2
 gui_mockups: true
 layout: "plugin-mockup"
 ---
 
 If DAW shortcuts fail, disable "Keyboard Navigation" in GUI Settings.
 
-The mock-ups in this page do not provide the full functionality.
+Mock-ups have limited functionality.
 
 ## Keyboard Navigation
-Automatically restores focus to the last control after {{< shortcuts >}}<kbd>Alt</kbd>+<kbd>Tab</kbd>{{< /shortcuts >}}.
+
+Restores focus to the last control after {{< shortcuts >}}<kbd>Alt</kbd>+<kbd>Tab</kbd>{{< /shortcuts >}}.
 
 {{< dl >}}
 {{< def terms="Navigate" id="global-navigate" >}}
@@ -28,33 +31,31 @@ Automatically restores focus to the last control after {{< shortcuts >}}<kbd>Alt
 {{< /dl >}}
 
 ## GUI Settings
-"GUI Settings" button provides the following menu.
 
 {{< dl >}}
 {{< def terms="Keyboard Navigation" id="settings-keyboard-nav" >}}
-Toggles keyboard navigation. Enabled by default for accessibility. Disable if DAW keyboard shortcuts are not working.
+Toggles keyboard navigation. Disable if DAW shortcuts fail. Enabled by default.
 {{< /def >}}
 
-{{< def terms="Reset Window Size to Default" id="settings-reset-window" >}}
-Resets the plugin window scaling. The default base scaling is set in `style.json`.
+{{< def terms="Reset Window Size" id="settings-reset-window" >}}
+Resets window scaling. Default set in `style.json`.
 {{< /def >}}
 
-{{< def terms="Enable Logging" id="settings-logging" >}}
-Toggle logging. Recommend to disable unless experiencing issues.
+{{< def terms="Logging" id="settings-logging" >}}
+Toggles logging. Keep disabled unless troubleshooting.
 {{< /def >}}
 
 {{< def terms="Theme / Style" id="settings-theme" >}}
-Loads a custom color and font theme.
+Loads custom color and font themes.
 {{< /def >}}
 {{< /dl >}}
 
-Below is the log file paths.
+Log file path:
 
-| OS      | Log File Path                                                                                                                         |
-|---------|---------------------------------------------------------------------------------------------------------------------------------------|
-| Windows | `%APPDATA%\UhhyouPlugins\Logs\`                                                                                                       |
-| Linux   | Primary is `$XDG_CONFIG_HOME/UhhyouPlugins/Logs/`<br>Fallbacks to `$HOME/.config/UhhyouPlugins/Logs/` if `$XDG_CONFIG_HOME` is empty. |
-| macOS   | `~/Library/UhhyouPlugins/Logs/`                                                                                                       |
+- Windows: `%APPDATA%\UhhyouPlugins\Logs\`
+- macOS: `~/Library/UhhyouPlugins/Logs`
+- Linux (Primary): `$XDG_CONFIG_HOME/UhhyouPlugins/Logs/`
+- Linux (Fallback): `$HOME/.config/UhhyouPlugins/Logs/` if `$XDG_CONFIG_HOME` is empty.
 
 ## Knob
 
@@ -89,7 +90,7 @@ Below is the log file paths.
 {{< /def >}}
 
 {{< def terms="Fine-Tune" id="knob-fine-tune" >}}
-{{< shortcuts >}}<kbd>Shift</kbd>+{{< ref "Adjust" "knob-adjust" >}}{{< /shortcuts >}}
+{{< shortcuts >}}<kbd>Shift</kbd>+{{< anchor "Adjust" "knob-adjust" >}}{{< /shortcuts >}}
 {{< /def >}}
 
 {{< def terms="Cycle" id="knob-cycle" >}}
@@ -134,7 +135,7 @@ Below is the log file paths.
 <div style='width: 100%;'>
 
 <p>
-Top-left button toggles snap via {{< shortcuts >}}🖱️Click | <kbd>Enter</kbd> | <kbd>Space</kbd>{{< /shortcuts >}}.
+Toggle snap (top-left button): {{< shortcuts >}}🖱️Click | <kbd>Enter</kbd> | <kbd>Space</kbd>{{< /shortcuts >}}
 </p>
 
 {{< dl >}}
@@ -258,7 +259,7 @@ Y: {{< shortcuts >}}🖱️Right-Click (Right Half) | {{< modkey >}}+<kbd>Shift<
 <div>
 
 <p>
-External file changes require a {{< ref "Refresh" "preset-refresh" >}}. Slow network drives may cause UI pauses.
+External file changes require a {{< anchor "Refresh" "preset-refresh" >}}. Slow network drives may pause the UI.
 </p>
 
 {{< dl >}}
@@ -271,7 +272,7 @@ External file changes require a {{< ref "Refresh" "preset-refresh" >}}. Slow net
 {{< /def >}}
 
 {{< def terms="Refresh" id="preset-refresh" >}}
-{{< shortcuts >}}Select in {{< ref "Menu" "preset-open-menu" >}}{{< /shortcuts >}}
+{{< shortcuts >}}Select in {{< anchor "Menu" "preset-open-menu" >}}{{< /shortcuts >}}
 {{< /def >}}
 {{< /dl >}}
 
@@ -304,7 +305,7 @@ External file changes require a {{< ref "Refresh" "preset-refresh" >}}. Slow net
 <div style='width: 100%;'>
 
 <p>
-Locks parameter from the "Randomize" button. Dimmed label indicates locked.
+Locks parameters from "Randomize". Dimmed labels are locked.
 </p>
 
 {{< dl >}}
@@ -335,7 +336,7 @@ Locks parameter from the "Randomize" button. Dimmed label indicates locked.
 <div style='width: 100%;'>
 
 <p>
-A collapsible drawer that hides or shows its contents. Focus returns to the toggle button if closed while focused inside.
+Hides or shows contents. Focus returns to the toggle button if closed from inside.
 </p>
 
 {{< dl >}}
@@ -354,7 +355,6 @@ A collapsible drawer that hides or shows its contents. Focus returns to the togg
   <uhhyou-tab-view tabs="Tab 1,Tab 2,Tab 3">
     <div slot="tab-0" class="tab-content">
       <h3>Tab View</h3>
-      <p>This is a mock-up.</p>
       <ul>
         <li>{{< shortcuts >}}<kbd>Mouse Wheel</kbd>{{< /shortcuts >}} or {{< shortcuts >}}<kbd>←</kbd> | <kbd>→</kbd>{{< /shortcuts >}} keys to switch tabs.</li>
         <li>{{< shortcuts >}}<kbd>Tab</kbd> | <kbd>Shift</kbd>+<kbd>Tab</kbd>{{< /shortcuts >}} to navigate into a tab.</li>

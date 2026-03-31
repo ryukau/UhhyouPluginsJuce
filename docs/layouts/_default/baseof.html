@@ -74,6 +74,7 @@
         <p>{{if .Lastmod}}Update: {{.Lastmod.Format "2006-01-02"}}{{else}}N/A{{end}}</p>
       </div>
     </div>
+    {{ if .Params.toc }}
     <details>
       <summary translate='yes'>Table of Contents</summary>
       <nav id='TOC'
@@ -82,6 +83,7 @@
         {{.TableOfContents}}
       </nav>
     </details>
+    {{ end }}
   </header>
   <h1>{{.Title}}</h1>
   {{block "main" .}}{{end}}

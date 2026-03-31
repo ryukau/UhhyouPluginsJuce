@@ -556,12 +556,12 @@ public:
     ctx.setColour(colorBorder);
     ctx.drawRoundedRectangle(bounds, lw2, lw1);
 
-    // Small bar indicator.
+    // Bar indicator.
     if (this->isMouseEntered_) {
       ctx.setColour(colorBorder.withAlpha(0.5f));
       float fillH = (height - lw1) * this->value_;
       auto fillBounds = bounds;
-      fillBounds.removeFromLeft(bounds.getWidth() - 2 * lw2);
+      // fillBounds.removeFromLeft(bounds.getWidth() - 2 * lw2);
       fillBounds.removeFromTop(bounds.getHeight() - fillH);
       ctx.fillRoundedRectangle(fillBounds.reduced(1.0f), lw2);
     }
