@@ -49,7 +49,7 @@ Here is a link with the specific header anchor class: <a href="#test" class="hea
   - Nested item 2
 - Item 3
 
-### Description List
+### Description List (Markdown)
 
 Term 1
 : This is the definition for term 1. It should have a dotted border on the left.
@@ -59,6 +59,18 @@ Term 2
 
 My Term
 : My Definition
+
+### Description List (Shortcodes)
+
+{{< dl >}}
+{{< def terms="Select" id="test-def-select" >}}
+{{< shortcuts >}}🖱️Click | <kbd>Space</kbd>{{< /shortcuts >}}
+{{< /def >}}
+
+{{< def terms="A|B|C" id="test-def-multi-dt" >}}
+Description text.
+{{< /def >}}
+{{< /dl >}}
 
 ### Interactive Details List
 

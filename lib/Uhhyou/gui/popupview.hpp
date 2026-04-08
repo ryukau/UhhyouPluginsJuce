@@ -376,7 +376,7 @@ private:
 
   void displayPopup() {
     bool wantsFocus = getWantsKeyboardFocus();
-    popupScope_.setKeyboardFocusEnabled(wantsFocus);
+    popupScope_.setKeyboardFocus(wantsFocus);
 
     closeButton_.setVisible(true);
     tabView_.setVisible(true);

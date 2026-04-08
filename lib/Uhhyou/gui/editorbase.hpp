@@ -60,24 +60,22 @@ public:
             }
 
             {
-              bool focus = getStateTree().getProperty("KeyboardFocusEnabled",
-                                                      palette_.keyboardFocusEnabled());
+              bool focus = getStateTree().getProperty("KeyboardFocus", palette_.KeyboardFocus());
               menu.addItem("Keyboard Navigation (Steals host shortcuts)", true, focus,
                            [this, focus]() {
                              setGlobalKeyboardFocus(!focus);
-                             palette_.updateSetting("keyboardFocusEnabled", !focus);
+                             palette_.updateSetting("KeyboardFocus", !focus);
                            });
             }
 
             {
-              bool logging = getStateTree().getProperty("LoggingEnabled", false);
-              menu.addItem("Logging (Creates a log file)", true, logging,
-                           [this, logging]() { setLoggingEnabled(!logging); });
+              bool logging = getStateTree().getProperty("Logging", false);
+              menu.addItem("Logging", true, logging, [this, logging]() { setLogging(!logging); });
             }
 
             menu.addSeparator();
             {
-              menu.addItem("Open Preset Directory", [this]() {
+              menu.addItem("Open Preset Folder", [this]() {
                 auto presetDir = presetManager_.getPresetRoot();
                 presetDir.createDirectory();
                 presetDir.startAsProcess();
@@ -85,7 +83,7 @@ public:
             }
 
             {
-              menu.addItem("Open Style Directory", [this]() {
+              menu.addItem("Open Appearance Folder", [this]() {
                 auto styleDir = palette_.getStyleDirectory();
                 styleDir.createDirectory();
                 styleDir.startAsProcess();
@@ -100,10 +98,10 @@ public:
               styleOpts.targetExtension = ".json";
               styleOpts.targetComponent = &settingsButton_;
               styleOpts.fileFilter
-                = [](const juce::File& f) { return f.getFileName() != "style.json"; };
+                = [](const juce::File& f) { return f.getFileName() != "_active.json"; };
               styleOpts.onFileSelected
                 = [this](const juce::File& f) { palette_.loadStyleFromFile(f); };
-              menu.addSubMenu("Theme / Style",
+              menu.addSubMenu("Appearances",
                               FileMenu::buildHierarchical(styleOpts.rootDir, styleOpts));
             }
 
@@ -113,14 +111,13 @@ public:
     StyleNotifier::getInstance().addChangeListener(this);
     setLookAndFeel(&lookAndFeel_);
 
-    bool initialFocus
-      = getStateTree().getProperty("KeyboardFocusEnabled", palette_.keyboardFocusEnabled());
+    bool initialFocus = getStateTree().getProperty("KeyboardFocus", palette_.KeyboardFocus());
     setResizable(true, false);
     setWantsKeyboardFocus(initialFocus);
     setMouseClickGrabsKeyboardFocus(initialFocus);
 
     navManager_.pushScope(this, &mainScope_);
-    mainScope_.setKeyboardFocusEnabled(initialFocus);
+    mainScope_.setKeyboardFocus(initialFocus);
 
     tooltipWindow_.setOpaque(false);
     registerInteractive(undoButton_);
@@ -144,7 +141,7 @@ public:
       repaint();
     });
 
-    if (getStateTree().getProperty("LoggingEnabled", false)) { setLoggingEnabled(true); }
+    if (getStateTree().getProperty("Logging", false)) { setLogging(true); }
   }
 
   ~EditorBase() override {
@@ -333,8 +330,8 @@ protected:
     return processor_.param.tree.state.getOrCreateChildWithName("GUI", nullptr);
   }
 
-  void setLoggingEnabled(bool enable) {
-    getStateTree().setProperty("LoggingEnabled", enable, nullptr);
+  void setLogging(bool enable) {
+    getStateTree().setProperty("Logging", enable, nullptr);
     if (enable) {
       juce::File logDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
                             .getChildFile("UhhyouPlugins")
@@ -384,12 +381,12 @@ protected:
   }
 
   void setGlobalKeyboardFocus(bool enable) {
-    getStateTree().setProperty("KeyboardFocusEnabled", enable, nullptr);
+    getStateTree().setProperty("KeyboardFocus", enable, nullptr);
 
     setWantsKeyboardFocus(enable);
     setMouseClickGrabsKeyboardFocus(enable);
 
-    mainScope_.setKeyboardFocusEnabled(enable);
+    mainScope_.setKeyboardFocus(enable);
 
     if (!enable) {
       juce::MessageManager::callAsync([]() { juce::Component::unfocusAllComponents(); });
@@ -409,8 +406,7 @@ protected:
     if (mainScope_.add(widget)) {
       widget.addMouseListener(this, true);
 
-      bool focusEnabled
-        = getStateTree().getProperty("KeyboardFocusEnabled", palette_.keyboardFocusEnabled());
+      bool focusEnabled = getStateTree().getProperty("KeyboardFocus", palette_.KeyboardFocus());
       widget.setWantsKeyboardFocus(focusEnabled);
       widget.setMouseClickGrabsKeyboardFocus(focusEnabled);
     }

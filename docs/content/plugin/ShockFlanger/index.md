@@ -2,6 +2,8 @@
 title: "ShockFlanger"
 date: 3000-01-01
 draft: false
+toc: true
+section_number: true
 ---
 
 ![ShockFlanger screenshot.](./ShockFlanger.webp)

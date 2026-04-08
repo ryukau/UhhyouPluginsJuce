@@ -156,16 +156,19 @@ public:
     // Ticks.
     bounds.removeFromBottom(float(0.5) * tickEm);
     const auto tickBounds = bounds.removeFromLeft(tickWidth);
-    ctx.setColour(pal_.getForeground(bgColour));
+
+    auto meterBounds = bounds;
+    ctx.setColour(pal_.surface());
+    ctx.fillRect(meterBounds);
 
     for (float db = minDecibel; db <= maxDecibel; db += tickStepDecibel) {
       const float bottom = tickBounds.getY() + decibelToHeight(db, tickBounds.getHeight());
 
-      ctx.drawLine(tickBounds.getRight(), bottom, fullBounds.getWidth(), bottom,
-                   float(0.25) * pal_.borderWidth());
+      ctx.setColour(bgColour);
+      ctx.drawHorizontalLine(juce::roundToInt(bottom), tickBounds.getRight(),
+                             fullBounds.getWidth());
 
-      // if (db <= minDecibel) continue;
-
+      ctx.setColour(pal_.getForeground(bgColour));
       ctx.drawText(
         juce::String(std::abs(int(db))),
         juce::Rectangle<float>{0, bottom - float(0.5) * tickEm, tickBounds.getWidth(), tickEm}
@@ -174,8 +177,6 @@ public:
     }
 
     // Meter.
-    auto meterBounds = bounds;
-
     juce::ColourGradient gradient{pal_.main(), meterBounds.getBottomLeft(), pal_.warning(),
                                   meterBounds.getTopLeft(), false};
     gradient.addColour(std::nextafter(float(0.5), 0.0), pal_.main());

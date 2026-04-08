@@ -321,9 +321,6 @@ private:
 
   inline void evaluate_H(T c, T& h0, T& h1, T& h2, T& h3) const {
     const T c2 = c * c;
-    const T c3 = c2 * c;
-    const T c4 = c2 * c2;
-    const T c5 = c3 * c2;
 
     static constexpr T inv120 = T(1) / T(120);
     static constexpr T inv40 = T(1) / T(40);
@@ -331,17 +328,11 @@ private:
     static constexpr T inv12 = T(1) / T(12);
     static constexpr T inv3 = T(1) / T(3);
 
-    const T c2_inv12 = c2 * inv12;
-    const T c3_inv12 = c3 * inv12;
-    const T c4_inv24 = c4 * inv24;
-    const T c4_inv12 = c4_inv24 + c4_inv24;
-    const T c5_inv40 = c5 * inv40;
-    const T c5_inv120 = c5 * inv120;
-
-    h0 = c5_inv120;
-    h1 = (c2_inv12 + c3_inv12) + (c4_inv24 - c5_inv40);
-    h2 = c2 * inv3 - c4_inv12 + c5_inv40;
-    h3 = (c2_inv12 - c3_inv12) + (c4_inv24 - c5_inv120);
+    h0 = c2 * c2 * c * inv120;
+    h1 = c2 * (inv12 + c * (inv12 + c * (inv24 - c * inv40)));
+    h2 = c2 * (inv3 - c2 * (inv12 - c * inv40));
+    const T one_minus_c = T(1) - c;
+    h3 = c2 * (inv12 * one_minus_c + c2 * (inv24 - c * inv120));
   }
 
   inline void compute_interval(T x_a, T x_b, T& i0, T& i1, T& i2, T& i3) const {

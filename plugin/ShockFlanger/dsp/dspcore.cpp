@@ -279,14 +279,14 @@ void DSPCore::process(const size_t length, const float* in0, const float* in1, f
   pv.displayLfoPhase[1].store(float(modPhase_[1]), mem);
 
   const Real invUpRate = Real(1) / upRate_;
-  pv.displayDelayTimeUpper[0][0].store(float(displayTime_[0].upper[0] * invUpRate), mem);
-  pv.displayDelayTimeUpper[0][1].store(float(displayTime_[0].upper[1] * invUpRate), mem);
-  pv.displayDelayTimeLower[0][0].store(float(displayTime_[0].lower[0] * invUpRate), mem);
-  pv.displayDelayTimeLower[0][1].store(float(displayTime_[0].lower[1] * invUpRate), mem);
-  pv.displayDelayTimeUpper[1][0].store(float(displayTime_[1].upper[0] * invUpRate), mem);
-  pv.displayDelayTimeUpper[1][1].store(float(displayTime_[1].upper[1] * invUpRate), mem);
-  pv.displayDelayTimeLower[1][0].store(float(displayTime_[1].lower[0] * invUpRate), mem);
-  pv.displayDelayTimeLower[1][1].store(float(displayTime_[1].lower[1] * invUpRate), mem);
+  for (size_t ch = 0; ch < 2; ++ch) {
+    for (size_t i = 0; i < 2; ++i) {
+      pv.displayDelayTimeUpper[ch][i].store(
+        static_cast<float>(displayTime_[ch].upper[i] * invUpRate), mem);
+      pv.displayDelayTimeLower[ch][i].store(
+        static_cast<float>(displayTime_[ch].lower[i] * invUpRate), mem);
+    }
+  }
 }
 
 template<typename Real> inline Real semitoneToRatio(Real scaler, Real semitone) {

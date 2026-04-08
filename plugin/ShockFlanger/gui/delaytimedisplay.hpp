@@ -108,6 +108,9 @@ public:
     ctx.setColour(bgColour);
     ctx.fillAll();
 
+    ctx.setColour(pal_.surface());
+    ctx.fillRect(graphBounds);
+
     // Grid & Ticks.
     constexpr std::array<float, 6> tickMs{
       float(0.1), float(1), float(10), float(100), float(1000), float(10000),
@@ -134,14 +137,15 @@ public:
     juce::Rectangle<float> timeLabelRect(0, 0, timeLabelW + margin, headerBounds.getHeight());
     ctx.drawText(timeText, timeLabelRect.toNearestInt(), juce::Justification::centred, false);
 
-    const float gridLineWidth = float(0.125) * pal_.borderWidth();
+    const float gridLineWidth = std::max(float(1), float(0.125) * pal_.borderWidth());
     for (size_t i = 0; i < tickMs.size(); ++i) {
       float ms = tickMs[i];
       float x = timeToGraphX(ms / float(1000));
 
       // Grid line.
-      ctx.setColour(pal_.surface());
-      ctx.drawLine(x, headerBounds.getBottom(), x, fullBounds.getBottom(), gridLineWidth);
+      ctx.setColour(pal_.background().withAlpha(0.25f));
+      ctx.drawVerticalLine(juce::roundToInt(x) - 1, headerBounds.getBottom(),
+                           fullBounds.getBottom());
 
       // Label.
       juce::String labelText = std::format("{}", ms);
@@ -182,9 +186,9 @@ public:
       for (size_t j = 0; j < 2; ++j) {
         auto laneArea = currentGraphBounds.removeFromTop(laneHeight);
 
-        ctx.setColour(pal_.surface());
-        ctx.drawLine(laneArea.getX(), laneArea.getY(), fullBounds.getRight(), laneArea.getY(),
-                     gridLineWidth);
+        ctx.setColour(pal_.background());
+        ctx.drawHorizontalLine(juce::roundToInt(laneArea.getY()), laneArea.getX(),
+                               fullBounds.getRight());
 
         juce::Graphics::ScopedSaveState stateSaver(ctx);
         ctx.reduceClipRegion(laneArea.toNearestInt());
@@ -217,7 +221,8 @@ public:
           float alpha = std::clamp(float(1) - progress * progress, float(0), float(1));
 
           ctx.setColour(pal_.main().withAlpha(alpha));
-          ctx.fillRect(screenX1, yTop, drawWidth, yBottom - yTop + float(0.5) * minTrailWidth);
+          ctx.fillRect(std::floor(screenX1), yTop, drawWidth,
+                       yBottom - yTop + float(0.5) * minTrailWidth);
 
           currentY = yTop;
           accumMs += ptL.ms;
@@ -241,7 +246,7 @@ public:
           float cy = laneArea.getBottom() - minTrailWidth;
 
           ctx.setColour(pal_.getForeground(bgColour));
-          ctx.fillRect(reticleX, cy - minReticleWidth, reticleWidth, minReticleWidth);
+          ctx.fillRect(std::floor(reticleX), cy - minReticleWidth, reticleWidth, minReticleWidth);
         }
 
         // Limit warnings (Fading).
@@ -263,10 +268,9 @@ public:
       }
     }
 
-    ctx.setColour(pal_.surface());
-    const float bottomLineY = fullBounds.getBottom() - float(0.5) * gridLineWidth;
-    ctx.drawLine(currentGraphBounds.getX(), bottomLineY, fullBounds.getRight(), bottomLineY,
-                 gridLineWidth);
+    ctx.setColour(pal_.background());
+    const int bottomLineY = static_cast<int>(fullBounds.getBottom() - float(0.5) * gridLineWidth);
+    ctx.drawHorizontalLine(bottomLineY, currentGraphBounds.getX(), fullBounds.getRight());
   }
 };
 

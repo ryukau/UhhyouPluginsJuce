@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+    <title>In-Browser SVG Visual Diff (Alpha Supported)</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            background: #f4f4f5;
+            padding: 20px;
+            color: #333;
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .controls label {
+            font-weight: bold;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .controls .row {
+            margin-bottom: 15px;
+        }
+
+        .diff-workspace {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+        }
+
+        .panel {
+            flex: 1;
+            min-width: 500px;
+        }
+
+        .stage {
+            position: relative;
+            width: 500px;
+            height: 500px;
+            background: #fff;
+            border: 1px solid #ccc;
+            background-image: linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%, #eee),
+                linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%, #eee);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .svg-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transition: filter 0.2s;
+        }
+
+        #img-modified {
+            mix-blend-mode: difference;
+        }
+
+        .show-alpha-only {
+            filter: url(#alpha-xray);
+        }
+
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e0f2fe;
+            border-left: 4px solid #0284c7;
+            border-radius: 4px;
+            font-size: 1.1em;
+        }
+
+        .note {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+
+        button {
+            padding: 8px 16px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            background: #93c5fd;
+            cursor: not-allowed;
+        }
+
+        button:hover:not(:disabled) {
+            background: #1d4ed8;
+        }
+    </style>
+</head>
+
+<body>
+
+    <svg style="width:0; height:0; position:absolute;"
+         aria-hidden="true">
+        <filter id="alpha-xray">
+            <feColorMatrix type="matrix"
+                           values="
+                0 0 0 1 0
+                0 0 0 1 0
+                0 0 0 1 0
+                0 0 0 0 1
+            " />
+        </filter>
+    </svg>
+
+    <div class="controls">
+        <h2>SVG Comparison Tool</h2>
+        <div class="row">
+            <label>1. Source SVG:</label> <input type="file"
+                   id="file-source"
+                   accept=".svg">
+        </div>
+        <div class="row">
+            <label>2. Modified SVG:</label> <input type="file"
+                   id="file-modified"
+                   accept=".svg">
+        </div>
+        <div class="row"
+             style="padding-top: 10px; border-top: 1px solid #eee;">
+            <button id="btn-compare"
+                    disabled>Run Pixel Comparison</button>
+            <label style="margin-left: 20px;">
+                <input type="checkbox"
+                       id="toggle-xray"> Enable Alpha X-Ray (Visual Layer Only)
+            </label>
+        </div>
+    </div>
+
+    <div class="results"
+         id="output">Upload both SVGs to calculate differences.</div>
+
+    <div class="diff-workspace">
+        <div class="panel">
+            <h3>Layer 1: Visual CSS Blend</h3>
+            <div class="stage">
+                <img id="img-source"
+                     class="svg-layer"
+                     alt="">
+                <img id="img-modified"
+                     class="svg-layer"
+                     alt="">
+            </div>
+            <p class="note">Identical overlapping pixels render as pitch black. <br>Toggle "Alpha X-Ray" above to visually isolate transparency differences.</p>
+        </div>
+
+        <div class="panel">
+            <h3>Layer 2: True Canvas Diff (Includes Alpha)</h3>
+            <div class="stage">
+                <canvas id="canvas-diff"
+                        width="500"
+                        height="500"></canvas>
+            </div>
+            <p class="note">Any pixel that differs in RGB <em>or</em> Alpha is painted <strong>bright magenta</strong>. Matching pixels are drawn faintly for context.</p>
+        </div>
+    </div>
+
+    <canvas id="canvas-source"
+            width="500"
+            height="500"
+            hidden></canvas>
+    <canvas id="canvas-modified"
+            width="500"
+            height="500"
+            hidden></canvas>
+
+    <script>
+        const fileSource = document.getElementById('file-source');
+        const fileModified = document.getElementById('file-modified');
+        const imgSource = document.getElementById('img-source');
+        const imgModified = document.getElementById('img-modified');
+        const btnCompare = document.getElementById('btn-compare');
+        const output = document.getElementById('output');
+        const toggleXray = document.getElementById('toggle-xray');
+
+        let sourceLoaded = false;
+        let modifiedLoaded = false;
+        const CANVAS_SIZE = 500;
+
+        toggleXray.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                imgSource.classList.add('show-alpha-only');
+                imgModified.classList.add('show-alpha-only');
+            } else {
+                imgSource.classList.remove('show-alpha-only');
+                imgModified.classList.remove('show-alpha-only');
+            }
+        });
+
+        function processFile(file, imgElement, isSource) {
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                imgElement.src = event.target.result;
+                if (isSource) sourceLoaded = true;
+                else modifiedLoaded = true;
+
+                if (sourceLoaded && modifiedLoaded) btnCompare.disabled = false;
+            };
+
+            reader.onerror = () => {
+                output.innerHTML = `<strong>Error:</strong> Failed to read the ${isSource ? 'Source' : 'Modified'} file. Please re-select it.`;
+                output.style.borderColor = "#f59e0b";
+                output.style.backgroundColor = "#fef3c7";
+            };
+
+            reader.readAsDataURL(file);
+        }
+
+        function setupFileInput(input, imgElement, isSource) {
+            input.addEventListener('change', (e) => {
+                processFile(e.target.files[0], imgElement, isSource);
+            });
+
+            if (input.files && input.files.length > 0) {
+                processFile(input.files[0], imgElement, isSource);
+            } else {
+                input.value = "";
+            }
+        }
+
+        setupFileInput(fileSource, imgSource, true);
+        setupFileInput(fileModified, imgModified, false);
+
+        btnCompare.addEventListener('click', () => {
+            if (!sourceLoaded || !modifiedLoaded || !imgSource.src || !imgModified.src) {
+                output.innerHTML = `<strong>Error:</strong> Files are not properly loaded in memory. Please click the file inputs and select them again.`;
+                output.style.borderColor = "#ef4444";
+                output.style.backgroundColor = "#fee2e2";
+                return;
+            }
+
+            const ctxSource = document.getElementById('canvas-source').getContext('2d', { willReadFrequently: true });
+            const ctxModified = document.getElementById('canvas-modified').getContext('2d', { willReadFrequently: true });
+            const canvasDiff = document.getElementById('canvas-diff');
+            const ctxDiff = canvasDiff.getContext('2d');
+
+            ctxSource.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            ctxModified.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            ctxDiff.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            ctxSource.drawImage(imgSource, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            ctxModified.drawImage(imgModified, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            const sourceData = ctxSource.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE).data;
+            const modifiedData = ctxModified.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE).data;
+            const diffImageData = ctxDiff.createImageData(CANVAS_SIZE, CANVAS_SIZE);
+
+            let diffPixels = 0;
+            const totalPixels = CANVAS_SIZE * CANVAS_SIZE;
+            const colorTolerance = 5;
+
+            for (let i = 0; i < sourceData.length; i += 4) {
+                const rDiff = Math.abs(sourceData[i] - modifiedData[i]);
+                const gDiff = Math.abs(sourceData[i + 1] - modifiedData[i + 1]);
+                const bDiff = Math.abs(sourceData[i + 2] - modifiedData[i + 2]);
+                const aDiff = Math.abs(sourceData[i + 3] - modifiedData[i + 3]);
+
+                if (rDiff > colorTolerance || gDiff > colorTolerance || bDiff > colorTolerance || aDiff > colorTolerance) {
+                    diffPixels++;
+                    diffImageData.data[i] = 255;
+                    diffImageData.data[i + 1] = 0;
+                    diffImageData.data[i + 2] = 255;
+                    diffImageData.data[i + 3] = 255;
+                } else {
+                    diffImageData.data[i] = sourceData[i];
+                    diffImageData.data[i + 1] = sourceData[i + 1];
+                    diffImageData.data[i + 2] = sourceData[i + 2];
+                    diffImageData.data[i + 3] = sourceData[i + 3] * 0.15;
+                }
+            }
+
+            ctxDiff.putImageData(diffImageData, 0, 0);
+
+            const diffPercentage = ((diffPixels / totalPixels) * 100).toFixed(2);
+
+            const sFile = fileSource.files[0];
+            const mFile = fileModified.files[0];
+            const isSameFile = (sFile && mFile &&
+                sFile.name === mFile.name &&
+                sFile.size === mFile.size &&
+                sFile.lastModified === mFile.lastModified);
+
+            if (isSameFile) {
+                output.innerHTML = `<strong>Note:</strong> You uploaded the exact same file for both Source and Modified (<em>${sFile.name}</em>).`;
+                output.style.borderColor = "#3b82f6"; // Blue info border
+                output.style.backgroundColor = "#eff6ff";
+            } else if (diffPercentage === "0.00") {
+                output.innerHTML = `<strong>Result:</strong> Perfect match! Renderings are identical.`;
+                output.style.borderColor = "#16a34a"; // Green success border
+                output.style.backgroundColor = "#dcfce7";
+            } else {
+                output.innerHTML = `<strong>Result:</strong> SVGs differ. <strong>${diffPixels}</strong> pixels (${diffPercentage}%) do not match. Check the True Canvas Diff layer.`;
+                output.style.borderColor = "#ef4444"; // Red error border
+                output.style.backgroundColor = "#fee2e2";
+            }
+        });
+    </script>
+</body>
+
+</html>

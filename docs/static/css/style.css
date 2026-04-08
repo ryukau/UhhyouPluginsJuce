@@ -15,7 +15,7 @@
   --table-p1-color: #fafafa;
   --table-p2-color: #f4f4f4;
   --table-p3-color: #e8e8e8;
-  --code-inline-color: #705020;
+  --code-inline-color: #101010;
 
   --component-main: #fcc04f;
   --component-accent: #13c136;
@@ -50,21 +50,45 @@
 
 html {
   scroll-padding-top: 1rem;
+
+  /*
+  TODO: Change `overflow-y` below to `scrollbar-gutter: stable both-edges;` or equivalents in future. When this comment was written, the gradients couldn't fill the blank region made for scrollbar.
+  */
+  overflow-y: scroll;
+
+  --c1: var(--table-p3-color);
+  --c2: var(--background-color);
+  --l1: 5em;
+  --l2: 10em;
+  background:
+    repeating-linear-gradient(110deg,
+      var(--c1) 0 var(--l1),
+      var(--c2) var(--l1) var(--l2)) 0 0 / 100% 100% no-repeat;
+}
+
+@media (forced-colors: active) {
+
+  html,
+  .custom-container {
+    scrollbar-color: auto;
+  }
 }
 
 body {
+  box-sizing: border-box;
+  min-height: 100dvh;
   max-width: calc(max(704px, 44em));
   margin: auto;
   padding: calc(max(32px, 2em)) calc(max(8px, 0.5em));
   color: var(--foreground-color);
   font-family: var(--font-sans);
   background-color: var(--background-color);
+  outline: 2em solid var(--background-color);
 }
 
 code,
 pre,
 kbd,
-.code-block,
 samp {
   font-family: var(--font-mono);
 }
@@ -93,6 +117,12 @@ details {
 
 details > .indent {
   margin-left: 1em;
+}
+
+.toc-filler {
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
 }
 
 kbd {
@@ -208,6 +238,8 @@ h2 {
 
 h3 {
   font-size: 1.31em;
+  text-decoration: dashed underline calc(max(1px, 0.0625em)) var(--border-color);
+  text-underline-position: under;
 }
 
 h4 {
@@ -269,12 +301,19 @@ td:not(:first-child) {
   display: grid;
   grid-template-columns: 1fr 3fr;
   margin-bottom: 0;
-  align-items: start;
+  align-items: center;
+
+  border: calc(max(1px, 0.0625em)) solid var(--border-color);
+  border-bottom: 0;
+}
+
+.custom-dl .dl-row:last-child {
+  border-bottom: calc(max(1px, 0.0625em)) solid var(--border-color);
 }
 
 .custom-dl .dl-row:nth-child(3n+1) {
   background: var(--background-color);
-  border: calc(max(1px, 0.0625em)) solid var(--table-p1-color);
+  /* border: calc(max(1px, 0.0625em)) solid var(--table-p1-color); */
 }
 
 .custom-dl .dl-row:nth-child(3n+2) {
@@ -301,13 +340,11 @@ dt {
 }
 
 .custom-dl .dd-column {
-  height: 100%;
   padding-left: 0.25em;
   grid-column: 2;
 }
 
 .custom-dl .dt-column {
-  height: 100%;
   margin-left: 0.25em;
   grid-column: 1;
 }
@@ -352,8 +389,9 @@ code {
 div.highlight {
   overflow: auto;
   margin: 1em 0;
-  padding: 0.75em 0;
+  padding: 0.75em 0.5em;
   background-color: var(--background-color);
+  outline: calc(max(1px, 0.0625em)) solid var(--border-color);
 }
 
 div.highlight pre {

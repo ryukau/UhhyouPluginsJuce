@@ -12,6 +12,16 @@ markup:
     noClasses: false
     guessSyntax: true
 
+languages:
+  en:
+    weight: 1
+    label: "English"
+    locale: "en-US"
+  ja:
+    weight: 2
+    label: "日本語"
+    locale: "ja-JP"
+
 minify:
   disableCSS: true
   disableHTML: false

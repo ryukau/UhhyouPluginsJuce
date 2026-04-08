@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+  <title>CSS Gradient Editor</title>
+  <style>
+    :root {
+      --bg: #1e1e1e;
+      --panel: #252526;
+      --panel-hover: #2a2d2e;
+      --text: #cccccc;
+      --text-highlight: #ffffff;
+      --accent: #007acc;
+      --accent-hover: #005f9e;
+      --border: #3c3c3c;
+      --input-bg: #333333;
+      --danger: #cc0000;
+      --ui-height: 26px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      height: 100vh;
+      overflow: hidden;
+      font-size: 12px;
+    }
+
+    #sidebar {
+      background: var(--panel);
+      padding: 10px;
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    #preview-container {
+      display: flex;
+      flex-direction: column;
+      padding: 15px;
+      gap: 15px;
+      background: #111;
+      background-image:
+        linear-gradient(45deg, #222 25%, transparent 25%),
+        linear-gradient(-45deg, #222 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #222 75%),
+        linear-gradient(-45deg, transparent 75%, #222 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    }
+
+    #canvas {
+      flex: 1;
+      border-radius: 6px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      border: 1px solid #000;
+      transition: background 0.1s ease;
+    }
+
+    /* Dense Control Groups */
+    .control-group {
+      background: rgba(0, 0, 0, 0.15);
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    .control-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 10px;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+
+    .inline-label {
+      display: inline-flex !important;
+      align-items: center;
+      gap: 6px;
+      text-transform: none !important;
+      font-size: 12px !important;
+      color: var(--text) !important;
+      cursor: pointer;
+      margin-top: 6px;
+      font-weight: normal !important;
+    }
+
+    /* Forms & Inputs */
+    input[type="range"],
+    input[type="number"],
+    input[type="text"],
+    select,
+    button {
+      width: 100%;
+      height: var(--ui-height);
+      background: var(--input-bg);
+      color: var(--text-highlight);
+      border: 1px solid transparent;
+      padding: 0 6px;
+      border-radius: 3px;
+      outline: none;
+      font-family: inherit;
+      font-size: 12px;
+      transition: border 0.2s;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: var(--accent);
+    }
+
+    input[type="checkbox"] {
+      margin: 0;
+      width: auto;
+      height: auto;
+    }
+
+    /* Range Slider Styling for Density */
+    input[type="range"] {
+      padding: 0;
+      cursor: ew-resize;
+    }
+
+    input[type="color"] {
+      padding: 0;
+      height: var(--ui-height);
+      width: 100%;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+    }
+
+    input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    input[type="color"]::-webkit-color-swatch {
+      border: none;
+      border-radius: 2px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    #output {
+      height: 75px;
+      width: 100%;
+      background: #1e1e1e;
+      color: #9cdcfe;
+      border: 1px solid var(--border);
+      padding: 10px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 12px;
+      border-radius: 4px;
+      resize: none;
+    }
+
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button:hover {
+      background: var(--accent-hover);
+    }
+
+    /* Layer Manager */
+    .layer-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--input-bg);
+      padding: 4px 8px;
+      margin-bottom: 4px;
+      border-radius: 3px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      user-select: none;
+      height: 28px;
+    }
+
+    .layer-item.active {
+      border-color: var(--accent);
+      background: #37373d;
+    }
+
+    .layer-item:hover:not(.active) {
+      background: var(--panel-hover);
+    }
+
+    .layer-title {
+      flex: 1;
+      font-weight: 600;
+      color: var(--text-highlight);
+    }
+
+    .layer-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .btn-icon {
+      background: transparent;
+      padding: 0;
+      width: 22px;
+      height: 22px;
+      font-size: 12px;
+      border: 1px solid transparent;
+      color: #ccc;
+    }
+
+    .btn-icon:hover {
+      background: #444;
+      color: white;
+      border-color: #555;
+    }
+
+    .btn-icon.danger:hover {
+      background: var(--danger);
+      border-color: var(--danger);
+    }
+
+    .type-controls {
+      display: none;
+    }
+
+    .type-controls.active {
+      display: block;
+    }
+
+    .color-stop {
+      display: grid;
+      grid-template-columns: 55px 28px 1fr 22px;
+      gap: 6px;
+      margin-bottom: 6px;
+      align-items: center;
+      background: #222;
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid #333;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="sidebar">
+    <div class="control-group"
+         style="padding-bottom: 6px;">
+      <label>Layers</label>
+      <div id="layers-container"></div>
+      <button id="add-layer-btn"
+              style="margin-top: 4px;">+ Add Layer</button>
+    </div>
+
+    <div id="editor-form">
+      <div class="control-group">
+        <label>Gradient Settings</label>
+        <select id="type-select"
+                style="margin-bottom: 6px;">
+          <option value="linear">Linear</option>
+          <option value="radial">Radial</option>
+          <option value="conic">Conic</option>
+        </select>
+        <label class="inline-label">
+          <input type="checkbox"
+                 id="repeating-toggle"> Repeating Pattern
+        </label>
+      </div>
+
+      <div class="control-group">
+        <label>Background Alignment</label>
+        <div class="grid-2"
+             style="margin-bottom: 8px;">
+          <input type="text"
+                 id="bg-position"
+                 placeholder="Pos (e.g. 0% 0%)"
+                 title="Background Position">
+          <input type="text"
+                 id="bg-size"
+                 placeholder="Size (e.g. 100px 100px)"
+                 title="Background Size">
+        </div>
+        <select id="bg-repeat"
+                title="Background Repeat">
+          <option value="no-repeat">no-repeat</option>
+          <option value="repeat">repeat</option>
+          <option value="repeat-x">repeat-x</option>
+          <option value="repeat-y">repeat-y</option>
+        </select>
+      </div>
+
+      <div id="controls-linear"
+           class="type-controls active control-group">
+        <label>Direction</label>
+        <div class="grid-2">
+          <select id="linear-dir-type">
+            <option value="angle">Angle</option>
+            <option value="keyword">Keyword</option>
+          </select>
+
+          <div id="linear-angle-wrap"
+               style="display:flex; align-items:center; gap:6px;">
+            <input type="range"
+                   id="linear-angle"
+                   min="0"
+                   max="360"
+                   value="90"
+                   style="flex:1;">
+            <span id="linear-angle-val"
+                  style="width:25px; text-align:right;">90°</span>
+          </div>
+
+          <div id="linear-keyword-wrap"
+               style="display:none;">
+            <select id="linear-keyword">
+              <option value="to right">to right</option>
+              <option value="to left">to left</option>
+              <option value="to bottom">to bottom</option>
+              <option value="to top">to top</option>
+              <option value="to bottom right">bottom right</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="controls-radial"
+           class="type-controls control-group">
+        <label>Shape & Extent</label>
+        <div class="grid-2"
+             style="margin-bottom: 8px;">
+          <select id="radial-shape">
+            <option value="circle">Circle</option>
+            <option value="ellipse">Ellipse</option>
+          </select>
+          <select id="radial-size">
+            <option value="closest-side">Closest Side</option>
+            <option value="farthest-corner">Farthest Corner</option>
+          </select>
+        </div>
+        <label>Center (X% / Y%)</label>
+        <div class="grid-2">
+          <input type="number"
+                 id="radial-pos-x"
+                 value="50"
+                 min="0"
+                 max="100"
+                 title="X Position %">
+          <input type="number"
+                 id="radial-pos-y"
+                 value="50"
+                 min="0"
+                 max="100"
+                 title="Y Position %">
+        </div>
+      </div>
+
+      <div id="controls-conic"
+           class="type-controls control-group">
+        <label>Angle & Center</label>
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+          <input type="range"
+                 id="conic-angle"
+                 min="0"
+                 max="360"
+                 value="0"
+                 style="flex:1;">
+          <span id="conic-angle-val"
+                style="width:25px; text-align:right;">0°</span>
+        </div>
+        <div class="grid-2">
+          <input type="number"
+                 id="conic-pos-x"
+                 value="50"
+                 min="0"
+                 max="100"
+                 title="X Position %">
+          <input type="number"
+                 id="conic-pos-y"
+                 value="50"
+                 min="0"
+                 max="100"
+                 title="Y Position %">
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>Color Stops</label>
+        <div id="stops-container"></div>
+        <button id="add-stop-btn"
+                style="margin-top: 4px;">+ Add Color Stop</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="preview-container">
+    <div id="canvas"></div>
+    <textarea id="output"
+              readonly
+              spellcheck="false"
+              title="Click to copy (manually for now)"></textarea>
+  </div>
+
+  <script>
+    function createDefaultLayer(id) {
+      return {
+        id: id,
+        visible: true,
+        type: "linear",
+        repeating: false,
+        bgSize: "100% 100%",
+        bgPosition: "0% 0%",
+        bgRepeat: "no-repeat",
+        linear: { dirType: "angle", angle: 90, keyword: "to right" },
+        radial: { shape: "ellipse", size: "farthest-corner", posX: 50, posY: 50 },
+        conic: { angle: 0, posX: 50, posY: 50 },
+        stops: [
+          { id: 1, type: "color", color: "#ff0000", opacity: 100, pos1: 0, pos2: null },
+          { id: 2, type: "color", color: "#0000ff", opacity: 100, pos1: 100, pos2: null }
+        ]
+      };
+    }
+
+    const state = { activeLayerId: 1, layerCounter: 1, layers: [createDefaultLayer(1)] };
+    function getActiveLayer() { return state.layers.find(l => l.id === state.activeLayerId) || state.layers[0]; }
+
+    const canvas = document.getElementById('canvas');
+    const output = document.getElementById('output');
+    const layersContainer = document.getElementById('layers-container');
+    const stopsContainer = document.getElementById('stops-container');
+
+    function getStandardizedColor(stop) {
+      if (stop.type === "transparent") return "transparent";
+      const hex = stop.color;
+      if (stop.opacity == 100) return hex;
+      const alphaHex = Math.round((stop.opacity / 100) * 255).toString(16).padStart(2, '0');
+      return `${hex}${alphaHex}`;
+    }
+
+    function syncFormToActiveLayer() {
+      const layer = getActiveLayer();
+      if (!layer) return;
+
+      document.getElementById('type-select').value = layer.type;
+      document.getElementById('repeating-toggle').checked = layer.repeating;
+      document.getElementById('bg-size').value = layer.bgSize;
+      document.getElementById('bg-position').value = layer.bgPosition;
+      document.getElementById('bg-repeat').value = layer.bgRepeat;
+
+      document.getElementById('linear-dir-type').value = layer.linear.dirType;
+      document.getElementById('linear-angle').value = layer.linear.angle;
+      document.getElementById('linear-angle-val').textContent = layer.linear.angle + '°';
+      document.getElementById('linear-keyword').value = layer.linear.keyword;
+
+      document.getElementById('linear-angle-wrap').style.display = layer.linear.dirType === 'angle' ? 'flex' : 'none';
+      document.getElementById('linear-keyword-wrap').style.display = layer.linear.dirType === 'keyword' ? 'block' : 'none';
+
+      document.getElementById('radial-shape').value = layer.radial.shape;
+      document.getElementById('radial-size').value = layer.radial.size;
+      document.getElementById('radial-pos-x').value = layer.radial.posX;
+      document.getElementById('radial-pos-y').value = layer.radial.posY;
+
+      document.getElementById('conic-angle').value = layer.conic.angle;
+      document.getElementById('conic-angle-val').textContent = layer.conic.angle + '°';
+      document.getElementById('conic-pos-x').value = layer.conic.posX;
+      document.getElementById('conic-pos-y').value = layer.conic.posY;
+
+      document.querySelectorAll('.type-controls').forEach(el => el.classList.remove('active'));
+      document.getElementById(`controls-${layer.type}`).classList.add('active');
+
+      renderStops();
+    }
+
+    function renderLayers() {
+      layersContainer.innerHTML = '';
+      state.layers.forEach((layer, index) => {
+        const div = document.createElement('div');
+        div.className = `layer-item ${layer.id === state.activeLayerId ? 'active' : ''}`;
+        div.innerHTML = `
+          <span class="layer-title">L${index + 1}: ${layer.type}</span>
+          <div class="layer-actions">
+            <button class="btn-icon toggle-vis" title="Toggle Visibility">${layer.visible ? '👁️' : '➖'}</button>
+            <button class="btn-icon danger delete-layer" title="Delete Layer">✕</button>
+          </div>
+        `;
+
+        div.addEventListener('click', () => {
+          state.activeLayerId = layer.id;
+          renderLayers();
+          syncFormToActiveLayer();
+        });
+
+        div.querySelector('.toggle-vis').addEventListener('click', (e) => {
+          e.stopPropagation();
+          layer.visible = !layer.visible;
+          renderLayers();
+          updatePreview();
+        });
+
+        div.querySelector('.delete-layer').addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (state.layers.length <= 1) return alert("Requires at least one layer.");
+          state.layers = state.layers.filter(l => l.id !== layer.id);
+          if (state.activeLayerId === layer.id) state.activeLayerId = state.layers[0].id;
+          renderLayers();
+          syncFormToActiveLayer();
+          updatePreview();
+        });
+
+        layersContainer.appendChild(div);
+      });
+    }
+
+    function renderStops() {
+      const layer = getActiveLayer();
+      stopsContainer.innerHTML = '';
+      layer.stops.forEach((stop) => {
+        const div = document.createElement('div');
+        div.className = 'color-stop';
+
+        div.innerHTML = `
+          <select data-id="${stop.id}" class="stop-type" title="Color Type">
+            <option value="color" ${stop.type === 'color' ? 'selected' : ''}>Hex</option>
+            <option value="transparent" ${stop.type === 'transparent' ? 'selected' : ''}>Clear</option>
+          </select>
+          <input type="color" value="${stop.color}" data-id="${stop.id}" class="stop-color" ${stop.type === 'transparent' ? 'style="visibility:hidden;"' : ''} title="Color">
+           <input type="range" min="0" max="100" value="${stop.opacity}" data-id="${stop.id}" class="stop-opacity" ${stop.type === 'transparent' ? 'disabled' : ''} title="Alpha (Opacity)">
+          <button data-id="${stop.id}" class="btn-icon danger remove-stop" title="Remove Stop">✕</button>
+
+          <div style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+            <input type="number" value="${stop.pos1}" data-id="${stop.id}" class="stop-pos1" placeholder="P1 %" title="Position 1 (%)">
+            <input type="number" value="${stop.pos2 !== null ? stop.pos2 : ''}" data-id="${stop.id}" class="stop-pos2" placeholder="P2 %" title="Position 2 (Hard Line %)">
+          </div>
+        `;
+        stopsContainer.appendChild(div);
+      });
+      attachStopListeners();
+    }
+
+    function attachStopListeners() {
+      const layer = getActiveLayer();
+
+      document.querySelectorAll('.stop-type').forEach(el => el.addEventListener('change', (e) => {
+        layer.stops.find(s => s.id == e.target.dataset.id).type = e.target.value;
+        renderStops(); updatePreview();
+      }));
+
+      document.querySelectorAll('.stop-color').forEach(el => el.addEventListener('input', (e) => {
+        layer.stops.find(s => s.id == e.target.dataset.id).color = e.target.value; updatePreview();
+      }));
+
+      document.querySelectorAll('.stop-opacity').forEach(el => el.addEventListener('input', (e) => {
+        layer.stops.find(s => s.id == e.target.dataset.id).opacity = e.target.value; updatePreview();
+      }));
+
+      document.querySelectorAll('.stop-pos1').forEach(el => el.addEventListener('input', (e) => {
+        layer.stops.find(s => s.id == e.target.dataset.id).pos1 = e.target.value === '' ? '' : Number(e.target.value); updatePreview();
+      }));
+
+      document.querySelectorAll('.stop-pos2').forEach(el => el.addEventListener('input', (e) => {
+        layer.stops.find(s => s.id == e.target.dataset.id).pos2 = e.target.value === '' ? null : Number(e.target.value); updatePreview();
+      }));
+
+      document.querySelectorAll('.remove-stop').forEach(el => el.addEventListener('click', (e) => {
+        if (layer.stops.length <= 2) return;
+        layer.stops = layer.stops.filter(s => s.id != e.target.dataset.id);
+        renderStops(); updatePreview();
+      }));
+    }
+
+    function updatePreview() {
+      const visibleLayers = state.layers.filter(l => l.visible);
+      if (visibleLayers.length === 0) {
+        canvas.style.background = 'transparent'; output.value = 'background: transparent;'; return;
+      }
+
+      const backgrounds = visibleLayers.map(layer => {
+        const prefix = layer.repeating ? "repeating-" : "";
+        const sortedStops = [...layer.stops].sort((a, b) => a.pos1 - b.pos1);
+
+        const stopsStr = sortedStops.map(s => {
+          const c = getStandardizedColor(s);
+          const p1 = s.pos1 !== '' ? `${s.pos1}%` : '';
+          const p2 = s.pos2 !== null ? ` ${s.pos2}%` : '';
+          return `${c} ${p1}${p2}`.trim();
+        }).join(', ');
+
+        let geom = "";
+        let func = `${prefix}${layer.type}-gradient`;
+
+        if (layer.type === "linear") geom = layer.linear.dirType === "angle" ? `${layer.linear.angle}deg` : layer.linear.keyword;
+        if (layer.type === "radial") geom = `${layer.radial.shape} ${layer.radial.size} at ${layer.radial.posX}% ${layer.radial.posY}%`;
+        if (layer.type === "conic") geom = `from ${layer.conic.angle}deg at ${layer.conic.posX}% ${layer.conic.posY}%`;
+
+        const img = `${func}(${geom ? geom + ', ' : ''}${stopsStr})`;
+        return `${img} ${layer.bgPosition} / ${layer.bgSize} ${layer.bgRepeat}`;
+      });
+
+      const finalCSS = backgrounds.join(',\n  ');
+      canvas.style.background = backgrounds.join(', ');
+      output.value = `background:\n  ${finalCSS};`;
+    }
+
+    document.getElementById('add-layer-btn').addEventListener('click', () => {
+      state.layerCounter++;
+      const newLayer = createDefaultLayer(state.layerCounter);
+      newLayer.stops[0].color = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
+      state.layers.unshift(newLayer);
+      state.activeLayerId = newLayer.id;
+      renderLayers(); syncFormToActiveLayer(); updatePreview();
+    });
+
+    document.getElementById('add-stop-btn').addEventListener('click', () => {
+      const layer = getActiveLayer();
+      const lastPos = layer.stops.length > 0 ? layer.stops[layer.stops.length - 1].pos1 : 0;
+      layer.stops.push({ id: Date.now(), type: "color", color: "#ffffff", opacity: 100, pos1: Math.min(parseInt(lastPos) + 10, 100), pos2: null });
+      renderStops(); updatePreview();
+    });
+
+    function bindInput(id, updateFn) {
+      document.getElementById(id).addEventListener('input', (e) => {
+        updateFn(getActiveLayer(), e.target.value);
+        if (id.includes('type')) renderLayers();
+        updatePreview();
+      });
+    }
+
+    bindInput('type-select', (l, v) => {
+      l.type = v;
+      document.querySelectorAll('.type-controls').forEach(el => el.classList.remove('active'));
+      document.getElementById(`controls-${v}`).classList.add('active');
+    });
+    bindInput('repeating-toggle', (l, v) => l.repeating = document.getElementById('repeating-toggle').checked);
+    bindInput('bg-size', (l, v) => l.bgSize = v || '100% 100%');
+    bindInput('bg-position', (l, v) => l.bgPosition = v || '0% 0%');
+    bindInput('bg-repeat', (l, v) => l.bgRepeat = v);
+
+    bindInput('linear-dir-type', (l, v) => {
+      l.linear.dirType = v;
+      document.getElementById('linear-angle-wrap').style.display = v === 'angle' ? 'flex' : 'none';
+      document.getElementById('linear-keyword-wrap').style.display = v === 'keyword' ? 'block' : 'none';
+    });
+    bindInput('linear-angle', (l, v) => { l.linear.angle = v; document.getElementById('linear-angle-val').textContent = v + '°'; });
+    bindInput('linear-keyword', (l, v) => l.linear.keyword = v);
+
+    bindInput('radial-shape', (l, v) => l.radial.shape = v);
+    bindInput('radial-size', (l, v) => l.radial.size = v);
+    bindInput('radial-pos-x', (l, v) => l.radial.posX = v);
+    bindInput('radial-pos-y', (l, v) => l.radial.posY = v);
+    bindInput('conic-angle', (l, v) => { l.conic.angle = v; document.getElementById('conic-angle-val').textContent = v + '°'; });
+    bindInput('conic-pos-x', (l, v) => l.conic.posX = v);
+    bindInput('conic-pos-y', (l, v) => l.conic.posY = v);
+
+    renderLayers(); syncFormToActiveLayer(); updatePreview();
+  </script>
+</body>
+
+</html>

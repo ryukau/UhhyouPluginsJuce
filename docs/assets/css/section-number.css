@@ -1,0 +1,59 @@
+body {
+  counter-reset: h2counter;
+}
+
+h2 {
+  counter-reset: h3counter;
+}
+
+h2 a::before {
+  counter-increment: h2counter;
+  content: counter(h2counter) ". ";
+}
+
+h3 {
+  counter-reset: h4counter;
+}
+
+h3 a::before {
+  counter-increment: h3counter;
+  content: counter(h2counter) "." counter(h3counter) " ";
+}
+
+h4 {
+  counter-reset: h5counter;
+}
+
+h4 a::before {
+  counter-increment: h4counter;
+  content: counter(h2counter) "." counter(h3counter) "." counter(h4counter) " ";
+}
+
+h5 {
+  counter-reset: h6counter;
+}
+
+h5 a::before {
+  counter-increment: h5counter;
+  content: counter(h2counter) "." counter(h3counter) "." counter(h4counter) "." counter(h5counter) " ";
+}
+
+h6 a::before {
+  counter-increment: h6counter;
+  content: counter(h2counter) "." counter(h3counter) "." counter(h4counter) "." counter(h5counter) "." counter(h6counter) " ";
+}
+
+#TableOfContents ul,
+#TableOfContents ol {
+  list-style: none;
+  counter-reset: toc-counter;
+}
+
+#TableOfContents li {
+  counter-increment: toc-counter;
+}
+
+#TableOfContents li > a::before {
+  content: counters(toc-counter, ".") ". ";
+  margin-right: 0.5rem;
+}

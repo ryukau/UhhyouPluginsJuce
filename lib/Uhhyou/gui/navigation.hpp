@@ -30,7 +30,7 @@ struct FocusScope {
 
   bool contains(juce::Component* c) const { return componentSet.contains(c); }
 
-  void setKeyboardFocusEnabled(bool enable) {
+  void setKeyboardFocus(bool enable) {
     for (auto& safePtr : components) {
       if (auto* cmp = safePtr.getComponent()) {
         cmp->setWantsKeyboardFocus(enable);

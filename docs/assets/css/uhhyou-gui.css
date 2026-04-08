@@ -29,6 +29,37 @@
   box-sizing: border-box;
   margin: 0.5em 0 1em 0;
   justify-content: center;
+
+  position: relative;
+}
+
+.activation-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: color-mix(in srgb, var(--gui-bg) 60%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  border-radius: inherit;
+}
+
+.activation-btn {
+  background: var(--gui-surface);
+  color: var(--gui-text);
+  padding: calc(8px * var(--scale)) calc(16px * var(--scale));
+  border: 1px solid var(--gui-border);
+  border-radius: calc(4px * var(--scale));
+  font-family: var(--font-sans, sans-serif);
+  font-size: calc(14px * var(--scale));
+  font-weight: bold;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--foreground-color) 20%, transparent);
+  cursor: pointer;
+}
+
+.activation-btn:focus-visible {
+  outline: 2px solid var(--component-main, #fcc04f);
+  outline-offset: 2px;
 }
 
 #btn-randomize {

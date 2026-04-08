@@ -1428,8 +1428,7 @@ class TabView extends CanvasBase {
       this.tabs?.forEach((t, i) => {
         const r = this.getTabRect(i);
         if (e.offsetX >= r.x && e.offsetX <= r.x + r.w && e.offsetY >= r.y
-            && e.offsetY <= r.y + r.h)
-        {
+            && e.offsetY <= r.y + r.h) {
           this.canvas.style.cursor = 'default';
           this.setActiveTab(i);
         }
@@ -1536,27 +1535,42 @@ const themeObserver = new MutationObserver(m => {
 themeObserver.observe(document.documentElement,
                       {attributes: true, attributeFilter: ['data-theme']});
 
-function randomizeUnlockedParameters(container) {
-  if (!container) return;
-  container.querySelectorAll('uhhyou-labeled-widget, uhhyou-labeled-xypad').forEach(w => {
-    if (w.tagName.toLowerCase() === 'uhhyou-labeled-xypad') {
-      const p = w.querySelector('uhhyou-xy-pad');
-      if (p)
-        p.setValues(w.isLockedX ? p.valueX : Math.random(), w.isLockedY ? p.valueY : Math.random());
-      return;
-    }
-    if (w.isLocked) return;
-    const c = w.querySelector(
-      'uhhyou-text-knob, uhhyou-rotary-knob, uhhyou-knob, uhhyou-rotary-text-knob, uhhyou-combo-box, uhhyou-xy-pad, uhhyou-toggle-button');
-    if (!c) return;
-    const t = c.tagName.toLowerCase();
-    if (t.includes('knob'))
-      c.setValue(Math.random());
-    else if (t === 'uhhyou-combo-box')
-      c.setInternalValue(Math.floor(Math.random() * c.items.length));
-    else if (t === 'uhhyou-xy-pad')
-      c.setValues(Math.random(), Math.random());
-    else if (t === 'uhhyou-toggle-button' && c.value !== (Math.random() > 0.5 ? 1 : 0))
-      c.toggleValue();
+function initPluginWindowActivation() {
+  const pluginWindows = document.querySelectorAll('.plugin-window');
+
+  pluginWindows.forEach(win => {
+    const overlay = document.createElement('div');
+    overlay.className = 'activation-overlay';
+
+    const btn = document.createElement('button');
+    btn.className = 'activation-btn';
+    btn.textContent = 'Click to activate';
+    btn.setAttribute('aria-label', 'Activate interactive plugin mockup');
+
+    overlay.appendChild(btn);
+    win.appendChild(overlay);
+    Array.from(win.children).forEach(child => {
+      if (child !== overlay) child.inert = true;
+    });
+    const activate = () => {
+      if (!win.classList.contains('is-active')) {
+        win.classList.add('is-active');
+        overlay.style.display = 'none';
+        Array.from(win.children).forEach(child => {
+          if (child !== overlay) child.inert = false;
+        });
+        const firstCanvas = win.querySelector('canvas');
+        if (firstCanvas) firstCanvas.focus();
+      }
+    };
+
+    win.addEventListener('mousedown', activate);
+    btn.addEventListener('click', activate);
   });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initPluginWindowActivation);
+} else {
+  initPluginWindowActivation();
 }

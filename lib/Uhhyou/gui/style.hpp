@@ -75,7 +75,7 @@ public:
   }
 
   // Global GUI Settings.
-  bool keyboardFocusEnabled() const { return keyboardFocusEnabled_; }
+  bool KeyboardFocus() const { return KeyboardFocus_; }
   float windowScale() const { return windowScale_; }
 
   // Look and feel.
@@ -134,7 +134,7 @@ private:
   void saveStyleJson();
 
   template<typename Visitor> void visitProperties(Visitor&& visitor) {
-    visitor("keyboardFocusEnabled", keyboardFocusEnabled_);
+    visitor("KeyboardFocus", KeyboardFocus_);
     visitor("windowScale", windowScale_);
     visitor("fontUiName", fontUiName_);
     visitor("fontUiStyle", fontUiStyle_);
@@ -170,7 +170,7 @@ private:
   float borderWidth_ = 1;
   float borderWidthScaled_ = borderWidth_;
 
-  bool keyboardFocusEnabled_ = true;
+  bool KeyboardFocus_ = true;
   float windowScale_ = 1.0f;
 
   juce::String fontUiName_{"Ubuntu"};

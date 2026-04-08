@@ -1,20 +1,194 @@
 ---
-title: "GUI Controls"
+title: "Basic Usage"
 date: 3000-01-01
 draft: false
 toc: true
-weight: 2
+weight: 1
 gui_mockups: true
+section_number: true
 layout: "plugin-mockup"
 ---
 
-If DAW shortcuts fail, disable "Keyboard Navigation" in GUI Settings.
+TODO: Add a link to GitHub discussions when the plugin is not working.
 
-Mock-ups have limited functionality.
+## System
 
-## Keyboard Navigation
+### DAW
 
-Restores focus to the last control after {{< shortcuts >}}<kbd>Alt</kbd>+<kbd>Tab</kbd>{{< /shortcuts >}}.
+Tested in DAWs below on Windows 11:
+
+- FL Studio
+- REAPER
+
+### Build Environment
+
+Plugins might not run on older systems.
+
+| Platform | OS Version               | Architecture          |
+|:---------|:-------------------------|:----------------------|
+| macOS    | macOS 15 (Sequoia)       | Apple Silicon (ARM64) |
+| Windows  | Windows 11 / Server 2025 | x64                   |
+| Linux    | Ubuntu 24.04 LTS         | x64                   |
+
+## Installation
+TODO: Link to downlowd page.
+
+### Plugin Folder
+
+Extract the `.zip` file and move the plugins to these folders.
+
+| OS             | Path                                                                      |
+|----------------|---------------------------------------------------------------------------|
+| Windows (VST3) | `C:\Program Files\Common Files\VST3\`                                     |
+| macOS (VST3)   | `~/Library/Audio/Plug-ins/VST3/`                                          |
+| macOS (AU)     | `~/Library/Audio/Plug-ins/Components/` (Must have `.component` extension) |
+| Linux (VST3)   | `~/.vst3/`                                                                |
+
+`~/` is your home folder.
+
+### Preset Folder
+
+Move the downloaded presets into the `UhhyouPlugins` folder to these folders.
+
+| OS      | Path                                           |
+|---------|------------------------------------------------|
+| Windows | `%APPDATA%\UhhyouPlugins\`                     |
+| macOS   | `~/Library/Application Support/UhhyouPlugins/` |
+| Linux   | `~/.config/UhhyouPlugins/`                     |
+
+The plugin will automatically create this folder the first time you open it, or you can create it manually.
+
+### Troubleshooting
+
+#### Windows
+
+If your DAW cannot find the plugin, install Microsoft Visual C++ Redistributable.
+
+- [Download `vc_redist.x64.exe` from Microsoft](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)
+
+#### Linux (Ubuntu 24.04)
+
+Required libraries: `sudo apt install libxcb-cursor0 libxkbcommon-x11-0`
+
+Note: If REAPER fails to scan the plugin, delete `~/.config/REAPER/reaper-vstplugins64.ini` and restart.
+
+#### macOS
+
+Gatekeeper might flag the plugin as damaged. To fix this:
+
+1. Open Terminal.
+2. Run this command (replace `FileName.vst3` with your plugin):
+   `xattr -cr ~/Library/Audio/Plug-ins/VST3/FileName.vst3`
+3. Rescan plugins in your DAW.
+
+If the plugin still fails, force an ad-hoc signature:
+`sudo codesign --force --deep -s - ~/Library/Audio/Plug-ins/VST3/FileName.vst3`
+
+Note: `xattr` and `codesign` are built-in. macOS might prompt you to download Command Line Developer Tools.
+
+## Appearance
+
+The appearance can be changed from [GUI Settings]({{< ref "#gui-settings" >}}) → [Change Appearance]({{< ref "#settings-appearance" >}}).
+
+### Appearance Folder
+
+| OS               | Path                                                                       |
+|------------------|----------------------------------------------------------------------------|
+| Windows          | `%APPDATA%\UhhyouPlugins\appearance\`                                      |
+| macOS            | `~/Library/Preferences/UhhyouPlugins/appearance/`                          |
+| Linux (Primary)  | `$XDG_CONFIG_HOME/UhhyouPlugins/appearance/`                               |
+| Linux (Fallback) | `$HOME/.config/UhhyouPlugins/appearance/` (If `$XDG_CONFIG_HOME` is empty) |
+
+Avoid editing `_active.json`. Running plugins may overwrite it.
+
+To add an appearance, place `.json` file in `UhhyouPlugins/appearance/` folder. The appearance will show up in [GUI Settings]({{< ref "#gui-settings" >}}) → [Change Appearance]({{< ref "#settings-appearance" >}}) only if the format is valid.
+
+### Format
+
+The file uses [JSON](https://www.json.org/json-en.html) format. The default is shown below.
+
+```json
+{
+  "KeyboardFocus": true,
+  "windowScale"         : 1.0,
+  "fontUiName"          : "Ubuntu",
+  "fontUiStyle"         : "Regular",
+  "fontMonoName"        : "Ubuntu Mono",
+  "fontMonoStyle"       : "Regular",
+  "foregroundLight"     : "#ffffffff",
+  "foregroundDark"      : "#000000ff",
+  "background"          : "#ffffffff",
+  "surface"             : "#f8f8f8ff",
+  "border"              : "#888888ff",
+  "main"                : "#fcc04fff",
+  "accent"              : "#13c136ff",
+  "warning"             : "#fc8080ff"
+}
+```
+
+Invalid formatting overwrites `_active.json` with the default. The default values fill the missing options.
+
+#### Window Options
+
+{{< anchor "windowScale" "opt-window-scale" >}} applies only when launching a new plugin. Individual plugins retain manual size changes.
+
+{{< dl >}}
+{{< def terms="KeyboardFocus" id="opt-keyboard-focus" >}}
+Toggles keyboard navigation.
+{{< /def >}}
+
+{{< def terms="windowScale" id="opt-window-scale" >}}
+Sets the default scaling. (e.g. `1.25` is 125%.)
+{{< /def >}}
+{{< /dl >}}
+
+#### Font Options
+
+`*Name` sets the font family. `*Style` sets the style (e.g., "Regular", "Bold"). Setting `fontMonoName` to a non-monospace font may break text layouts.
+
+{{< dl >}}
+{{< def terms="fontUiName|fontUiStyle" id="opt-font-ui" >}}
+Main font.
+{{< /def >}}
+
+{{< def terms="fontMonoName|fontMonoStyle" id="opt-font-mono" >}}
+Must be a monospace font.
+{{< /def >}}
+{{< /dl >}}
+
+#### Color Options
+
+Use 6-digit (RGB) or 8-digit (RGBA) hex color codes. Plugins ignore the first character, so `#112233` and `?112233` both work. Don't use characters outside `0-9a-f` in the hex part.
+
+{{< dl >}}
+{{< def terms="foregroundLight|foregroundDark" id="opt-color-fg" >}}
+Text colors. Automatically switches based on background contrast.
+{{< /def >}}
+
+{{< def terms="background" id="opt-color-bg" >}}
+Empty space color.
+{{< /def >}}
+
+{{< def terms="surface" id="opt-color-surface" >}}
+Control background color.
+{{< /def >}}
+
+{{< def terms="border" id="opt-color-border" >}}
+Control border color.
+{{< /def >}}
+
+{{< def terms="main|accent|warning" id="opt-color-highlight" >}}
+Highlight colors for mouse hover and keyboard focus. {{< anchor "accent" "opt-color-highlight-1" >}} is rarely used.
+{{< /def >}}
+{{< /dl >}}
+
+## Controls
+
+Plugin GUI mock-ups in this page have limited shortcut or functionality.
+
+### Keyboard Navigation
+
+If DAW shortcuts fail on the plugin GUI, disable "Keyboard Navigation" in {{< anchor "GUI Settings" "gui-settings" >}}.
 
 {{< dl >}}
 {{< def terms="Navigate" id="global-navigate" >}}
@@ -30,34 +204,46 @@ Restores focus to the last control after {{< shortcuts >}}<kbd>Alt</kbd>+<kbd>Ta
 {{< /def >}}
 {{< /dl >}}
 
-## GUI Settings
+### GUI Settings
+
+The menu items are shown below.
 
 {{< dl >}}
-{{< def terms="Keyboard Navigation" id="settings-keyboard-nav" >}}
-Toggles keyboard navigation. Disable if DAW shortcuts fail. Enabled by default.
+{{< def terms="Reset Window Size" id="settings-reset-window" >}}
+Resets window scaling. Default set in `_active.json`.
 {{< /def >}}
 
-{{< def terms="Reset Window Size" id="settings-reset-window" >}}
-Resets window scaling. Default set in `style.json`.
+{{< def terms="Keyboard Navigation" id="settings-keyboard-navigation" >}}
+Toggles keyboard navigation. Disable if DAW shortcuts fail. Enabled by default.
 {{< /def >}}
 
 {{< def terms="Logging" id="settings-logging" >}}
 Toggles logging. Keep disabled unless troubleshooting.
 {{< /def >}}
 
-{{< def terms="Theme / Style" id="settings-theme" >}}
-Loads custom color and font themes.
+{{< def terms="Open Preset Folder" id="settings-open-preset-folder" >}}
+Opens [preset folder]({{< ref "#preset-folder" >}}).
+{{< /def >}}
+
+{{< def terms="Open Appearance Folder" id="settings-open-appearance-folder" >}}
+Opens [appearance folder]({{< ref "#appearance-folder" >}}).
+{{< /def >}}
+
+{{< def terms="Change Appearance" id="settings-appearance" >}}
+Loads appearances.
 {{< /def >}}
 {{< /dl >}}
 
-Log file path:
+#### Log File Path
 
-- Windows: `%APPDATA%\UhhyouPlugins\Logs\`
-- macOS: `~/Library/UhhyouPlugins/Logs`
-- Linux (Primary): `$XDG_CONFIG_HOME/UhhyouPlugins/Logs/`
-- Linux (Fallback): `$HOME/.config/UhhyouPlugins/Logs/` if `$XDG_CONFIG_HOME` is empty.
+| OS               | Path                                                                 |
+|------------------|----------------------------------------------------------------------|
+| Windows          | `%APPDATA%\UhhyouPlugins\Logs\`                                      |
+| macOS            | `~/Library/UhhyouPlugins/Logs`                                       |
+| Linux (Primary)  | `$XDG_CONFIG_HOME/UhhyouPlugins/Logs/`                               |
+| Linux (Fallback) | `$HOME/.config/UhhyouPlugins/Logs/` (If `$XDG_CONFIG_HOME` is empty) |
 
-## Knob
+### Knob
 
 {{< div class="gui-section" >}}
 
@@ -116,7 +302,7 @@ Log file path:
 
 {{< /div >}}
 
-## XY Pad
+### XY Pad
 
 {{< div class="gui-section" >}}
 <div class='plugin-window'>
@@ -180,7 +366,7 @@ Y: {{< shortcuts >}}🖱️Right-Click (Right Half) | {{< modkey >}}+<kbd>Shift<
 
 {{< /div >}}
 
-## Button
+### Button
 
 {{< div class="gui-section" >}}
 <div class="plugin-window">
@@ -209,7 +395,7 @@ Y: {{< shortcuts >}}🖱️Right-Click (Right Half) | {{< modkey >}}+<kbd>Shift<
 {{< /dl >}}
 {{< /div >}}
 
-## Combo Box
+### Combo Box
 
 {{< div class="gui-section" >}}
 <div class="plugin-window">
@@ -246,7 +432,7 @@ Y: {{< shortcuts >}}🖱️Right-Click (Right Half) | {{< modkey >}}+<kbd>Shift<
 {{< /dl >}}
 {{< /div >}}
 
-## Preset Manager
+### Preset Manager
 
 {{< div class="gui-section" >}}
 <div class="plugin-window">
@@ -280,7 +466,7 @@ External file changes require a {{< anchor "Refresh" "preset-refresh" >}}. Slow 
 
 {{< /div >}}
 
-## Parameter Lock
+### Parameter Lock
 
 {{< div class="gui-section" >}}
 <div class="plugin-window">
@@ -318,7 +504,7 @@ Locks parameters from "Randomize". Dimmed labels are locked.
 
 {{< /div >}}
 
-## Horizontal Drawer
+### Horizontal Drawer
 
 {{< div class="gui-section" >}}
 
@@ -349,7 +535,7 @@ Hides or shows contents. Focus returns to the toggle button if closed from insid
 
 {{< /div >}}
 
-## Tab View
+### Tab View
 
 <div class="plugin-window" style="float=none; margin-bottom: 1em;">
   <uhhyou-tab-view tabs="Tab 1,Tab 2,Tab 3">
@@ -377,7 +563,7 @@ Hides or shows contents. Focus returns to the toggle button if closed from insid
 {{< /def >}}
 {{< /dl >}}
 
-## Info & License
+### Info & License
 
 {{< dl >}}
 {{< def terms="View" id="info-view" >}}

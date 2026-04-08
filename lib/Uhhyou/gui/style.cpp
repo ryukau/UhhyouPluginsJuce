@@ -35,7 +35,7 @@ inline juce::File getInternalStyleDir() {
   configDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory);
 #endif
 
-  return configDir.getChildFile("UhhyouPlugins").getChildFile("style2");
+  return configDir.getChildFile("UhhyouPlugins").getChildFile("appearance");
 }
 
 juce::File Palette::getStyleDirectory() const { return getInternalStyleDir(); }
@@ -110,7 +110,7 @@ static std::optional<nlohmann::ordered_json> loadJson(const juce::File& file) {
 
 void Palette::saveStyleJson() {
   juce::File styleDir = getInternalStyleDir();
-  juce::File styleJsonPath = styleDir.getChildFile("style.json");
+  juce::File styleJsonPath = styleDir.getChildFile("_active.json");
 
   nlohmann::ordered_json data;
   visitProperties([&](const char* key, auto& member) {
@@ -128,7 +128,7 @@ void Palette::saveStyleJson() {
   if (ipLock.enter(2000)) {
     saveJson(styleJsonPath, data);
   } else {
-    juce::Logger::writeToLog("Uhhyou: Failed to acquire InterProcessLock for saving style.json");
+    juce::Logger::writeToLog("Uhhyou: Failed to acquire InterProcessLock for saving _active.json");
   }
 }
 
@@ -156,13 +156,13 @@ void Palette::loadStyleFromFile(const juce::File& file) {
   });
 
   updateCaches();
-  saveStyleJson(); // Persist the freshly loaded config as the active `style.json`.
+  saveStyleJson(); // Persist the freshly loaded config as the active `_active.json`.
   StyleNotifier::getInstance().sendChangeMessage();
 }
 
 void Palette::load() {
   std::lock_guard<std::mutex> lock(styleMutex);
-  juce::File styleJsonPath = getInternalStyleDir().getChildFile("style.json");
+  juce::File styleJsonPath = getInternalStyleDir().getChildFile("_active.json");
 
   std::optional<nlohmann::ordered_json> loadedData;
   {
@@ -170,7 +170,8 @@ void Palette::load() {
     if (ipLock.enter(2000)) {
       loadedData = loadJson(styleJsonPath);
     } else {
-      juce::Logger::writeToLog("Uhhyou: Failed to acquire InterProcessLock for loading style.json");
+      juce::Logger::writeToLog(
+        "Uhhyou: Failed to acquire InterProcessLock for loading _active.json");
     }
   }
 
@@ -199,7 +200,7 @@ void Palette::load() {
 }
 
 template<typename T> inline void updateSettingImpl(const std::string& key, T value) {
-  juce::File styleJsonPath = getInternalStyleDir().getChildFile("style.json");
+  juce::File styleJsonPath = getInternalStyleDir().getChildFile("_active.json");
 
   juce::InterProcessLock ipLock("UhhyouStyleLock");
   if (!ipLock.enter(2000)) {
@@ -214,7 +215,7 @@ template<typename T> inline void updateSettingImpl(const std::string& key, T val
 
     if (!loadedData) {
       juce::Logger::writeToLog("Uhhyou: Aborting updateSetting to prevent data wipe (could not "
-                               "read existing style.json).");
+                               "read existing _active.json).");
       return;
     }
     data = *loadedData;
@@ -226,7 +227,7 @@ template<typename T> inline void updateSettingImpl(const std::string& key, T val
 
 void Palette::updateSetting(const std::string& key, bool value) {
   std::lock_guard<std::mutex> lock(styleMutex);
-  if (key == "keyboardFocusEnabled") { keyboardFocusEnabled_ = value; }
+  if (key == "KeyboardFocus") { KeyboardFocus_ = value; }
   updateSettingImpl(key, value);
 }
 

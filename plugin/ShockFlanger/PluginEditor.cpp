@@ -33,8 +33,7 @@ struct Metrics {
     // TODO: C++26 static reflection can be used to simplify the loop below.
     for (auto ptr : {&Metrics::margin, &Metrics::labelH, &Metrics::labelW, &Metrics::uiMargin,
                      &Metrics::labelX, &Metrics::labelY, &Metrics::sectionWidth,
-                     &Metrics::xypadWidth, &Metrics::drawerButtonW, &Metrics::totalHeight})
-    {
+                     &Metrics::xypadWidth, &Metrics::drawerButtonW, &Metrics::totalHeight}) {
       this->*ptr = zoom(this->*ptr);
     }
     drawerButtonW = HorizontalDrawer::calculateButtonWidth(scale);
@@ -130,9 +129,9 @@ Editor::Editor(Processor& proc) : EditorBase(proc, informationText) {
   addRotaryTextKnob(sLFO, "lfoPhaseInitial", sc.unipolar, phaseSnaps, 5);
   addRotaryTextKnob(sLFO, "lfoPhaseStereoOffset", sc.unipolar, phaseSnaps, 5);
   addMomentaryButton(sLFO, "lfoPhaseReset", sc.boolean);
+  addTextKnob(sLFO, "lfoTimeMod0", sc.lfoToDelayTimeOctave, {sc.lfoToDelayTimeOctave.invmap(0)}, 5);
+  addTextKnob(sLFO, "lfoTimeMod1", sc.lfoToDelayTimeOctave, {sc.lfoToDelayTimeOctave.invmap(0)}, 5);
 
-  addTextKnob(sMod, "lfoTimeMod0", sc.lfoToDelayTimeOctave, {sc.lfoToDelayTimeOctave.invmap(0)}, 5);
-  addTextKnob(sMod, "lfoTimeMod1", sc.lfoToDelayTimeOctave, {sc.lfoToDelayTimeOctave.invmap(0)}, 5);
   addTextKnob(sMod, "modulationTracking", sc.unipolar, {sc.unipolar.invmap(1.0f)}, 5);
   addTextKnob<Style::warning>(sMod, "audioModMode", sc.unipolar, {sc.unipolar.invmap(0.0f)}, 5);
   addTextKnob<Style::warning>(sMod, "viscosityLowpassHz", sc.cutoffHz,
