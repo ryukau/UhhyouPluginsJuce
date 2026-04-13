@@ -1,0 +1,16 @@
+{
+  "keyboardFocusEnabled": false,
+  "windowScale"         : 1.0,
+  "fontUiName"          : "Merriweather",
+  "fontUiStyle"         : "Regular",
+  "fontMonoName"        : "Ubuntu Mono",
+  "fontMonoStyle"       : "Regular",
+  "foregroundLight"     : "#eeeeee",
+  "foregroundDark"      : "#202020",
+  "background"          : "#202020",
+  "surface"             : "#2b2b2b",
+  "border"              : "#797979",
+  "main"                : "#d88000",
+  "accent"              : "#008f1d",
+  "warning"             : "#dd3939"
+}

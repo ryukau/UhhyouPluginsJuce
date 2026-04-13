@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Root>
+  <PARAM id="audioAmpMod0" value="0.0"/>
+  <PARAM id="audioAmpMod1" value="1.0"/>
+  <PARAM id="audioModMode" value="0.0"/>
+  <PARAM id="audioTimeMod0" value="-0.1123102903366089"/>
+  <PARAM id="audioTimeMod1" value="-0.07626974582672119"/>
+  <PARAM id="delayTimeMs" value="3.700000762939453"/>
+  <PARAM id="delayTimeRatio" value="0.8114104270935059"/>
+  <PARAM id="dryGain" value="0.0"/>
+  <PARAM id="feedback0" value="-0.9871394634246826"/>
+  <PARAM id="feedback1" value="-0.9903793931007385"/>
+  <PARAM id="feedbackGate" value="1.0"/>
+  <PARAM id="flangeBlend" value="0.002000000094994903"/>
+  <PARAM id="flangePolarity" value="0.0"/>
+  <PARAM id="highpassCutoffHz" value="18.40897750854492"/>
+  <PARAM id="inputBlend" value="0.4659999310970306"/>
+  <PARAM id="lfoBeat" value="1.111111640930176"/>
+  <PARAM id="lfoPhaseInitial" value="0.0"/>
+  <PARAM id="lfoPhaseReset" value="0.0"/>
+  <PARAM id="lfoPhaseStereoOffset" value="0.0"/>
+  <PARAM id="lfoSyncType" value="2.0"/>
+  <PARAM id="lfoTimeMod0" value="-0.001202258747071028"/>
+  <PARAM id="lfoTimeMod1" value="0.001999998930841684"/>
+  <PARAM id="lowpassCutoffHz" value="99999.96875"/>
+  <PARAM id="modulationTracking" value="1.0"/>
+  <PARAM id="moreFeedback" value="0.0"/>
+  <PARAM id="noteGainRange" value="20.0"/>
+  <PARAM id="notePitchRange" value="1.0"/>
+  <PARAM id="noteReceive" value="0.0"/>
+  <PARAM id="oversampling" value="1.0"/>
+  <PARAM id="saturationGain" value="5.0118727684021"/>
+  <PARAM id="saturationType" value="16.0"/>
+  <PARAM id="viscosityLowpassHz" value="2000.000244140625"/>
+  <PARAM id="wetGain" value="1.0"/>
+  <PARAM id="wetInvert" value="0.0"/>
+  <GUI ParamLocks="wetInvert,oversampling,moreFeedback,feedbackGate,lfoPhaseReset,noteReceive"
+       windowScale="1.0"/>
+</Root>

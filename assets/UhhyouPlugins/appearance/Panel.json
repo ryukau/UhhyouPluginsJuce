@@ -1,0 +1,16 @@
+{
+  "keyboardFocusEnabled": false,
+  "windowScale"         : 1.0,
+  "fontUiName"          : "Ubuntu",
+  "fontUiStyle"         : "Regular",
+  "fontMonoName"        : "Ubuntu Mono",
+  "fontMonoStyle"       : "Regular",
+  "foregroundLight"     : "#ffffffff",
+  "foregroundDark"      : "#000000",
+  "background"          : "#b7d097",
+  "surface"             : "#f8f8f8ff",
+  "border"              : "#376273",
+  "main"                : "#f7d501",
+  "accent"              : "#00adef",
+  "warning"             : "#D9161D"
+}

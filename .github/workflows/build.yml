@@ -91,7 +91,7 @@ jobs:
   release-packaging:
     needs: [build-ubuntu, build-windows, build-macOS]
     runs-on: ubuntu-latest
-    if: ${{ startsWith(github.ref, 'refs/tags/UhhyouPluginsJuce') }}
+    # if: ${{ startsWith(github.ref, 'refs/tags/UhhyouPluginsJuce') }}
     permissions:
       contents: write
     steps:
@@ -105,17 +105,27 @@ jobs:
           path: ${{ env.package_path }}
           pattern: plugins_*
           merge-multiple: true
-      - name: Run package script
+      - name: Prepare Package
         run: |
+          # Create directory and copy assets to the packaging folder
+          mkdir -p ${{ env.package_path }}/assets
+          cp -r assets/UhhyouPlugins ${{ env.package_path }}/assets/
+
+          # Verify structure and zip
           tree -an
           zip -r UhhyouPluginsJuce.zip ${{ env.package_path }}
-      - name: Get Release Notes
-        run: 'echo "$(git tag -l --format="%(contents:body)" $GITHUB_REF_NAME)" > RELEASE_NOTES'
-      - name: Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create "$GITHUB_REF_NAME" \
-            UhhyouPluginsJuce.zip \
-            --title "$GITHUB_REF_NAME" \
-            --notes-file RELEASE_NOTES
+      - name: Upload
+        uses: actions/upload-artifact@v6
+        with:
+          name: UhhyouPluginsJuce
+          path: UhhyouPluginsJuce.zip
+      # - name: Get Release Notes
+      #   run: 'echo "$(git tag -l --format="%(contents:body)" $GITHUB_REF_NAME)" > RELEASE_NOTES'
+      # - name: Release
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   run: |
+      #     gh release create "$GITHUB_REF_NAME" \
+      #       UhhyouPluginsJuce.zip \
+      #       --title "$GITHUB_REF_NAME" \
+      #       --notes-file RELEASE_NOTES
