@@ -11,4 +11,5 @@ project(UhhyouPlugins VERSION 0.3.0)
 
 add_subdirectory(lib)
 add_subdirectory(plugin)
-add_subdirectory(experimental)
+
+# add_subdirectory(experimental)

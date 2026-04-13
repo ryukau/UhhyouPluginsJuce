@@ -6,9 +6,6 @@ on:
     tags:
       - "*"
 
-env:
-  package_path: UhhyouPluginsJuce_plugins
-
 jobs:
   setup-matrix:
     runs-on: ubuntu-latest
@@ -88,7 +85,7 @@ jobs:
           name: plugins_macOS_${{ matrix.plugin }}
           path: plugins_macOS
 
-  release-packaging:
+release-packaging:
     needs: [build-ubuntu, build-windows, build-macOS]
     runs-on: ubuntu-latest
     # if: ${{ startsWith(github.ref, 'refs/tags/UhhyouPluginsJuce') }}
@@ -99,33 +96,64 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: recursive
-      - name: Download Artifacts
+
+      - name: Download Linux Artifacts
         uses: actions/download-artifact@v8
         with:
-          path: ${{ env.package_path }}
-          pattern: plugins_*
+          path: dist/linux
+          pattern: plugins_ubuntu_*
           merge-multiple: true
-      - name: Prepare Package
-        run: |
-          # Create directory and copy assets to the packaging folder
-          mkdir -p ${{ env.package_path }}/assets
-          cp -r assets/UhhyouPlugins ${{ env.package_path }}/assets/
 
-          # Verify structure and zip
-          tree -an
-          zip -r UhhyouPluginsJuce.zip ${{ env.package_path }}
-      - name: Upload
+      - name: Download Windows Artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: dist/windows
+          pattern: plugins_windows_*
+          merge-multiple: true
+
+      - name: Download macOS Artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: dist/macos
+          pattern: plugins_macOS_*
+          merge-multiple: true
+
+      - name: Prepare Packages
+        run: |
+          mkdir -p dist/linux/assets dist/windows/assets dist/macos/assets
+          cp -r assets/UhhyouPlugins dist/linux/assets/
+          cp -r assets/UhhyouPlugins dist/windows/assets/
+          cp -r assets/UhhyouPlugins dist/macos/assets/
+
+          find dist/windows -name "*.exp" -type f -delete
+          find dist/windows -name "*.lib" -type f -delete
+
+          cd dist/linux && zip -r ../../UhhyouPlugins_Linux.zip .
+          cd ../windows && zip -r ../../UhhyouPlugins_Windows.zip .
+          cd ../macos && zip -r ../../UhhyouPlugins_macOS.zip .
+
+      - name: Upload # Debug. Remove this later.
         uses: actions/upload-artifact@v6
         with:
-          name: UhhyouPluginsJuce
-          path: UhhyouPluginsJuce.zip
-      # - name: Get Release Notes
-      #   run: 'echo "$(git tag -l --format="%(contents:body)" $GITHUB_REF_NAME)" > RELEASE_NOTES'
+          name: UhhyouPlugins_Linux
+          path: UhhyouPlugins_Linux.zip
+      - name: Upload # Debug. Remove this later.
+        uses: actions/upload-artifact@v6
+        with:
+          name: UhhyouPlugins_Windows
+          path: UhhyouPlugins_Windows.zip
+      - name: Upload # Debug. Remove this later.
+        uses: actions/upload-artifact@v6
+        with:
+          name: UhhyouPlugins_macOS
+          path: UhhyouPlugins_macOS.zip
       # - name: Release
       #   env:
       #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       #   run: |
       #     gh release create "$GITHUB_REF_NAME" \
-      #       UhhyouPluginsJuce.zip \
+      #       UhhyouPlugins_Linux.zip \
+      #       UhhyouPlugins_Windows.zip \
+      #       UhhyouPlugins_macOS.zip \
       #       --title "$GITHUB_REF_NAME" \
-      #       --notes-file RELEASE_NOTES
+      #       --generate-notes
