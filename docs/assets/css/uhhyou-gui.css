@@ -36,7 +36,7 @@
 .activation-overlay {
   position: absolute;
   inset: 0;
-  background-color: color-mix(in srgb, var(--gui-bg) 60%, transparent);
+  background-color: color-mix(in srgb, var(--gui-bg) 75%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -52,14 +52,12 @@
   border-radius: calc(4px * var(--scale));
   font-family: var(--font-sans, sans-serif);
   font-size: calc(14px * var(--scale));
-  font-weight: bold;
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--foreground-color) 20%, transparent);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--foreground-color) 5%, transparent);
   cursor: pointer;
 }
 
-.activation-btn:focus-visible {
-  outline: 2px solid var(--component-main, #fcc04f);
-  outline-offset: 2px;
+.activation-btn:hover {
+  border: 2px solid var(--component-main, #fcc04f);
 }
 
 #btn-randomize {
@@ -456,11 +454,5 @@ uhhyou-labeled-widget .lockable-label:hover {
     flex-direction: column;
     height: auto;
     gap: calc(0.5 * var(--margin));
-  }
-
-  uhhyou-labeled-widget .label-container,
-  uhhyou-labeled-widget .widget-container {
-    width: 100%;
-    justify-content: center;
   }
 }

@@ -62,35 +62,68 @@
   {{ $sectionNumberCSS := resources.Get "css/section-number.css" }}
   <link rel="stylesheet"
         href="{{ $sectionNumberCSS.Permalink }}">{{ end }}
-  <title>{{if not .IsHome}}{{.Title}} - {{end}}{{"Uhhyou Plugins"}}</title>
+  <title>{{if not .IsHome}}{{.Title}} - {{end}}{{ .Site.Title }}</title>
 </head>
 
 <body>
   <header>
     <div class="grid-a">
-      <p class="nav-link">{{if not .IsHome}}<a href='{{"/" | relLangURL}}'>Back to Index</a>{{else}}{{end}}</p>
+      <div class="nav-group">
+        <p class="nav-link">{{if not .IsHome}}<a href='{{"/" | relLangURL}}'>{{ i18n "back_to_index" }}</a>{{else}}{{end}}</p>
+        <nav class="nav-language-selector"
+             aria-label="{{ i18n "language_selection" }}">
+          {{ range $i, $site := hugo.Sites }}
+          {{ $lang := $site.Language }}
+          {{ $langName := $lang.Label | default $lang.LanguageName | default $lang.Lang }}
+
+          {{ if eq $lang $.Site.Language }}
+          <span class="lang-item is-active"
+                aria-current="page">{{ $langName }}</span>
+          {{ else }}
+          {{ $translation := false }}
+          {{ range $.AllTranslations }}
+          {{ if eq .Language.Lang $lang.Lang }}
+          {{ $translation = . }}
+          {{ end }}
+          {{ end }}
+
+          {{ if $translation }}
+          <a class="lang-item"
+             href="{{ $translation.RelPermalink }}">{{ $langName }}</a>
+          {{ else }}
+          <a class="lang-item"
+             href="{{ $site.Home.RelPermalink }}">{{ $langName }}</a>
+          {{ end }}
+          {{ end }}
+          {{ end }}
+        </nav>
+      </div>
       <button id="theme-toggle"
-              aria-label="Toggle light/dark theme.">
-        Toggle Theme
+              aria-label='{{ i18n "toggle_theme_aria" }}'
+              data-label-light='{{ i18n "theme_light_active" }}'
+              data-label-dark='{{ i18n "theme_dark_active" }}'
+              data-aria-light='{{ i18n "switch_to_light" }}'
+              data-aria-dark='{{ i18n "switch_to_dark" }}'>
+        {{ i18n "toggle_theme" }}
       </button>
       <div class="meta-dates">
-        <p>Published: {{if .PublishDate}}{{.PublishDate.Format "2006-01-02"}}{{else}}N/A{{end}}</p>
-        <p>{{if .Lastmod}}Update: {{.Lastmod.Format "2006-01-02"}}{{else}}N/A{{end}}</p>
+        <p>{{ i18n "published" }}{{if .PublishDate}}{{.PublishDate.Format "2006-01-02"}}{{else}}{{ i18n "not_available" }}{{end}}</p>
+        <p>{{if .Lastmod}}{{ i18n "update" }}{{.Lastmod.Format "2006-01-02"}}{{else}}{{ i18n "not_available" }}{{end}}</p>
       </div>
     </div>
     {{ if .Params.toc }}
     <details>
-      <summary translate='yes'>Table of Contents</summary>
+      <summary translate='yes'>{{ i18n "table_of_contents" }}</summary>
       <nav id='TOC'
            role='doc-toc'
-           aria-label='Table of Contents'>
+           aria-label='{{ i18n "table_of_contents" }}'>
         {{.TableOfContents}}
       </nav>
     </details>
     {{ else }}
     <details class="toc-filler"
              aria-hidden="true">
-      <summary>Table of Contents</summary>
+      <summary>{{ i18n "table_of_contents" }}</summary>
     </details>
     {{ end }}
   </header>
@@ -98,7 +131,7 @@
   {{block "main" .}}{{end}}
   <footer>
     {{if not .IsHome}}<p>
-      <a href='{{"/" | relLangURL}}'>Back to Index</a>
+      <a href='{{"/" | relLangURL}}'>{{ i18n "back_to_index" }}</a>
     </p>{{end}}
   </footer>
   <script>
@@ -155,6 +188,12 @@
       const syntaxLight = document.getElementById('syntax-light');
       const syntaxDark = document.getElementById('syntax-dark');
 
+      // Fetch localized strings from data attributes
+      const labelLightActive = themeToggleBtn.getAttribute('data-label-light');
+      const labelDarkActive = themeToggleBtn.getAttribute('data-label-dark');
+      const ariaSwitchToLight = themeToggleBtn.getAttribute('data-aria-light');
+      const ariaSwitchToDark = themeToggleBtn.getAttribute('data-aria-dark');
+
       const applyTheme = (theme, saveToStorage = false) => {
         htmlElement.setAttribute('data-theme', theme);
 
@@ -163,13 +202,13 @@
         if (theme === 'dark') {
           syntaxLight.media = 'none';
           syntaxDark.media = 'all';
-          themeToggleBtn.textContent = 'Light | Dark ●';
-          themeToggleBtn.setAttribute('aria-label', 'Switch to light theme');
+          themeToggleBtn.textContent = labelDarkActive;
+          themeToggleBtn.setAttribute('aria-label', ariaSwitchToLight);
         } else {
           syntaxLight.media = 'all';
           syntaxDark.media = 'none';
-          themeToggleBtn.textContent = '● Light | Dark';
-          themeToggleBtn.setAttribute('aria-label', 'Switch to dark theme');
+          themeToggleBtn.textContent = labelLightActive;
+          themeToggleBtn.setAttribute('aria-label', ariaSwitchToDark);
         }
       };
 

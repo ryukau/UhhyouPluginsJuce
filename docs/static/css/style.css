@@ -84,6 +84,7 @@ body {
   font-family: var(--font-sans);
   background-color: var(--background-color);
   outline: 2em solid var(--background-color);
+  line-height: 1.6;
 }
 
 code,
@@ -201,7 +202,7 @@ h1 {
 }
 
 h1::after {
-  --side: 4em;
+  --side: 8rem;
   display: inline-block;
   background-image: url('/favicon/favicon.svg');
   content: "";
@@ -210,14 +211,6 @@ h1::after {
   width: var(--side);
   height: var(--side);
   margin-left: 1em;
-}
-
-@media all and (max-width: 704px) {
-  h1::after {
-    background-size: 2em 2em;
-    width: 2em;
-    height: 2em;
-  }
 }
 
 /* Grouped headings for consistent asymmetrical margins */
@@ -389,9 +382,8 @@ code {
 div.highlight {
   overflow: auto;
   margin: 1em 0;
-  padding: 0.75em 0.5em;
-  background-color: var(--background-color);
-  outline: calc(max(1px, 0.0625em)) solid var(--border-color);
+  /* padding: 0.75em 0.5em; */
+  /* outline: calc(max(1px, 0.0625em)) solid var(--border-color); */
 }
 
 div.highlight pre {
@@ -420,29 +412,87 @@ header {
 }
 
 .grid-a {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  min-height: 3em;
+  justify-content: space-between;
   gap: 1em;
 }
 
-.grid-a > .nav-link {
-  justify-self: start;
+.grid-a > .nav-group {
+  display: flex;
+  align-items: center;
+  gap: 1em;
   margin: 0;
 }
 
+.nav-group > .nav-link {
+  margin: 0;
+  line-height: 1;
+  display: block;
+}
+
+.nav-group > .nav-language-selector {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+
+.lang-item {
+  display: inline-block;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: 1;
+
+  text-align: center;
+  padding: 0.25em 0.5em;
+  font-size: 0.875em;
+  text-decoration: none;
+
+  color: var(--foreground-color);
+  background-color: var(--background-color);
+  border-color: var(--background-color);
+  border-width: calc(max(4px, 0.25em));
+  border-style: outset;
+  cursor: pointer;
+}
+
+[data-theme="dark"] .lang-item {
+  border-color: var(--border-dark-color);
+}
+
+a.lang-item:hover {
+  border-style: groove;
+  background-color: var(--link-hover-background-color);
+  color: var(--foreground-color);
+}
+
+a.lang-item:active {
+  border-style: inset;
+}
+
+span.lang-item.is-active {
+  border-style: inset;
+  background-color: var(--table-p2-color);
+  cursor: default;
+}
+
 .grid-a > button {
-  justify-self: center;
+  margin: 0;
 }
 
 .grid-a > .meta-dates {
-  justify-self: end;
-  text-align: right;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1em;
+  text-align: left;
+  margin: 0;
 }
 
 .meta-dates > p {
-  margin: 0.5em 0;
+  margin: 0;
   line-height: 1;
 }
 
@@ -463,6 +513,7 @@ button {
   font-size: 0.875em;
   vertical-align: middle;
   cursor: pointer;
+  line-height: 1;
 }
 
 [data-theme="dark"] button {
@@ -505,6 +556,16 @@ button:active {
 .is-pc .pc-only {
   display: inline;
 }
+
+/*
+Firefox specific fix. Heights may change depending on the `lang` attribute.
+If the layout is breaking, try adding more tags, including `::before` and `::after`.
+*/
+li::marker,
+summary::marker {
+  line-height: 1;
+}
+
 
 /* Screen reader specifics. */
 .visually-hidden {

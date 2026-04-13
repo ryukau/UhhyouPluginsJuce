@@ -1,0 +1,24 @@
+back_to_index:
+  other: "インデックスに戻る"
+language_selection:
+  other: "言語選択"
+toggle_theme_aria:
+  other: "テーマの明暗の切り替え"
+toggle_theme:
+  other: "テーマ切り替え"
+published:
+  other: "公開: "
+update:
+  other: "更新: "
+not_available:
+  other: "N/A"
+table_of_contents:
+  other: "目次"
+theme_light_active:
+  other: "● 明 | 暗"
+theme_dark_active:
+  other: "明 | 暗 ●"
+switch_to_light:
+  other: "明るいテーマに切り替える"
+switch_to_dark:
+  other: "暗いテーマに切り替える"

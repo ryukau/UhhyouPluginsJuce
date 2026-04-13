@@ -1320,10 +1320,14 @@ class HorizontalDrawer extends HTMLElement {
     this.toggleBtn.addEventListener('toggle', e => {
       this.isOpen = e.detail.isOpen;
       if (this.isOpen) {
+        this.toggleBtn.style.height = '';
         this.contentContainer.style.display = '';
       } else {
+        // Lock the exact fractional height before hiding content
+        this.toggleBtn.style.height = `${this.toggleBtn.getBoundingClientRect().height}px`;
         this.contentContainer.style.display = 'none';
       }
+
       if (!this.isOpen && this.contentContainer.contains(document.activeElement)) {
         this.toggleBtn.canvas.focus();
       }
@@ -1342,10 +1346,17 @@ class HorizontalDrawer extends HTMLElement {
       updateBg(this.toggleBtn.isHovered);
     });
 
-    if (!this.isOpen) this.contentContainer.style.display = 'none';
-
     this.appendChild(this.toggleBtn);
     this.appendChild(this.contentContainer);
+
+    if (!this.isOpen) {
+      this.contentContainer.style.visibility = 'hidden';
+      requestAnimationFrame(() => {
+        this.toggleBtn.style.height = `${this.toggleBtn.getBoundingClientRect().height}px`;
+        this.contentContainer.style.display = 'none';
+        this.contentContainer.style.visibility = '';
+      });
+    }
   }
 }
 
@@ -1535,6 +1546,31 @@ const themeObserver = new MutationObserver(m => {
 themeObserver.observe(document.documentElement,
                       {attributes: true, attributeFilter: ['data-theme']});
 
+function randomizeUnlockedParameters(container) {
+  if (!container) return;
+  container.querySelectorAll('uhhyou-labeled-widget, uhhyou-labeled-xypad').forEach(w => {
+    if (w.tagName.toLowerCase() === 'uhhyou-labeled-xypad') {
+      const p = w.querySelector('uhhyou-xy-pad');
+      if (p)
+        p.setValues(w.isLockedX ? p.valueX : Math.random(), w.isLockedY ? p.valueY : Math.random());
+      return;
+    }
+    if (w.isLocked) return;
+    const c = w.querySelector(
+      'uhhyou-text-knob, uhhyou-rotary-knob, uhhyou-knob, uhhyou-rotary-text-knob, uhhyou-combo-box, uhhyou-xy-pad, uhhyou-toggle-button');
+    if (!c) return;
+    const t = c.tagName.toLowerCase();
+    if (t.includes('knob'))
+      c.setValue(Math.random());
+    else if (t === 'uhhyou-combo-box')
+      c.setInternalValue(Math.floor(Math.random() * c.items.length));
+    else if (t === 'uhhyou-xy-pad')
+      c.setValues(Math.random(), Math.random());
+    else if (t === 'uhhyou-toggle-button' && c.value !== (Math.random() > 0.5 ? 1 : 0))
+      c.toggleValue();
+  });
+}
+
 function initPluginWindowActivation() {
   const pluginWindows = document.querySelectorAll('.plugin-window');
 
@@ -1544,7 +1580,7 @@ function initPluginWindowActivation() {
 
     const btn = document.createElement('button');
     btn.className = 'activation-btn';
-    btn.textContent = 'Click to activate';
+    btn.textContent = win.getAttribute('label') || 'Click to activate';
     btn.setAttribute('aria-label', 'Activate interactive plugin mockup');
 
     overlay.appendChild(btn);

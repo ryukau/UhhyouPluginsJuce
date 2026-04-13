@@ -1,5 +1,5 @@
 ---
-title: "Basic Usage"
+title: "Usage"
 date: 3000-01-01
 draft: false
 toc: true
@@ -9,13 +9,13 @@ section_number: true
 layout: "plugin-mockup"
 ---
 
-TODO: Add a link to GitHub discussions when the plugin is not working.
+If you have troubles related to the plugins, feel free to contact me on [GitHub Discussions page](https://github.com/ryukau/UhhyouPluginsJuce/discussions) or `ryukau@gmail.com.`
 
 ## System
 
 ### DAW
 
-Tested in DAWs below on Windows 11:
+Tested in the DAWs below on Windows 11:
 
 - FL Studio
 - REAPER
@@ -31,7 +31,7 @@ Plugins might not run on older systems.
 | Linux    | Ubuntu 24.04 LTS         | x64                   |
 
 ## Installation
-TODO: Link to downlowd page.
+To download the plugins, visit the [release page (github.com)](https://github.com/ryukau/UhhyouPluginsJuce/releases).
 
 ### Plugin Folder
 
@@ -46,9 +46,9 @@ Extract the `.zip` file and move the plugins to these folders.
 
 `~/` is your home folder.
 
-### Preset Folder
+### Preset Folder {#preset-folder}
 
-Move the downloaded presets into the `UhhyouPlugins` folder to these folders.
+Move the downloaded presets to the `UhhyouPlugins` folder in these folders.
 
 | OS      | Path                                           |
 |---------|------------------------------------------------|
@@ -90,7 +90,7 @@ Note: `xattr` and `codesign` are built-in. macOS might prompt you to download Co
 
 The appearance can be changed from [GUI Settings]({{< ref "#gui-settings" >}}) → [Change Appearance]({{< ref "#settings-appearance" >}}).
 
-### Appearance Folder
+### Appearance Folder {#appearance-folder}
 
 | OS               | Path                                                                       |
 |------------------|----------------------------------------------------------------------------|
@@ -101,7 +101,7 @@ The appearance can be changed from [GUI Settings]({{< ref "#gui-settings" >}}) �
 
 Avoid editing `_active.json`. Running plugins may overwrite it.
 
-To add an appearance, place `.json` file in `UhhyouPlugins/appearance/` folder. The appearance will show up in [GUI Settings]({{< ref "#gui-settings" >}}) → [Change Appearance]({{< ref "#settings-appearance" >}}) only if the format is valid.
+To add an appearance, place a `.json` file in `UhhyouPlugins/appearance/` folder. The appearance will show up in [GUI Settings]({{< ref "#gui-settings" >}}) → [Change Appearance]({{< ref "#settings-appearance" >}}) only if the format is valid.
 
 ### Format
 
@@ -109,20 +109,20 @@ The file uses [JSON](https://www.json.org/json-en.html) format. The default is s
 
 ```json
 {
-  "KeyboardFocus": true,
-  "windowScale"         : 1.0,
-  "fontUiName"          : "Ubuntu",
-  "fontUiStyle"         : "Regular",
-  "fontMonoName"        : "Ubuntu Mono",
-  "fontMonoStyle"       : "Regular",
-  "foregroundLight"     : "#ffffffff",
-  "foregroundDark"      : "#000000ff",
-  "background"          : "#ffffffff",
-  "surface"             : "#f8f8f8ff",
-  "border"              : "#888888ff",
-  "main"                : "#fcc04fff",
-  "accent"              : "#13c136ff",
-  "warning"             : "#fc8080ff"
+  "KeyboardFocus"   : true,
+  "windowScale"     : 1.0,
+  "fontUiName"      : "Ubuntu",
+  "fontUiStyle"     : "Regular",
+  "fontMonoName"    : "Ubuntu Mono",
+  "fontMonoStyle"   : "Regular",
+  "foregroundLight" : "#ffffffff",
+  "foregroundDark"  : "#000000ff",
+  "background"      : "#ffffffff",
+  "surface"         : "#f8f8f8ff",
+  "border"          : "#888888ff",
+  "main"            : "#fcc04fff",
+  "accent"          : "#13c136ff",
+  "warning"         : "#fc8080ff"
 }
 ```
 
@@ -138,7 +138,7 @@ Toggles keyboard navigation.
 {{< /def >}}
 
 {{< def terms="windowScale" id="opt-window-scale" >}}
-Sets the default scaling. (e.g. `1.25` is 125%.)
+Sets the default scaling. (e.g., `1.25` is 125%.)
 {{< /def >}}
 {{< /dl >}}
 
@@ -158,7 +158,7 @@ Must be a monospace font.
 
 #### Color Options
 
-Use 6-digit (RGB) or 8-digit (RGBA) hex color codes. Plugins ignore the first character, so `#112233` and `?112233` both work. Don't use characters outside `0-9a-f` in the hex part.
+Use 6-digit (RGB) or 8-digit (RGBA) hex color codes. Plugins ignore the first character, so `#112233` and `?112233` both work. Don't use characters outside of `0-9a-f` in the hex part.
 
 {{< dl >}}
 {{< def terms="foregroundLight|foregroundDark" id="opt-color-fg" >}}
@@ -184,9 +184,11 @@ Highlight colors for mouse hover and keyboard focus. {{< anchor "accent" "opt-co
 
 ## Controls
 
-Plugin GUI mock-ups in this page have limited shortcut or functionality.
+Plugin GUI mock-ups on this page have limited shortcuts or functionality.
 
 ### Keyboard Navigation
+
+This is a screen reader accessibility feature.
 
 If DAW shortcuts fail on the plugin GUI, disable "Keyboard Navigation" in {{< anchor "GUI Settings" "gui-settings" >}}.
 
@@ -204,7 +206,7 @@ If DAW shortcuts fail on the plugin GUI, disable "Keyboard Navigation" in {{< an
 {{< /def >}}
 {{< /dl >}}
 
-### GUI Settings
+### GUI Settings {#gui-settings}
 
 The menu items are shown below.
 
@@ -247,7 +249,7 @@ Loads appearances.
 
 {{< div class="gui-section" >}}
 
-<div class="plugin-window">
+<div class="plugin-window" label="Click to activate">
   <div class="knob-row" style="align-items: center;">
     <div class="knob-container">
       <uhhyou-knob id="demo-clamped" value="0.5" data-snaps="0, 0.25, 0.5, 0.75, 1.0"></uhhyou-knob>
@@ -369,7 +371,7 @@ Y: {{< shortcuts >}}🖱️Right-Click (Right Half) | {{< modkey >}}+<kbd>Shift<
 ### Button
 
 {{< div class="gui-section" >}}
-<div class="plugin-window">
+<div class="plugin-window" label="Click to activate">
   <div class="row">
     <span class="parameter-label">ToggleButton</span>
     <uhhyou-toggle-button label="Switch" type="common"></uhhyou-toggle-button>
@@ -398,7 +400,7 @@ Y: {{< shortcuts >}}🖱️Right-Click (Right Half) | {{< modkey >}}+<kbd>Shift<
 ### Combo Box
 
 {{< div class="gui-section" >}}
-<div class="plugin-window">
+<div class="plugin-window" label="Click to activate">
   <div class="row">
     <span class="parameter-label">Oscillator Shape</span>
     <uhhyou-combo-box items="Sine,Triangle,Sawtooth,Square,Noise" value="2" type="common"></uhhyou-combo-box>
@@ -435,7 +437,7 @@ Y: {{< shortcuts >}}🖱️Right-Click (Right Half) | {{< modkey >}}+<kbd>Shift<
 ### Preset Manager
 
 {{< div class="gui-section" >}}
-<div class="plugin-window">
+<div class="plugin-window" label="Click to activate">
   <div class="column">
     <span class="label">Preset Manager</span>
     <uhhyou-preset-manager preset="Init Preset"></uhhyou-preset-manager>
@@ -469,7 +471,7 @@ External file changes require a {{< anchor "Refresh" "preset-refresh" >}}. Slow 
 ### Parameter Lock
 
 {{< div class="gui-section" >}}
-<div class="plugin-window">
+<div class="plugin-window" label="Click to activate">
   <div class="row">
     <div class="column">
       <uhhyou-labeled-widget label="Cutoff Freq">
@@ -508,7 +510,7 @@ Locks parameters from "Randomize". Dimmed labels are locked.
 
 {{< div class="gui-section" >}}
 
-<div class="plugin-window">
+<div class="plugin-window" label="Click to activate">
   <uhhyou-horizontal-drawer name="Effects" open="true">
     <div class="row" style="padding: var(--margin); padding-left: calc(2 * var(--margin));">
       <div class="knob-container">
@@ -537,7 +539,7 @@ Hides or shows contents. Focus returns to the toggle button if closed from insid
 
 ### Tab View
 
-<div class="plugin-window" style="float=none; margin-bottom: 1em;">
+<div class="plugin-window" label="Click to activate" style="float=none; margin-bottom: 1em;">
   <uhhyou-tab-view tabs="Tab 1,Tab 2,Tab 3">
     <div slot="tab-0" class="tab-content">
       <h3>Tab View</h3>
@@ -552,7 +554,7 @@ Hides or shows contents. Focus returns to the toggle button if closed from insid
     </div>
     <div slot="tab-2" class="tab-content">
       <h3>あざらしサラリーマン in 南極</h3>
-      <div class="code-block">ここは南極、ウェッデル海の沿岸。南アメリカ大陸の南端から、やや南東に位置する氷の海の奥の端だ。魔法使いによってウェッデルアザラシとなった私は、岩と氷しかない極寒の大陸で新たな生を受けた。この文章を読んでいる皆は知っていただろうか。ウェッデルアザラシの80%は3歳にもならずに死んでしまうことを。確かに私はあざらしになりたいとは言ったが、今、とてつもない自然の脅威に直面して恐れおののいている。私はあざらし。ウェッデルあざらしだ。</div>
+      <div class="code-block">ここは南極、ウェッデル海の沿岸。南アメリカ大陸の南端から、やや南東に位置する氷の海の奥の端だ。魔法使いによってウェッデルアザラシとなった私は、岩と氷しかない極寒の大陸で新たな生を受けた。この文章を読んでいる皆は知っていただろうか。ウェッデルアザラシの80%は3歳にもならずに死んでしまうことを。確かに私はあざらしになりたいとは言ったが、今、とてつもない自然の脅威に直面して恐れおののいている。<br>私はあざらし。ウェッデルあざらしだ。</div>
     </div>
   </uhhyou-tab-view>
 </div>
