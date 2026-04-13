@@ -69,7 +69,7 @@
   <header>
     <div class="grid-a">
       <div class="nav-group">
-        <p class="nav-link">{{if not .IsHome}}<a href='{{"/" | relLangURL}}'>{{ i18n "back_to_index" }}</a>{{else}}{{end}}</p>
+        <p class="nav-link">{{if not .IsHome}}<a href='{{ .Site.BaseURL | relLangURL }}'>{{ i18n "back_to_index" }}</a>{{else}}{{end}}</p>
         <nav class="nav-language-selector"
              aria-label="{{ i18n "language_selection" }}">
           {{ range $i, $site := hugo.Sites }}

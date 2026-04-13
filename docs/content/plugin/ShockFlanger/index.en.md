@@ -14,6 +14,7 @@ ShockFlanger is a hybrid of a distortion and a flanger. It sounds like a guitar 
 - [Installation and settings]({{< ref "usage/usage.en.md" >}})
 
 ## Warnings
+
 Loud output. Place a limiter after ShockFlanger.
 
 Several options in {{< anchor "Saturation Type" >}} may output loud spikes when combined with high {{< anchor "Saturation Gain" >}}.
@@ -25,6 +26,7 @@ High amounts of {{< anchor "Audio -> Time 0" >}} & {{< anchor "Audio -> Time 1" 
 {{< anchor "Feedback Gate" >}} has a fixed threshold for simplicity. An external gate before ShockFlanger is advised for low S/N signals.
 
 ## Quick Start
+
 Basic recipes are shown below.
 
 ### Flanger
@@ -225,3 +227,8 @@ Scales delay time modulation from MIDI pitch.
 Scales pre-saturation gain from MIDI velocity.
 {{< /def >}}
 {{< /dl >}}
+
+## 更新履歴
+
+- 0.1.0
+  - Initial version.
