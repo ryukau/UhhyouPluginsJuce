@@ -1,8 +1,16 @@
+title: 'Uhhyou Plugins'
 baseURL: 'https://ryukau.github.io/UhhyouPluginsJuce/'
+
 languageCode: 'en-us'
 defaultContentLanguage: 'en'
 defaultContentLanguageInSubdir: true
-title: 'Uhhyou Plugins'
+
+enableGitInfo: true
+
+frontmatter:
+  date: ["lastmod", ":git", "date", "publishDate"]
+  lastmod: [":git", "lastmod", "date"]
+  publishDate: ["publishDate", "date"]
 
 markup:
   goldmark:

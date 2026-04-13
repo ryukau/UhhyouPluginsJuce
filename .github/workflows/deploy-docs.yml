@@ -36,6 +36,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 0  # Fetch all history for .GitInfo and lastmod
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v5
@@ -47,7 +48,6 @@ jobs:
           hugo \
             --source docs \
             --buildFuture \
-            --baseURL "${{ steps.pages.outputs.base_url }}/"
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

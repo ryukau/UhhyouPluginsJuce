@@ -1,6 +1,6 @@
 ---
 title: "ShockFlanger"
-date: 3000-01-01
+date: 2026-04-13
 draft: false
 toc: true
 section_number: true

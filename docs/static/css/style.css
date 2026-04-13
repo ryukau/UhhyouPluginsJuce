@@ -204,7 +204,7 @@ h1 {
 h1::after {
   --side: 8rem;
   display: inline-block;
-  background-image: url('/favicon/favicon.svg');
+  background-image: url('../favicon/favicon.svg');
   content: "";
   vertical-align: middle;
   background-size: var(--side) var(--side);
