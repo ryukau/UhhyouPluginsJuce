@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns='http://www.w3.org/1999/xhtml'
-      lang='{{.Site.LanguageCode | default "en"}}'
-      xml:lang='{{.Site.LanguageCode | default "en"}}'
+      lang='{{.Site.Language.Locale | default "en"}}'
+      xml:lang='{{.Site.Language.Locale | default "en"}}'
       {{with .Site.Params.dir}}
       dir='{{.}}'
       {{end}}>
@@ -74,7 +74,7 @@
              aria-label="{{ i18n "language_selection" }}">
           {{ range $i, $site := hugo.Sites }}
           {{ $lang := $site.Language }}
-          {{ $langName := $lang.Label | default $lang.LanguageName | default $lang.Lang }}
+          {{ $langName := $lang.Label | default $lang.Label | default $lang.Lang }}
 
           {{ if eq $lang $.Site.Language }}
           <span class="lang-item is-active"
@@ -108,7 +108,7 @@
       </button>
       <div class="meta-dates">
         <p>{{ i18n "published" }}{{if .PublishDate}}{{.PublishDate.Format "2006-01-02"}}{{else}}{{ i18n "not_available" }}{{end}}</p>
-        <p>{{if .Lastmod}}{{ i18n "update" }}{{.Lastmod.Format "2006-01-02"}}{{else}}{{ i18n "not_available" }}{{end}}</p>
+        <p>{{ if .Lastmod }}{{ i18n "update" }}{{.Lastmod.Format "2006-01-02"}}{{else}}{{ i18n "not_available" }}{{end}}</p>
       </div>
     </div>
     {{ if .Params.toc }}

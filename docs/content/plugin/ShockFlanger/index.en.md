@@ -1,6 +1,7 @@
 ---
 title: "ShockFlanger"
 date: 2026-04-13
+lastmod: 2026-05-10
 draft: false
 toc: true
 section_number: true
@@ -10,7 +11,7 @@ section_number: true
 
 ShockFlanger is a hybrid of a distortion and a flanger. It sounds like a guitar amp. The internals are close to a through-zero flanger with saturators and waveshapers on the feedback paths. High CPU load.
 
-- [Download (github.com)](https://github.com/ryukau/UhhyouPluginsJuce/releases)
+- [Download - VST3/AU (github.com)](https://github.com/ryukau/UhhyouPluginsJuce/releases)
 - [Installation and settings]({{< ref "usage/usage.en.md" >}})
 
 ## Warnings

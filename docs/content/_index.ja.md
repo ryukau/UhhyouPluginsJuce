@@ -1,6 +1,7 @@
 ---
 title: "Uhhyou Plugins"
 date: 2026-04-13
+lastmod: 2026-05-10
 draft: false
 ---
 
