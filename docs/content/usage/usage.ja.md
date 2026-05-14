@@ -240,11 +240,11 @@ sudo codesign --force --deep -s - ~/Library/Audio/Plug-ins/VST3/FileName.vst3
 {{< /def >}}
 
 {{< def terms="Open Preset Folder" id="settings-open-preset-folder" >}}
-[プリセットフォルダ]({{< ref "#preset-folder" >}}) を開く。
+[プリセットフォルダ]({{< ref "./usage/#preset-folder" >}}) を開く。
 {{< /def >}}
 
 {{< def terms="Open Appearance Folder" id="settings-open-appearance-folder" >}}
-[Appearance フォルダ]({{< ref "#appearance-folder" >}}) を開く。
+[Appearance フォルダ]({{< ref "./usage/#appearance-folder" >}}) を開く。
 {{< /def >}}
 
 {{< def terms="Change Appearance" id="settings-appearance" >}}

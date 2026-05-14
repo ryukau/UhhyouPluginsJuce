@@ -236,11 +236,11 @@ Toggles logging. Keep disabled unless troubleshooting.
 {{< /def >}}
 
 {{< def terms="Open Preset Folder" id="settings-open-preset-folder" >}}
-Opens [preset folder]({{< ref "#preset-folder" >}}).
+Opens [preset folder]({{< ref "./usage/#preset-folder" >}}).
 {{< /def >}}
 
 {{< def terms="Open Appearance Folder" id="settings-open-appearance-folder" >}}
-Opens [appearance folder]({{< ref "#appearance-folder" >}}).
+Opens [appearance folder]({{< ref "./usage/#appearance-folder" >}}).
 {{< /def >}}
 
 {{< def terms="Change Appearance" id="settings-appearance" >}}
